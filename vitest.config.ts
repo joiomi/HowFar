@@ -59,7 +59,6 @@ export default defineConfig({
         // decisions live in tested feature modules, e.g. shouldShowSuggestList).
         "src/features/map/SuggestList.tsx",
         "src/features/map/ModeToggle.tsx",
-        "src/features/map/SelectionCard.tsx",
         "src/features/map/AmenityPanel.tsx",
         // right-click directions panel — presentation only over the
         // decided ReachView; its state machine + fetch live in the MEASURED

@@ -175,8 +175,8 @@ function clipToOuter(a: GeoJSON.Feature<Poly>, outer: GeoJSON.Feature<Poly>): Ge
  *     single translucent fill layer can't composite to an opaque wash at the origin (8 nested
  *     full fills at 0.16 stack to ≈0.75 there). Union of the annuli = the outer
  *     reach, painted at one uniform opacity, lightest at the origin.
- * The shells carry NO minute label and claim nothing (the legend labels only the calibrated
- * contour LINES) — pure decoration, honest by construction.
+ * The shells carry NO minute label and claim nothing (only the calibrated contour LINES are a
+ * claim) — pure decoration, honest by construction.
  */
 export function buildPresetShellFeatures(
   rings: Ring[],
@@ -249,30 +249,6 @@ export function buildPresetContourFeatures(rings: Ring[], mode: Mode, selectedMi
  * read-back asserts (walk 20 → [10]; walk 10 → []; transit 40 → [20]; car 25 → [10]). */
 export function presetInteriorLineMinutes(mode: Mode, selectedMin: number): number[] {
   return presetContourMinutes(mode, selectedMin).filter((m) => m < selectedMin);
-}
-
-/**
- * HONEST REACH COPY (a release blocker: the reach is
- * a claim about where a user can actually get). What the shaded reach MEANS for
- * the selected preset. The number is the SELECTED served contour, so the sentence
- * can never claim a minute the map isn't drawing. "in about N minutes" — never
- * "within" — because the reach is a typical-street-walk estimate, not a guaranteed
- * envelope (the caveat spells that out). It must neither overstate nor understate
- * the reach: it must not over-promise, and must not scare users off a
- * fundamentally-sound estimate.
- */
-export function presetReachExplainer(mode: Mode, selectedMin: number): string {
-  // "About a N-minute …" — NOT "within" (an absolute promise the estimate can't
-  // keep near barriers; "within about a N-minute walk"
-  // still reads as the absolute claim the caveat then contradicts).
-  switch (mode) {
-    case "walk":
-      return `About a ${selectedMin}-minute walk from here.`;
-    case "transit":
-      return `About ${selectedMin} minutes away by public transport — the walk to and from stops is included.`;
-    case "car":
-      return `About a ${selectedMin}-minute drive from here, in typical traffic.`;
-  }
 }
 
 /**

@@ -19,11 +19,11 @@ export interface PixelPoint {
 }
 
 /**
- * Extra breathing room (beyond MapLibre's dock padding, which its bounds solver
- * already includes) so a fitted route keeps a real viewing corridor even when
- * the command + result docks eat most of the height. Capped at 40px/edge; never
- * negative. Passing the absolute dock values would double-count them and make a
- * 390px viewport mathematically impossible to fit.
+ * Extra breathing room (beyond the camera padding `dock`, which MapLibre's bounds
+ * solver already includes) so a fitted route keeps a real viewing corridor even
+ * when the floating controls and the directions sheet take most of the height.
+ * Capped at 40px/edge; never negative. Passing the absolute padding values would
+ * double-count them and make a 390px viewport mathematically impossible to fit.
  */
 export function routeFitBreathingRoom(
   dock: EdgeInsets,

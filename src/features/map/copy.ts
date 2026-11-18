@@ -1,7 +1,7 @@
 /** Romanian interface strings shared by more than one part of the shell. */
 
 import { presetReachCaveat } from "@/features/isochrones/preset-view";
-import type { Mode } from "@/features/map/selection-flow";
+import { modePhrase, type Mode, type SelectionStatus } from "@/features/map/selection-flow";
 
 /** The search field's accessible name, and its placeholder once a place has been chosen. */
 export const SEARCH_PLACEHOLDER = "Caută o adresă";
@@ -36,4 +36,39 @@ export const TRANSIT_NOTE = "Metroul nu depinde de trafic; autobuzul și tramvai
  */
 export function infoContent(mode: Mode, transitState: boolean): { caveat: string; note: string | null; transitous: boolean } {
   return { caveat: presetReachCaveat(mode), note: mode === "transit" ? TRANSIT_NOTE : null, transitous: transitState };
+}
+
+/** The one-time hint after the first place: a long press on the map plans a trip there. */
+export const HOLD_HINT = "Ține apăsat pe hartă: cât faci cu transportul până acolo";
+
+/** How long the hold hint stays up, in milliseconds. */
+export const HOLD_HINT_MS = 4000;
+
+/** What the status line says while a reach is being computed. */
+export const LOADING_ANNOUNCEMENT = "Calculez zona…";
+
+/**
+ * The screen-reader status line for the selection: "Calculez zona…" while it
+ * loads, the place with the drawn preset's minutes and the mode once it resolves
+ * ("Piața Unirii: circa 10 minute pe jos"), the error banner's sentence on a
+ * failure, and nothing before a place is chosen. The minutes are the selected
+ * preset, so the line never names a reach the map is not drawing.
+ */
+export function selectionAnnouncement({
+  status,
+  label,
+  message,
+  mode,
+  selectedMin,
+}: {
+  status: SelectionStatus;
+  label: string | null;
+  message: string | null;
+  mode: Mode;
+  selectedMin: number;
+}): string {
+  if (status === "loading") return LOADING_ANNOUNCEMENT;
+  if (status === "error") return message ?? "";
+  if (!label) return "";
+  return `${label}: circa ${minutesLabel(selectedMin)} ${modePhrase(mode)}`;
 }

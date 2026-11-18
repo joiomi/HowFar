@@ -3,10 +3,8 @@ import { useEffect, useRef } from "react";
 import type { ReachView } from "@/features/map/reach-directions-controller";
 
 /**
- * The right-click "how do I get there?" directions, rendered in the RESULT-SHEET
- * DOCK instead of a map-covering popup. While it is
- * shown it REPLACES the SelectionCard + pace/time + amenity filters (which are
- * useless during a journey view). Pure presentation of
+ * The right-click "how do I get there?" directions, rendered in the result sheet
+ * (which opens only for them) instead of a map-covering popup. Pure presentation of
  * the reach-directions controller's `ReachView`; step hover/focus drives the map
  * highlight via `onHighlight`, and "Back" / Escape closes via `onClose`.
  *

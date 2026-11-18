@@ -454,9 +454,8 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   // reselection would have geocoded a new origin (the label stays Piața Unirii).
   expect(reachCalls).toHaveLength(1);
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
-  // Active directions FORCE the sheet expanded — a journey answer
-  // must never hide behind the peek bar.
-  await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sheet-state", "expanded");
+  // The directions open the result sheet, which holds them and nothing else.
+  await expect(page.getByTestId("result-sheet").getByTestId("reach-panel")).toBeVisible();
 });
 
 // A long-press from Walk switches to public transport and plans the trip. When that
@@ -519,10 +518,10 @@ test("mobile: a failed transit reach under open directions keeps the Transitous 
 });
 
 // Below md the shell hands the screen to the map — the address bar stays at the
-// top, the result sheet opens at a peek bar, and the mode pill floats just above it,
-// so every piece of state (address, mode, preset, pace) stays visible and one tap
-// from its control.
-test("mobile shell: the peek sheet and the floating mode pill leave the map the screen; state stays visible and editable", async ({
+// top and the mode pill floats at the bottom, with no result sheet or card for a
+// chosen place — so every piece of state (address, mode, preset, pace) stays visible
+// and one tap from its control.
+test("mobile shell: the floating mode pill leaves the map the screen; state stays visible and editable", async ({
   page,
 }) => {
   await page.route("**/api/suggest**", (route) =>
@@ -551,18 +550,18 @@ test("mobile shell: the peek sheet and the floating mode pill leave the map the 
   await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
 
-  // Resolution opens the sheet at peek, and the camera insets already describe the
-  // compact shell: the address bar on top, the peek bar below.
-  await expect(shell).toHaveAttribute("data-sheet-state", "peek");
+  // A chosen place opens no sheet, and the camera insets describe the floating
+  // controls: the address bar on top, the mode pill below.
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
   await expect(map).toHaveAttribute("data-camera-pad-top", "76");
-  await expect(map).toHaveAttribute("data-camera-pad-bottom", "124");
+  await expect(map).toHaveAttribute("data-camera-pad-bottom", "70");
   // The state stays visible: the address in the bar; mode, preset and pace in the pill.
   await expect(search).toHaveValue("Piața Unirii, București");
   await expect(modeButton(page, "walk")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("preset-chip-10")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("pace-toggle")).toHaveAttribute("aria-pressed", "false");
 
-  // The camera settled on the origin — the padding flip did not cancel the
+  // The camera settled on the origin — the padding commit did not cancel the
   // selection flyTo.
   await expect
     .poll(async () => {
@@ -574,21 +573,19 @@ test("mobile shell: the peek sheet and the floating mode pill leave the map the 
     .toBe(true);
 
   // Map strip: the contiguous unobstructed corridor between the address bar and the
-  // peek bar is the majority of the screen (it must not shrink back to ~13%).
+  // mode pill is the majority of the screen.
   const viewport = page.viewportSize()!;
-  const topBarBox = await page.getByTestId("top-bar").boundingBox();
-  const sheetBox = await page.getByTestId("result-sheet").boundingBox();
-  if (!topBarBox || !sheetBox) throw new Error("top bar or result sheet has no box");
-  const strip = sheetBox.y - (topBarBox.y + topBarBox.height);
+  const [topBarBox, pillBox] = await Promise.all([
+    page.getByTestId("top-bar").boundingBox(),
+    page.getByTestId("mode-pill").boundingBox(),
+  ]);
+  if (!topBarBox || !pillBox) throw new Error("top bar or mode pill has no box");
+  const strip = pillBox.y - (topBarBox.y + topBarBox.height);
   expect(strip / viewport.height).toBeGreaterThanOrEqual(0.55);
   // Point-sample the same 20px grid the live inspection used (CHECKPOINT-B
   // method): unobstructed map ≥ 60%.
   const sampled = await sampleMapClearPercent(page);
   expect(sampled).toBeGreaterThanOrEqual(60);
-  // The pill floats above the peek bar, never on it.
-  const pillBox = await page.getByTestId("mode-pill").boundingBox();
-  if (!pillBox) throw new Error("mode pill has no box");
-  expect(pillBox.y + pillBox.height).toBeLessThanOrEqual(sheetBox.y);
 
   // The basemap credits live behind the ⓘ button, which stays on screen in this state
   // too. Opened, the licence-required ESA WorldCover credit must be ACTUALLY READABLE
@@ -606,38 +603,31 @@ test("mobile shell: the peek sheet and the floating mode pill leave the map the 
   await expect(page.getByTestId("preset-chip-20")).toHaveAttribute("aria-pressed", "true");
   expect(isoUrls.length).toBe(isoBeforePreset);
 
-  // Expand the sheet, then CHANGE the pace from the pill: the same-origin recompute
-  // must keep the sheet as the user left it (snapping back to peek mid-comparison
-  // would lose their place).
-  await page.getByTestId("sheet-toggle").tap();
-  await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
+  // CHANGE the pace from the pill: a same-origin recompute at the slow pace, which
+  // keeps the 20-min preset and still opens no sheet.
   const isoBeforePace = isoUrls.length;
   await toggleSlowPace(page);
   await expect(page.getByTestId("pace-toggle")).toHaveAttribute("aria-pressed", "true");
   await expect.poll(() => isoUrls.length).toBeGreaterThan(isoBeforePace);
   expect(isoUrls[isoUrls.length - 1]).toContain("pace=slow");
-  // Wait for that recompute to resolve, then check the sheet did not move.
   await expect(shell).toHaveAttribute("data-sel-status", "idle");
   await expect(map).toHaveAttribute("data-selected-preset", "20");
-  await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
 
   // Touch never sees hover chrome: taps synthesize mousemove, but
   // the hover grow + preview are gated on a real fine pointer — no preview
   // panel may ever have appeared in this touch-only session.
   await expect(page.getByTestId("cluster-preview")).toHaveCount(0);
 
-  // Error path: from the peek bar, a failed selection is a compact banner above the
-  // mode pill, never a takeover — no sheet is forced open, the map keeps the screen —
-  // and the pill flags the failed mode.
-  await page.getByTestId("sheet-toggle").tap();
-  await expect(shell).toHaveAttribute("data-sheet-state", "peek");
+  // Error path: a failed selection is a compact banner above the mode pill, never a
+  // takeover — no sheet opens, the map keeps the screen — and the pill flags the
+  // failed mode.
   failIsochrone = true;
   await search.tap();
   await search.fill("Unirii");
   await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
   const banner = page.getByTestId("error-banner");
   await expect(banner).toContainText("Nu am putut calcula zona pe jos.");
-  await expect(shell).toHaveAttribute("data-sheet-state", "peek");
   await expect(page.getByTestId("result-sheet")).toHaveCount(0);
   await expect(page.getByTestId("mode-icon-walk")).toHaveAccessibleName("Pe jos (indisponibil)");
   await expectBannerClear(page);
@@ -784,10 +774,10 @@ test("the info popover states the drawn mode's caveat on a phone", async ({ page
   await expectNotCovered(page.getByTestId("transitous-credit"));
 });
 
-// On a short phone with the result sheet open, the floating Transitous credit and the
-// mode pill sit where the open ⓘ popover's credit line is. The open popover must be the
-// topmost surface: every credit link in it, Transitous included, can be read and tapped.
-// With the popover closed, the floating credit itself must be readable too.
+// On a short phone the floating Transitous credit and the mode pill sit where the open
+// ⓘ popover's credit line is. The open popover must be the topmost surface: every
+// credit link in it, Transitous included, can be read and tapped. With the popover
+// closed, the floating credit itself must be readable too.
 test("the open info popover stays on top of the floating controls on short phones", async ({ page }) => {
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
   await page.route("**/api/geocode**", (route) =>
@@ -803,14 +793,11 @@ test("the open info popover stays on top of the floating controls on short phone
 
   await page.goto("/");
   const map = page.getByTestId("app-map");
-  const shell = page.locator(".hf-map-shell");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
   await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
-  await page.getByTestId("sheet-toggle").tap();
-  await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
 
   for (const viewport of [
     { width: 390, height: 600 },
@@ -859,4 +846,180 @@ test("mobile: a search or a picked suggestion releases the address field so the 
   await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
   await expect(field).not.toBeFocused();
+});
+
+// After the first place resolves, a one-time hint says a long press on the map plans
+// a trip there. It hides itself after a few seconds — a mode tap's re-render does not
+// keep it up — and the device remembers it was shown, so a reload brings no hint.
+test("the hold hint shows once", async ({ page }) => {
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
+  );
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
+  await page.route("**/api/transit**", (route) =>
+    route.fulfill({
+      json: { origin: ISOCHRONE.origin, rings: [ring(20, 0.03), ring(40, 0.06)], departure: "2026-07-29T05:30:00.000Z" },
+    }),
+  );
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  const toast = page.getByTestId("hold-toast");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await expect(toast).toHaveCount(0);
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await expect(toast).toHaveText("Ține apăsat pe hartă: cât faci cu transportul până acolo");
+  const shownAt = Date.now();
+  expect(await page.evaluate(() => window.localStorage.getItem("hf:hold-hint:v1"))).toBe("1");
+
+  // A mode tap re-renders the shell and resolves again; the hint keeps its own clock.
+  await pickMode(page, "transit");
+  await expect(map).toHaveAttribute("data-mode", "transit");
+  await expect(toast).toHaveCount(0, { timeout: 6_000 });
+  expect(Date.now() - shownAt).toBeLessThan(6_000);
+
+  // Remembered on this device: after a reload a new place brings no hint.
+  await page.reload();
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await page.waitForTimeout(1_000);
+  // Checked once, without retrying: a retrying check would also pass once a wrongly
+  // shown hint hid itself.
+  expect(await toast.count()).toBe(0);
+});
+
+// A browser that refuses storage (a private window, blocked site data) must not break
+// the app: it loads, a place still resolves, and the hint shows — once for the page,
+// since it cannot be remembered.
+test("blocked storage still loads, selects and shows the hint once", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(String(error)));
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new DOMException("The operation is insecure.", "SecurityError");
+      },
+    });
+  });
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
+  );
+  await page.route("**/api/reverse**", (route) =>
+    route.fulfill({ json: { lat: 44.43, lng: 26.11, label: "Al doilea punct" } }),
+  );
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  const toast = page.getByTestId("hold-toast");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  // The page really cannot reach storage.
+  expect(
+    await page.evaluate(() => {
+      try {
+        void window.localStorage;
+        return "reachable";
+      } catch {
+        return "blocked";
+      }
+    }),
+  ).toBe("blocked");
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await expect(toast).toBeVisible();
+  await expect(toast).toHaveCount(0, { timeout: 6_000 });
+
+  // A second place in the same page brings no second hint.
+  const box = await map.boundingBox();
+  if (!box) throw new Error("map has no box");
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(map).toHaveAttribute("data-selection", "Al doilea punct");
+  await page.waitForTimeout(1_000);
+  expect(await toast.count()).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+// The ⓘ popover opens over the spot where the hint shows. When the first place
+// resolves with the popover open (here: a failed search, ⓘ opened, then ↻), the hint
+// is not drawn under it; closing the popover shows it.
+test("the hold hint waits while the info popover is open", async ({ page }) => {
+  let reachFails = true;
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
+  );
+  await page.route("**/api/isochrone**", (route) =>
+    reachFails ? route.fulfill({ status: 502, json: { error: "upstream" } }) : route.fulfill({ json: ISOCHRONE }),
+  );
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  const toast = page.getByTestId("hold-toast");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await search(page, "Piata Unirii");
+  await expect(page.getByTestId("error-banner")).toContainText("Nu am putut calcula zona pe jos.");
+
+  await openInfo(page);
+  reachFails = false;
+  await page.getByTestId("banner-retry").click();
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await expect(page.getByTestId("info-popover")).toBeVisible();
+  // Checked once, without retrying: the hint's own clock would hide it within seconds.
+  expect(await toast.count()).toBe(0);
+
+  await page.getByTestId("info-button").click();
+  await expect(page.getByTestId("info-popover")).toHaveCount(0);
+  await expect(toast).toBeVisible();
+});
+
+// While a reach loads, the origin pin is already on the map and pulses, with no text
+// card; once the reach is drawn the pin rests. The screen-reader status line follows
+// the same states.
+test("the pin pulses while the reach loads", async ({ page }) => {
+  let releaseReach: () => void = () => {};
+  const reachHeld = new Promise<void>((resolve) => {
+    releaseReach = resolve;
+  });
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
+  );
+  await page.route("**/api/isochrone**", async (route) => {
+    await reachHeld;
+    await route.fulfill({ json: ISOCHRONE });
+  });
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  const shell = page.locator(".hf-map-shell");
+  const status = page.getByTestId("status-announcer");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await expect(status).toHaveText("");
+  await search(page, "Piata Unirii");
+
+  // Loading: the pin is up and its aura pulses; no card says so.
+  await expect(shell).toHaveAttribute("data-sel-status", "loading");
+  const aura = page.locator(".hf-origin-marker__aura");
+  await expect(page.locator(".hf-origin-marker")).toBeVisible();
+  const auraAnimation = () => aura.evaluate((element) => getComputedStyle(element).animationName);
+  expect(await auraAnimation()).toBe("hf-pulse");
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
+  await expect(status).toHaveText("Calculez zona…");
+
+  // Resolved: the reach is drawn and the same pin rests.
+  releaseReach();
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await expect(shell).toHaveAttribute("data-sel-status", "idle");
+  await expect(page.locator(".hf-origin-marker")).toHaveCount(1);
+  await expect.poll(auraAnimation).toBe("none");
+  await expect(status).toHaveText("Piața Unirii, București: circa 10 minute pe jos");
 });

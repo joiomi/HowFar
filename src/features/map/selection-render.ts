@@ -24,6 +24,12 @@ import type { Mode, Origin, Ring } from "@/features/map/selection-flow";
  * visibility — `reselectPreset` repaints the stashed rings at the new index with
  * NO refetch and NO camera move (the route already returned both contours).
  *
+ * The origin pin goes up before the reach arrives: `showOrigin` places it (or
+ * moves it) as soon as the select flow knows the origin, and it pulses while the
+ * reach loads (CSS keyed on the shell's `data-sel-status`). `renderSelection`
+ * then moves that same pin to the isochrone's rounded origin — one marker, never
+ * a second one.
+ *
  * A response that lands before MapLibre's `load` is buffered in the shared
  * `loadState.pending` and replayed by the load handler. Camera padding + settle
  * stamp + stop-popup teardown are delegated to their own controllers; this one
@@ -50,7 +56,7 @@ export function createSelectionRender({
    * paint time so a chip change repaints the stashed rings without a refetch. */
   presetIndexRef: { current: PresetIndex };
   cancelRingReveal: (clearReadback?: boolean) => void;
-  applyCameraPadding: (hasResults: boolean) => EdgeInsets;
+  applyCameraPadding: () => EdgeInsets;
   closeStopPopup: () => void;
 }) {
   let marker: maplibregl.Marker | null = null;
@@ -101,6 +107,30 @@ export function createSelectionRender({
     el.dataset.shellCount = String(shells.length);
   }
 
+  /** Place the origin pin at `origin` in the mode's colour, building it on first
+   * use and moving it after that. No reach paint, no camera move. */
+  function showOrigin(origin: Origin, mode: Mode) {
+    if (!marker) {
+      // A compact halo pin marks the exact origin without the visual weight or
+      // transparent tail of MapLibre's default teardrop marker.
+      const markerElement = document.createElement("div");
+      markerElement.className = "hf-origin-marker";
+      markerElement.setAttribute("aria-hidden", "true");
+      const aura = document.createElement("span");
+      aura.className = "hf-origin-marker__aura";
+      const core = document.createElement("span");
+      core.className = "hf-origin-marker__core";
+      markerElement.append(aura, core);
+      marker = new (mapGl().Marker)({ element: markerElement, anchor: "center" });
+      // Pointer-transparent: the origin pin is display-only, so it must never
+      // swallow a click/hover meant for an amenity marker underneath (so an
+      // exact-origin transit stop stays clickable).
+      marker.getElement().style.pointerEvents = "none";
+    }
+    marker.getElement().style.setProperty("--hf-origin-color", MARKER_COLOR[mode]);
+    marker.setLngLat([origin.lng, origin.lat]).addTo(map);
+  }
+
   function renderSelection(origin: Origin, label: string, rings: Ring[], mode: Mode) {
     if (!loadState.styleLoaded) {
       loadState.pending = { origin, label, rings, mode };
@@ -109,28 +139,12 @@ export function createSelectionRender({
     lastRender = { origin, rings, mode };
     paintPreset(origin, rings, mode);
 
-    // A compact halo pin marks the exact origin without the visual weight or
-    // transparent tail of MapLibre's default teardrop marker.
-    marker?.remove();
-    const markerElement = document.createElement("div");
-    markerElement.className = "hf-origin-marker";
-    markerElement.setAttribute("aria-hidden", "true");
-    markerElement.style.setProperty("--hf-origin-color", MARKER_COLOR[mode]);
-    const aura = document.createElement("span");
-    aura.className = "hf-origin-marker__aura";
-    const core = document.createElement("span");
-    core.className = "hf-origin-marker__core";
-    markerElement.append(aura, core);
-    marker = new (mapGl().Marker)({ element: markerElement, anchor: "center" });
-    // Pointer-transparent: the origin pin is display-only, so it must never
-    // swallow a click/hover meant for an amenity marker underneath (so an
-    // exact-origin transit stop stays clickable).
-    marker.getElement().style.pointerEvents = "none";
-    // Marker sits at the isochrone's rounded origin so it matches the rings.
-    marker.setLngLat([origin.lng, origin.lat]).addTo(map);
-    // Padded so the selection centers in the map area the dock doesn't cover
-    // (the SHARED contract with any fitBounds — see features/map/camera.ts).
-    const padding = applyCameraPadding(true);
+    // The pin moves to the isochrone's rounded origin so it matches the rings.
+    showOrigin(origin, mode);
+    // Padded so the selection centres in the map area the floating controls
+    // leave clear (the SHARED contract with any fitBounds — see
+    // features/map/camera.ts).
+    const padding = applyCameraPadding();
     // Deterministic settle signal for e2e: cleared here, stamped "true" only when
     // THIS fit settles, so a test can wait for the camera to reach the origin
     // before projecting pixels — instead of a fixed sleep. An epoch guards
@@ -192,6 +206,7 @@ export function createSelectionRender({
       EMPTY_FC as GeoJSON.FeatureCollection,
     );
     marker?.remove();
+    marker = null;
     delete el.dataset.selection;
     delete el.dataset.isochroneRings;
     delete el.dataset.mode;
@@ -205,6 +220,7 @@ export function createSelectionRender({
   }
 
   return {
+    showOrigin,
     renderSelection,
     reselectPreset,
     clearSelection,

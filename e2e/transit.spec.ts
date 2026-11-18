@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectBannerClear, expectNotCovered, expectSearchBusy, expectSearchIdle, pickMode, search } from "./shell";
+import { expectBannerClear, expectNotCovered, expectSearchBusy, expectSearchIdle, modeButton, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Transit slice: Walk/Transit toggle. Provider calls STUBBED by EXACT path
@@ -79,9 +79,8 @@ test("toggling Walk→Transit re-renders transit rings for the same origin witho
   await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
-  // The legend reflects the mode (scope to the legend — the toggle button now
-  // also reads "Public transport" after the mode rename).
-  await expect(page.getByTestId("ring-legend").getByText("Public transport")).toBeVisible();
+  // The mode pill shows public transport as the drawn mode.
+  await expect(modeButton(page, "transit")).toHaveAttribute("aria-pressed", "true");
 
   // Call accounting: exactly one walk call, one transit call, and NO second
   // geocode/reverse triggered by the toggle.

@@ -33,6 +33,9 @@ function carInfo(mode: Mode, car: CarMeta | undefined): CarMeta | null {
   return { basis: "estimate", slotId: car.slotId, slotLabel: car.slotLabel };
 }
 
+/** A map click's label until (or unless) the reverse geocode names the place. */
+export const FALLBACK_LABEL = "Punct pe hartă";
+
 interface IsoResponse {
   origin: Origin;
   rings: Ring[];
@@ -54,6 +57,10 @@ interface IsoResponse {
  *    amenities); a mode/time recompute CHANGES the amenity fetch key, so
  *    it clears and refetches rather than preserving the markers (the clip is that
  *    mode's reach area). A recompute that lands on the same key still keeps them.
+ *  - the origin pin goes up as soon as the origin is known and before the reach
+ *    request: at once for a map click or a picked suggestion, after the geocode
+ *    (and its staleness check) for a typed search. It pulses while the reach
+ *    loads; a failed geocode or a superseded run pins nothing.
  * The mode/endpoint decision (`isochronePath`) and the fatal-reverse rule
  * (`reverseIsFatal`) are pure and unit-tested in selection-flow.
  */
@@ -66,6 +73,7 @@ export function createSelectFlowController({
   clearAmenities,
   maybeFetchAmenities,
   renderSelection,
+  showOrigin,
 }: {
   dispatchSel: (action: SelectionAction) => SelectionState;
   selRef: { current: SelectionState };
@@ -75,6 +83,8 @@ export function createSelectFlowController({
   clearAmenities: () => void;
   maybeFetchAmenities: (origin: Origin, pace: Pace, mode: Mode, timeContext: TimeContext) => void;
   renderSelection: (origin: Origin, label: string, rings: Ring[], mode: Mode) => void;
+  /** Places (or moves) the origin pin while the reach loads: no reach, no camera move. */
+  showOrigin: (origin: Origin, mode: Mode) => void;
 }) {
   async function select(input: SelectInput, opts?: { recompute?: boolean }) {
     // Record the input so a pace/time change before this resolves can re-issue
@@ -133,7 +143,8 @@ export function createSelectFlowController({
         // Reverse and isochrone run in parallel so label RTT no longer blocks
         // ring start. Out-of-area (422) is still fatal: no amenities/rings.
         origin = { lat: input.lat, lng: input.lng };
-        label = "Selected point";
+        label = FALLBACK_LABEL;
+        showOrigin(origin, mode);
         const reverseUrl = `/api/reverse?lat=${input.lat}&lng=${input.lng}`;
         const isoUrl = isochroneUrl(mode, origin, pace, timeContext);
         const [revRes, isoRes] = await Promise.all([
@@ -151,7 +162,7 @@ export function createSelectFlowController({
             const body = (await revRes.json()) as { label?: unknown };
             if (typeof body.label === "string" && body.label.trim()) label = body.label;
           } catch {
-            /* keep "Selected point" */
+            /* keep the fallback label */
           }
         }
         // Amenities only after reverse is known non-fatal (422 must not start ORS/PostGIS).
@@ -170,6 +181,7 @@ export function createSelectFlowController({
 
       // Search / suggestion paths: origin is known; amenities ∥ isochrone.
       if (stale()) return; // a newer selection landed during geocode res.json()
+      showOrigin(origin, mode);
       maybeFetchAmenities(origin, pace, mode, timeContext);
 
       const isoRes = await fetch(isochroneUrl(mode, origin, pace, timeContext), { signal });

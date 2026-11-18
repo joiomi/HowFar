@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSelectFlowController } from "@/features/map/select-flow-controller";
+import { createSelectFlowController, FALLBACK_LABEL } from "@/features/map/select-flow-controller";
 import {
   initialSelectionState,
   selectionReducer,
@@ -36,6 +36,7 @@ function makeHarness(startMode: Mode = "walk") {
   const clearAmenities = vi.fn();
   const maybeFetchAmenities = vi.fn();
   const renderSelection = vi.fn();
+  const showOrigin = vi.fn();
   const pendingInputRef = { current: null };
   const controller = createSelectFlowController({
     dispatchSel,
@@ -46,8 +47,9 @@ function makeHarness(startMode: Mode = "walk") {
     clearAmenities,
     maybeFetchAmenities,
     renderSelection,
+    showOrigin,
   });
-  return { controller, selRef, dispatched, clearSelection, clearAmenities, maybeFetchAmenities, renderSelection };
+  return { controller, selRef, dispatched, clearSelection, clearAmenities, maybeFetchAmenities, renderSelection, showOrigin };
 }
 
 beforeEach(() => {
@@ -234,11 +236,11 @@ describe("select() — invariants", () => {
     };
     await h.controller.select({ kind: "click", lat: 44.4, lng: 26.1 });
     expect(h.renderSelection).toHaveBeenCalledTimes(1);
-    expect(h.renderSelection.mock.calls[0][1]).toBe("Selected point");
+    expect(h.renderSelection.mock.calls[0][1]).toBe(FALLBACK_LABEL);
     expect(h.maybeFetchAmenities).toHaveBeenCalledTimes(1);
   });
 
-  it("click path: a reverse with a blank label keeps the 'Selected point' fallback", async () => {
+  it("click path: a reverse with a blank label keeps the fallback label", async () => {
     const h = makeHarness();
     fetchImpl = (url) => {
       fetchedUrls.push(url);
@@ -246,7 +248,7 @@ describe("select() — invariants", () => {
       return res(200, { origin: { lat: 44.4, lng: 26.1 }, rings: [] });
     };
     await h.controller.select({ kind: "click", lat: 44.4, lng: 26.1 });
-    expect(h.renderSelection.mock.calls[0][1]).toBe("Selected point");
+    expect(h.renderSelection.mock.calls[0][1]).toBe(FALLBACK_LABEL);
   });
 
   it("click path: a malformed reverse body still renders with the fallback label", async () => {
@@ -260,7 +262,7 @@ describe("select() — invariants", () => {
     };
     await h.controller.select({ kind: "click", lat: 44.4, lng: 26.1 });
     expect(h.renderSelection).toHaveBeenCalledTimes(1);
-    expect(h.renderSelection.mock.calls[0][1]).toBe("Selected point");
+    expect(h.renderSelection.mock.calls[0][1]).toBe(FALLBACK_LABEL);
   });
 
   it("a thrown fetch (network crash) clears amenities and dispatches crash", async () => {
@@ -285,5 +287,80 @@ describe("select() — invariants", () => {
     resolveIso();
     await run;
     expect(h.renderSelection).not.toHaveBeenCalled(); // stale run must not paint
+  });
+});
+
+describe("select() — the origin pin shows while the reach loads", () => {
+  it("names a click without an address 'Punct pe hartă'", () => {
+    expect(FALLBACK_LABEL).toBe("Punct pe hartă");
+  });
+
+  it("pins a clicked point before the reach request goes out", async () => {
+    for (const input of [
+      { kind: "click", lat: 44.4, lng: 26.1 },
+      { kind: "point", lat: 44.4, lng: 26.1, label: "X" },
+    ] as const) {
+      const h = makeHarness("walk");
+      let pinnedAtReachRequest: unknown[][] | null = null;
+      fetchImpl = (url) => {
+        fetchedUrls.push(url);
+        if (url.startsWith("/api/isochrone")) pinnedAtReachRequest = [...h.showOrigin.mock.calls];
+        if (url.startsWith("/api/reverse")) return res(200, { label: "Piața Unirii" });
+        return res(200, { origin: { lat: 44.4, lng: 26.1 }, rings: [] });
+      };
+      await h.controller.select(input);
+      expect(pinnedAtReachRequest).toEqual([[{ lat: 44.4, lng: 26.1 }, "walk"]]);
+      // Pinned once: the resolution moves that same pin.
+      expect(h.showOrigin).toHaveBeenCalledTimes(1);
+      // The pin comes after the previous selection was cleared, never before it.
+      expect(h.clearSelection.mock.invocationCallOrder[0]).toBeLessThan(h.showOrigin.mock.invocationCallOrder[0]);
+    }
+  });
+
+  it("pins a typed search only after the geocode answers, and a failed geocode pins nothing", async () => {
+    const h = makeHarness("transit");
+    let pinnedAtGeocode = -1;
+    let pinnedAtReachRequest: unknown[][] | null = null;
+    fetchImpl = (url) => {
+      fetchedUrls.push(url);
+      if (url.startsWith("/api/geocode")) {
+        pinnedAtGeocode = h.showOrigin.mock.calls.length;
+        return res(200, { lat: 44.5, lng: 26.2, label: "Str. Foo" });
+      }
+      if (url.startsWith("/api/transit")) pinnedAtReachRequest = [...h.showOrigin.mock.calls];
+      return res(200, { origin: { lat: 44.5, lng: 26.2 }, rings: [] });
+    };
+    await h.controller.select({ kind: "search", query: "foo" });
+    expect(pinnedAtGeocode).toBe(0);
+    expect(pinnedAtReachRequest).toEqual([[{ lat: 44.5, lng: 26.2 }, "transit"]]);
+
+    const failed = makeHarness();
+    fetchImpl = (url) => {
+      fetchedUrls.push(url);
+      return res(404, {});
+    };
+    await failed.controller.select({ kind: "search", query: "nowhere" });
+    expect(failed.showOrigin).not.toHaveBeenCalled();
+  });
+
+  it("never pins a superseded run's origin", async () => {
+    const h = makeHarness();
+    let answerGeocode: () => void = () => {};
+    fetchImpl = (url) => {
+      fetchedUrls.push(url);
+      if (url.startsWith("/api/geocode")) {
+        return new Promise((r) => {
+          answerGeocode = () => r({ ok: true, status: 200, json: async () => ({ lat: 44.5, lng: 26.2, label: "Old" }) });
+        });
+      }
+      return res(200, { origin: { lat: 44.5, lng: 26.2 }, rings: [] });
+    };
+    const run = h.controller.select({ kind: "search", query: "old" });
+    // A newer selection starts (bumps the token) while the geocode is pending.
+    h.selRef.current = selectionReducer(h.selRef.current, { type: "start", mode: "walk" });
+    answerGeocode();
+    await run;
+    expect(h.showOrigin).not.toHaveBeenCalled();
+    expect(fetchedUrls.some((u) => u.startsWith("/api/isochrone"))).toBe(false);
   });
 });

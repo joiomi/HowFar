@@ -135,33 +135,28 @@ test("public-transport mode: right-click shows the planned trip with a specific 
   expect(decodeURIComponent(reachCalls[0])).toContain("departure=2026-07-29T05:30");
 });
 
-test("directions DOCK in the result sheet — selection/filters block hidden, no reach popup, Back restores it", async ({ page }) => {
+test("directions open the result sheet — it holds only the directions, no reach popup, Back closes it", async ({ page }) => {
   const { map } = await setup(page);
   await searchAndWait(page, map);
   await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
   const sheet = page.getByTestId("result-sheet");
-  // Before the right-click: the selection card + its filters/controls are shown.
-  const selectionBlock = page.getByText("Your selected place");
-  await expect(selectionBlock).toBeVisible();
-  await expect(sheet).toHaveAttribute("aria-label", "Location result");
+  // Before the right-click: a chosen place opens no sheet.
+  await expect(sheet).toHaveCount(0);
 
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   // The directions render IN the result sheet (not a map-anchored popup)…
   await expect(sheet.getByTestId("reach-panel")).toBeVisible();
   await expect(sheet).toHaveAttribute("aria-label", "Directions");
-  // …there is NO MapLibre reach popup covering the map…
+  // …and there is NO MapLibre reach popup covering the map.
   await expect(page.locator(".maplibregl-popup")).toHaveCount(0);
-  // …and the selection card + amenity filters are hidden while directions are
-  // active (the block stays mounted-but-hidden so its state survives).
-  await expect(selectionBlock).not.toBeVisible();
 
-  // Back restores the selection card + filters and clears the directions.
+  // Back clears the directions and closes the sheet; the place stays chosen.
   await page.getByRole("button", { name: "Back to your area" }).click();
   await expect(page.getByTestId("reach-panel")).toHaveCount(0);
-  await expect(selectionBlock).toBeVisible();
-  await expect(sheet).toHaveAttribute("aria-label", "Location result");
+  await expect(sheet).toHaveCount(0);
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
 });
 
 test("public-transport mode: a point outside the drawn rings STILL plans the trip (no gate skips the fetch)", async ({ page }) => {

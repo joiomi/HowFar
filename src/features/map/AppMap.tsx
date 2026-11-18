@@ -2,7 +2,7 @@
 
 import type maplibregl from "maplibre-gl";
 import type { Protocol as PmtilesProtocol } from "pmtiles";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -34,7 +34,6 @@ import {
   hasAllAmenityIcons,
   registerAmenityIcons,
 } from "@/features/map/amenity-sprite";
-import EmptyState from "@/features/map/EmptyState";
 import {
   addAmenityLayers,
   addAmenitySpiderLayers,
@@ -50,8 +49,11 @@ import { createAmenitiesController, type AmenityUi } from "@/features/map/amenit
 import { createCameraController, type CameraController } from "@/features/map/camera-controller";
 import { createClearAddressController, createOriginTracker } from "@/features/map/clear-address-controller";
 import { DESKTOP_BREAKPOINT_PX } from "@/features/map/camera";
+import { selectionAnnouncement } from "@/features/map/copy";
+import FirstOpenPulse from "@/features/map/FirstOpenPulse";
+import { createHoldHintController, type HoldHintController } from "@/features/map/hold-hint-controller";
+import HoldToast from "@/features/map/HoldToast";
 import { createHoverController } from "@/features/map/hover-controller";
-import { deriveShell, type ShellState } from "@/features/map/shell-state";
 import { createLoadState } from "@/features/map/load-state";
 import { setMapGl, type MapGl } from "@/features/map/map-runtime";
 import { createPopupController } from "@/features/map/popup-controller";
@@ -74,7 +76,7 @@ import { createInfoController, type InfoController } from "@/features/map/info-c
 import ErrorBanner from "@/features/map/ErrorBanner";
 import MapPlaceholder from "@/features/map/MapPlaceholder";
 import ModePill from "@/features/map/ModePill";
-import SelectionCard from "@/features/map/SelectionCard";
+import StatusAnnouncer from "@/features/map/StatusAnnouncer";
 import TopBar from "@/features/map/TopBar";
 import TransitousCredit from "@/features/map/TransitousCredit";
 import {
@@ -108,16 +110,12 @@ import { nextTimePreset, type TimeContext } from "@/features/isochrones/time-con
 const BUCHAREST_CENTER: [number, number] = [26.1025, 44.4268];
 const SUGGEST_DEBOUNCE_MS = 250;
 
-// Mobile shell breakpoint: the phone layout (top bar + bottom sheet) below `md`.
-// Shares `DESKTOP_BREAKPOINT_PX` with the camera-padding math so "which layout is
-// on screen" and "which insets frame the map" can never disagree.
+// The phone layout is below `md`. Shares `DESKTOP_BREAKPOINT_PX` with the
+// camera-padding math so "which layout is on screen" and "which insets frame the
+// map" can never disagree. Layout itself is `md:` classes; this only gates
+// behaviour, read at the moment it matters (nothing renders from it).
 const MOBILE_SHELL_QUERY = `(max-width: ${DESKTOP_BREAKPOINT_PX - 0.02}px)`;
-function subscribeToMobileShell(onChange: () => void): () => void {
-  const mql = window.matchMedia(MOBILE_SHELL_QUERY);
-  mql.addEventListener("change", onChange);
-  return () => mql.removeEventListener("change", onChange);
-}
-function readMobileShell(): boolean {
+function isPhoneLayout(): boolean {
   return window.matchMedia(MOBILE_SHELL_QUERY).matches;
 }
 
@@ -135,20 +133,6 @@ interface ClusterHoverPreview {
   counts: { category: AmenityCategoryKey; count: number }[];
   /** Distance from the mark centre to the panel edge (hovered footprint + gap). */
   offset: number;
-}
-
-/** Shared result-surface predicate for the React shell and camera resize path.
- * The reach directions panel occupies the SAME result-sheet slot, so
- * an active reach view is a result surface too — otherwise a pre-selection hint
- * or a reach view after a failed selection would have no sheet and the
- * resize padding would drop it. A failure alone is not a result surface: the
- * error banner over the map carries it, and the map keeps the screen. */
-function hasResultSurface(
-  sel: Pick<SelectionState, "status" | "label">,
-  amenityStatus: AmenityUi["status"],
-  reachActive: boolean,
-): boolean {
-  return reachActive || sel.status === "loading" || Boolean(sel.label) || amenityStatus !== "idle";
 }
 
 export default function AppMap() {
@@ -169,16 +153,16 @@ export default function AppMap() {
   // /api/reach trip plan. Cleared on a new/failed selection.
   const reachRef = useRef<{ rings: Ring[]; mode: Mode; origin: Origin; car: CarMeta | null } | null>(null);
   // The right-click directions view, mirrored from the reach-
-  // directions controller into React so the result-sheet dock can render it in
-  // place of the amenity filters. A ref mirror lets the resize handler read it
+  // directions controller into React so the result sheet (which opens only for
+  // directions) can render it. A ref mirror lets the camera padding read it
   // without re-binding, and the controller ref lets render-scope handlers
   // (ReachPanel close/highlight) drive it.
   const reachControllerRef = useRef<ReachDirectionsController | null>(null);
   const [reachView, setReachView] = useState<ReachView | null>(null);
-  // Mirrored so the resize handler (empty-deps effect) reads the latest active
+  // Mirrored so the camera controller's sheet getter reads the latest active
   // flag without re-binding. Set SYNCHRONOUSLY in the controller's subscribe
   // callback (below) — NOT in a [reachView] effect, which would lag a rotate/
-  // resize by one tick and drop the sheet padding.
+  // resize or a journey fit by one tick and drop the sheet padding.
   const reachActiveRef = useRef(false);
   // The address bar's ✕ (clear-address-controller). Set by the map effect once
   // the map exists; the ✕ only shows for a resolved place, so it is always set then.
@@ -211,8 +195,8 @@ export default function AppMap() {
   // writes it while the client is preset-only. a later amenity pass restores the category
   // preference UI + its localStorage persistence together with the markers.
   const selectedAmenityCategoriesRef = useRef<AmenityCategoryKey[]>(ALL_AMENITY_CATEGORY_KEYS);
-  // Mirrored so the map effect's resize handler (empty deps) can read the latest
-  // amenity status without re-binding listeners. Updated in an effect — not during
+  // Mirrored so the (dormant) amenities controller can read the latest amenity
+  // status without re-binding listeners. Updated in an effect — not during
   // render — to satisfy the react-hooks/refs lint rule.
   const amenityRef = useRef(amenity);
   useEffect(() => {
@@ -231,7 +215,7 @@ export default function AppMap() {
 
   // Phone-first PRESET chip (phone-first): which of the two calibrated presets is the
   // OUTER reach edge (index 0 = smaller/default — walk 10 / transit 20 / car 10;
-  // index 1 = larger). State drives the mode pill's presets and the result card; the
+  // index 1 = larger). State drives the mode pill's presets and the status line; the
   // ref-mirrored repaint redraws the stashed served rings at the new index — NO refetch (the
   // route returned BOTH contours), so the chip is pure client-side visibility.
   const [presetIndex, setPresetIndex] = useState<PresetIndex>(DEFAULT_PRESET_INDEX);
@@ -252,18 +236,8 @@ export default function AppMap() {
     reselectPresetRef.current?.();
   }
 
-  // --- Mobile shell state: sheet peek/expand. The user flag is mirrored in a
-  // ref (same pattern as selRef) so the camera controller's shell getter —
-  // called synchronously inside the selection flow, before the flyTo — always
-  // reads the value the upcoming render will show.
-  const isMobileShell = useSyncExternalStore(subscribeToMobileShell, readMobileShell, () => false);
-  const [userSheetExpanded, setUserSheetExpanded] = useState(false);
-  const userSheetExpandedRef = useRef(false);
+  // The camera controller, for the render-scope padding effect below.
   const cameraRef = useRef<CameraController | null>(null);
-  function setSheetExpanded(expanded: boolean) {
-    userSheetExpandedRef.current = expanded;
-    setUserSheetExpanded(expanded);
-  }
   // Cluster hover preview: set only on key change, rendered
   // pointer-events-none, closed by mouseout/movestart/click/hover-loss.
   const [clusterPreview, setClusterPreview] = useState<ClusterHoverPreview | null>(null);
@@ -333,6 +307,20 @@ export default function AppMap() {
     return () => {
       info.dispose();
       infoRef.current = null;
+    };
+  }, []);
+
+  // The one-time hold hint. hold-hint-controller decides, at the first resolved
+  // place, whether it shows, and owns its hide timer (so a re-render never
+  // restarts or drops it); this component renders `holdHintVisible`.
+  const [holdHintVisible, setHoldHintVisible] = useState(false);
+  const holdHintRef = useRef<HoldHintController | null>(null);
+  useEffect(() => {
+    const holdHint = createHoldHintController({ setVisible: setHoldHintVisible });
+    holdHintRef.current = holdHint;
+    return () => {
+      holdHint.dispose();
+      holdHintRef.current = null;
     };
   }, []);
 
@@ -431,15 +419,10 @@ export default function AppMap() {
     const camera = createCameraController({
       map,
       el,
-      // Fresh shell from the synchronously-updated refs: padding committed just
-      // before a selection flyTo already reflects the sheet that is about to
-      // return to peek (ordering contract — see renderSelectionStash).
-      shell: () =>
-        deriveShell({
-          isMobile: readMobileShell(),
-          userSheetExpanded: userSheetExpandedRef.current,
-          reachActive: reachActiveRef.current,
-        }),
+      // The directions sheet is the only bottom sheet: open exactly while
+      // directions are shown. Read from the synchronously-updated ref, so a
+      // journey fit or a resize frames against the sheet that is on screen.
+      sheetOpen: () => reachActiveRef.current,
     });
     cameraRef.current = camera;
     const { applyCameraPadding } = camera;
@@ -488,9 +471,9 @@ export default function AppMap() {
       closeStopPopup: () => closeStopPopupHolder.current(),
     });
     reachControllerRef.current = reachDirections;
-    // Mirror the active flag SYNCHRONOUSLY — the resize handler
-    // reads reachActiveRef, and a rotate/resize before React's effect ran would
-    // otherwise drop the sheet's camera padding for a reach-only (hint) surface.
+    // Mirror the active flag SYNCHRONOUSLY — the camera padding reads
+    // reachActiveRef, and a journey fit or a rotate/resize before React's effect
+    // ran would otherwise frame without the directions sheet.
     reachDirections.subscribe((v) => {
       reachActiveRef.current = v !== null;
       // Directions and a fan are mutually-exclusive map surfaces: both declutter the
@@ -608,13 +591,13 @@ export default function AppMap() {
       applyCameraPadding,
       closeStopPopup,
     });
-    const { renderSelection, reselectPreset, clearSelection } = selectionRender;
+    const { showOrigin, renderSelection, reselectPreset, clearSelection } = selectionRender;
     reselectPresetRef.current = reselectPreset;
     // Stash the rendered rings+mode+origin for the right-click reach popup, and
     // clear them whenever the selection is dropped, so a right-click never reads
     // stale geometry.
-    // Origin of the last RESOLVED selection — a recompute at the same origin
-    // keeps the user's sheet state (see renderSelectionStash).
+    // Origin of the last RESOLVED selection — tells a new place (whose address
+    // the bar then shows) from a recompute at the same origin.
     const origins = createOriginTracker();
     const renderSelectionStash = (origin: Origin, label: string, rings: Ring[], mode: Mode) => {
       // `dispatchSel({type:"resolved",…,car})` runs synchronously BEFORE this in
@@ -622,30 +605,20 @@ export default function AppMap() {
       // resolution (null for walk/transit) — snapshot it into the atomic reach
       // stash so a right-click car band names the traffic it was computed for.
       reachRef.current = { rings, mode, origin, car: selRef.current.car };
-      // A NEW-origin resolution resets the mobile sheet to peek. A same-origin
-      // recompute (pace/time/mode change) keeps the sheet exactly as it is —
-      // resetting on every resolution snapped the sheet shut mid-comparison
-      // (expand the sheet, toggle Slow → sheet collapsed). Ref FIRST, then
-      // state: renderSelection commits its padding via the camera controller's
-      // shell getter on the next line, so the insets the flyTo frames against
-      // already describe the peek sheet — flipping this after the flyTo would
-      // either frame against stale expanded-sheet insets or cancel the
-      // animation (setPadding→jumpTo→stop).
-      if (origins.note(origin)) {
-        userSheetExpandedRef.current = false;
-        setUserSheetExpanded(false);
-        // The address bar shows the place that was resolved, whichever way it
-        // was chosen (typed search, picked suggestion, map tap).
-        dispatchCombo({ type: "showLabel", label });
-      }
+      // A NEW place: the address bar shows the place that was resolved,
+      // whichever way it was chosen (typed search, picked suggestion, map tap).
+      // A same-origin recompute (pace/time/mode change) leaves the bar alone.
+      if (origins.note(origin)) dispatchCombo({ type: "showLabel", label });
       renderSelection(origin, label, rings, mode);
+      // The first resolved place of the page may bring the one-time hold hint.
+      holdHintRef.current?.resolved();
       // Camera-race guard: a cross-mode right-click
       // fires switchMode("transit"), whose recompute lands here and flyTo's the
       // origin — which could clip an already-drawn right-click journey if the
       // isochrone resolves AFTER the MOTIS plan. Re-fit the journey so its frame
       // stays authoritative. No-op when nothing is drawn. (If that transit
       // recompute instead FAILS, the drawn journey stays and the error banner
-      // shows above the sheet — accepted low-likelihood degradation.)
+      // shows over the map beside it — accepted low-likelihood degradation.)
       reachDirections.reframe();
     };
     const clearSelectionReach = () => {
@@ -675,6 +648,7 @@ export default function AppMap() {
       // real fetch here with the band-model migration).
       maybeFetchAmenities: () => {},
       renderSelection: renderSelectionStash,
+      showOrigin,
     });
     selectRef.current = selectFlow.select;
     // Replay a selection the user made while the engine was still loading: the shell's
@@ -729,7 +703,7 @@ export default function AppMap() {
       });
 
       loadState.styleLoaded = true;
-      applyCameraPadding(false);
+      applyCameraPadding();
       // Legacy iso-* band layers are born all-visible; pin them to the default
       // filter so they hold a defined (empty, in preset mode) visibility state.
       applyRingFilter(ringFilterRef.current);
@@ -746,7 +720,7 @@ export default function AppMap() {
       reachJourney.flushPending(); // replay a right-click journey that raced `load`
       // A journey replayed from a pre-load right-click was buffered without a
       // camera fit — reframe it now so the path isn't left off-screen behind the
-      // sheet. No-op when nothing was drawn.
+      // directions sheet. No-op when nothing was drawn.
       reachDirections.reframe();
       el.dataset.mapLoaded = "true";
       setMapReady(true); // cover + hide the first-paint placeholder
@@ -767,9 +741,8 @@ export default function AppMap() {
     // Keep the visible-map contract in sync through browser resizing and
     // orientation changes, including after a result has already been framed.
     const onResize = () => {
-      const hasResults = hasResultSurface(selRef.current, amenityRef.current.status, reachActiveRef.current);
       // applyCameraPadding already commits map.setPadding + dataset read-backs.
-      applyCameraPadding(hasResults);
+      applyCameraPadding();
       map.resize();
       // A route is a user-selected subject, not disposable camera state. Refit
       // it after every responsive shell change so orientation never clips it.
@@ -783,7 +756,7 @@ export default function AppMap() {
     // Escape collapses an open fan, from anywhere. The fan is a map-owned surface
     // with no focusable container of its own (its hub is a marker button, and focus
     // may well be in the search field), so this has to be a document listener —
-    // the same shape `ReachPanel` uses for the directions dock. Guarded on `isOpen`
+    // the same shape `ReachPanel` uses for the directions sheet. Guarded on `isOpen`
     // so it never swallows an Escape meant for the address search.
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || !spider.isOpen()) return;
@@ -794,7 +767,7 @@ export default function AppMap() {
     // Right-click / long-press "how do I get there?" — ONE action in
     // every mode. Right-clicking anywhere means "get me there by public
     // transport": auto-switch to transit (from walk/car) and draw the journey +
-    // path in the directions dock. Deliberately does NOT defer to pickAmenity
+    // path in the directions sheet. Deliberately does NOT defer to pickAmenity
     // (unlike the left-click): the reach question is "how do I get to THIS
     // point", answerable anywhere — including over a marker.
     const handleReach = (lngLat: { lng: number; lat: number }) => {
@@ -1098,7 +1071,7 @@ export default function AppMap() {
   // of it once a selection starts. Wider screens keep focus in the field for
   // keyboard users (no on-screen keyboard there).
   function releaseSearchField() {
-    if (!isMobileShell) return;
+    if (!isPhoneLayout()) return;
     const active = document.activeElement;
     if (active instanceof HTMLElement && active.closest('[data-testid="top-bar"]')) active.blur();
   }
@@ -1200,8 +1173,8 @@ export default function AppMap() {
   const sel = selState;
   const combo = comboState;
   // The selected preset minute for the active mode (walk 10/20, transit 20/40,
-  // car 10/25) — the reach edge the result card's legend and copy derive from, so
-  // they can never disagree with the painted contour.
+  // car 10/25) — the reach edge the status line names, so it can never disagree
+  // with the painted contour.
   const selectedMin = presetMinFor(sel.mode, presetIndex);
   const reachActive = reachView !== null;
   // Transitous data is on screen: open directions, or a transit reach that is
@@ -1211,20 +1184,16 @@ export default function AppMap() {
     reachActive || (sel.mode === "transit" && sel.status !== "error" && sel.lastSelection !== null);
   // A failed selection, shown as the banner over the map.
   const errorMessage = sel.status === "error" ? sel.message : null;
-  // The reach directions dock counts as a result surface: the sheet
-  // renders — and camera padding holds — whenever there's a selection OR reach.
-  const hasResults = hasResultSurface(sel, amenity.status, reachActive);
-  // Not under a failed first search: the banner says what happened there.
-  const showFirstRun = !hasResults && sel.lastSelection === null && sel.status !== "error";
-  // Mobile shell: same derivation the camera's shell getter uses,
-  // fed from render state instead of the ref mirrors — the two can only differ
-  // within a single commit, in the direction the next paint will show.
-  const shell: ShellState = deriveShell({
-    isMobile: isMobileShell,
-    userSheetExpanded,
-    reachActive,
+  // First open: no place, nothing loading or failed, no directions. The pulse
+  // waits for the live map, so it never pulses over the placeholder.
+  const firstOpen = mapReady && sel.lastSelection === null && sel.status === "idle" && !reachActive;
+  const announcement = selectionAnnouncement({
+    status: sel.status,
+    label: sel.label,
+    message: sel.message,
+    mode: sel.mode,
+    selectedMin,
   });
-  const sheetPeek = shell.sheet === "peek" && hasResults;
   const closeReachPanel = () => {
     reachControllerRef.current?.close();
     // Return focus to the map container (the panel took it on open) — the div is
@@ -1232,17 +1201,14 @@ export default function AppMap() {
     containerRef.current?.focus();
   };
 
-  // Re-commit padding when the shell changes shape WITHOUT its own camera move
-  // (sheet peek/expand, reach open/close, breakpoint cross). The safe
-  // variant defers to `moveend` when an animation is in flight — `setPadding`
-  // runs `jumpTo`, which `stop()`s whatever is animating.
+  // Re-commit padding when the directions sheet opens or closes WITHOUT its own
+  // camera move. The safe variant defers to `moveend` when an animation is in
+  // flight — `setPadding` runs `jumpTo`, which `stop()`s whatever is animating.
   // Selection resolutions don't need this: their padding is committed inside
   // the selection flow before the flyTo starts.
   useEffect(() => {
-    cameraRef.current?.applyCameraPaddingSafe(
-      hasResultSurface(selRef.current, amenityRef.current.status, reachActiveRef.current),
-    );
-  }, [shell.sheet]);
+    cameraRef.current?.applyCameraPaddingSafe();
+  }, [reachActive]);
 
   return (
     <div
@@ -1252,8 +1218,6 @@ export default function AppMap() {
       // <main> and painting behind its opaque background — where it was invisible
       // during MapLibre load.
       className="hf-map-shell absolute inset-0 isolate"
-      data-has-results={hasResults ? "true" : "false"}
-      data-sheet-state={shell.sheet}
       data-sel-status={sel.status}
     >
       {/* The overlay plane stays pointer-transparent. Individual command/result
@@ -1289,8 +1253,8 @@ export default function AppMap() {
           transitState={transitState}
         />
         {/* The travel mode, its two presets, and the pace or departure toggle:
-            above the result sheet on a phone, under the address bar from md. A
-            mode whose reach failed is flagged on its button (never a takeover). */}
+            at the bottom of a phone, under the address bar from md. A mode whose
+            reach failed is flagged on its button (never a takeover). */}
         <ModePill
           mode={sel.mode}
           presetIndex={presetIndex}
@@ -1303,68 +1267,27 @@ export default function AppMap() {
           onToggleTime={() => setTimeContext({ kind: "preset", preset: nextTimePreset(sel.timeContext.preset) })}
         />
 
-        {hasResults ? (
+        {/* The result sheet opens only for right-click / long-press directions
+            and holds nothing else; a chosen place is the pin, the reach and the
+            address in the bar, with no card. */}
+        {reachActive ? (
           <section
             data-testid="result-sheet"
-            aria-label={reachActive ? "Directions" : "Location result"}
+            aria-label="Directions"
             className="hf-result-sheet pointer-events-auto absolute inset-x-3 bottom-[max(2.8rem,calc(env(safe-area-inset-bottom)+2.3rem))] z-20 max-h-[min(30dvh,14.5rem)] overflow-y-auto overscroll-contain rounded-[1.5rem] border border-white/[.11] bg-[#0d110e]/94 p-2.5 shadow-[0_24px_70px_rgba(0,0,0,.4)] backdrop-blur-2xl sm:inset-x-4 md:bottom-auto md:left-4 md:right-auto md:top-[9rem] md:max-h-[calc(100dvh-10rem)] md:w-[388px] md:p-3"
           >
-            {/* Right-click directions REPLACE the selection card + filters while
-                active. The selection block stays MOUNTED
-                but hidden + inert so the AmenityPanel keeps its
-                open Browse list / text filter — unmounting it would wipe that and
-                "restore" would feel broken. */}
-            {/* Peek/expand handle (mobile only): the sheet opens as a
-                one-line bar that names the place, so the map keeps the screen.
-                Directions force the sheet expanded (shell-state), so the bar
-                then only offers collapse-back. */}
-            {isMobileShell ? (
-            <div className="flex items-center gap-1.5 md:hidden">
-              {/* During directions the sheet is FORCED expanded (shell-state),
-                  so the toggle would be a dead control promising collapse —
-                  it becomes a plain label until the directions close. */}
-              <button
-                type="button"
-                data-testid="sheet-toggle"
-                aria-expanded={!sheetPeek}
-                aria-label={sheetPeek ? "Expand results" : "Collapse results to a bar"}
-                onClick={() => setSheetExpanded(sheetPeek)}
-                disabled={reachActive}
-                className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl px-1.5 text-left transition-colors enabled:hover:bg-white/[.045]"
-              >
-                <span aria-hidden="true" className="h-1 w-6 shrink-0 rounded-full bg-white/[.18]" />
-                <span className="min-w-0 flex-1 truncate text-[0.78rem] font-semibold text-[#edf2ed]">
-                  {reachActive ? "Directions" : (sel.lastSelection?.label ?? sel.label ?? "Result")}
-                </span>
-                {reachActive ? null : (
-                  <svg aria-hidden="true" viewBox="0 0 20 20" className="size-3.5 shrink-0 text-[#78857b]" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    {sheetPeek ? (
-                      <path d="m6 12 4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
-                    ) : (
-                      <path d="m6 8 4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
-                    )}
-                  </svg>
-                )}
-              </button>
-            </div>
-            ) : null}
-            {reachActive ? (
-              <ReachPanel view={reachView!} onHighlight={(i) => reachControllerRef.current?.highlight(i)} onClose={closeReachPanel} />
-            ) : null}
-            <div hidden={reachActive || sheetPeek} inert={reachActive || sheetPeek}>
-              <SelectionCard
-                label={sel.label}
-                mode={sel.mode}
-                selectedMin={selectedMin}
-                loading={sel.status === "loading"}
-              />
-            </div>
+            <ReachPanel view={reachView!} onHighlight={(i) => reachControllerRef.current?.highlight(i)} onClose={closeReachPanel} />
           </section>
-        ) : showFirstRun ? (
-          <div className="absolute inset-x-3 bottom-[max(3.6rem,calc(env(safe-area-inset-bottom)+3rem))] z-10 sm:inset-x-4 md:bottom-auto md:left-4 md:right-auto md:top-[9rem] md:w-[388px]">
-            <EmptyState />
-          </div>
         ) : null}
+
+        {/* First open: a pointer-transparent pulse at the framed map centre says
+            the map itself can be tapped; it goes once a place is chosen. */}
+        {firstOpen ? <FirstOpenPulse /> : null}
+
+        {/* After the first resolved place, once per device: a long press on the
+            map plans a trip there. Not while the ⓘ popover is open: the popover
+            covers the same spot, and its clock keeps running. */}
+        {holdHintVisible && !infoOpen ? <HoldToast /> : null}
 
         {/* The basemap credits (OSM · ESA WorldCover · Natural Earth) are in the ⓘ
             popover, present in every state. The Transitous credit is the ADDITIONAL
@@ -1376,14 +1299,14 @@ export default function AppMap() {
             transit or car reach (the flagged mode, never a missing address or a
             place outside Bucharest) also offers walking. The map stays live
             around it.
-            On a phone the two share one column above the mode pill's row, tracking
-            the sheet: the credit on the right, the banner full width beneath it, so
-            the banner can never cover the credit. From md the column dissolves
+            On a phone the two share one column just above the mode pill: the credit
+            on the right, the banner full width beneath it, so the banner can never
+            cover the credit. From md the column dissolves
             (`md:contents`): the credit sits at the bottom right beside the zoom
             control, the banner at the bottom centre. The open ⓘ popover (z-50)
             paints over both where they meet on a short phone; it credits
             Transitous too. */}
-        <div className="pointer-events-none absolute inset-x-3 bottom-[calc(var(--hf-sheet-clearance,0px)+4.25rem)] z-20 flex flex-col items-end gap-2 md:contents">
+        <div className="pointer-events-none absolute inset-x-3 bottom-[4.25rem] z-20 flex flex-col items-end gap-2 md:contents">
           {transitState ? (
             <div className="pointer-events-auto md:absolute md:bottom-3 md:right-14 md:z-20">
               <TransitousCredit />
@@ -1399,6 +1322,9 @@ export default function AppMap() {
             </div>
           ) : null}
         </div>
+        {/* The one screen-reader status line: loading, the resolved reach, a
+            failure. */}
+        <StatusAnnouncer text={announcement} />
       </div>
 
       {/* Cluster hover preview: what's inside the hovered donut,

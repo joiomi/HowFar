@@ -1,7 +1,6 @@
 import type maplibregl from "maplibre-gl";
 
 import { cameraPadding } from "@/features/map/camera";
-import { EXPANDED_SHELL, type ShellState } from "@/features/map/shell-state";
 import type { EdgeInsets } from "@/features/map/route-framing";
 
 /**
@@ -10,27 +9,27 @@ import type { EdgeInsets } from "@/features/map/route-framing";
  * as the first leaf controller — it depends only on the map and its container.
  * `cameraPadding` (the pure size→inset math) stays unit-tested in `camera.ts`;
  * this glue commits it to MapLibre and stamps the read-back attributes the e2e
- * suite asserts. No timers/listeners, so `dispose` is a no-op (kept for the
+ * suite asserts. No timers; the only listener is a deferred commit's one-shot
+ * `moveend`, which goes with the map, so `dispose` is a no-op (kept for the
  * uniform factory contract).
  *
- * `shell` reports the live mobile sheet state. It is a getter, not a value:
- * AppMap derives it from refs that the selection flow updates synchronously
- * before `renderSelection` runs, so the padding committed immediately before
- * the selection flyTo already reflects the sheet that is ABOUT to return to
- * peek — the required ordering (framing must never run against stale
- * expanded-sheet insets).
+ * `sheetOpen` reports whether the directions sheet is on screen. It is a
+ * getter, not a value: AppMap backs it with a ref the directions controller
+ * updates synchronously, so a commit made in the same tick as the directions
+ * opening or closing (a journey fit, a resize) already frames against the sheet
+ * that is on screen. Without it no sheet is reserved.
  */
 export function createCameraController({
   map,
   el,
-  shell = () => EXPANDED_SHELL,
+  sheetOpen = () => false,
 }: {
   map: maplibregl.Map;
   el: HTMLElement;
-  shell?: () => ShellState;
+  sheetOpen?: () => boolean;
 }) {
-  function applyCameraPadding(hasResults: boolean): EdgeInsets {
-    const padding = cameraPadding(el.clientWidth, el.clientHeight, hasResults, shell());
+  function applyCameraPadding(): EdgeInsets {
+    const padding = cameraPadding(el.clientWidth, el.clientHeight, sheetOpen());
     // Permanent MapLibre edge insets — route fit and interrupted flyTo paths
     // read map.getPadding(), so dataset stamps alone are not enough.
     map.setPadding(padding);
@@ -48,26 +47,25 @@ export function createCameraController({
     return applied;
   }
 
-  // A user shell flip (sheet peek/expand) can land mid-flyTo, and
-  // `map.setPadding` internally runs `jumpTo`, which unconditionally `stop()`s
-  // whatever camera animation is in flight (the documented trap that
-  // once killed every search's zoom). Selection framing applies its padding
-  // BEFORE starting the flyTo, so this deferred variant is only for flips that
-  // do not come with their own camera move: apply now when the camera is at
-  // rest, otherwise once it settles.
-  let deferredHasResults: boolean | null = null;
-  function applyCameraPaddingSafe(hasResults: boolean): void {
+  // The directions sheet can open or close mid-flyTo, and `map.setPadding`
+  // internally runs `jumpTo`, which unconditionally `stop()`s whatever camera
+  // animation is in flight (the documented trap that once killed every search's
+  // zoom). Selection framing applies its padding BEFORE starting the flyTo, so
+  // this deferred variant is only for sheet changes that do not come with their
+  // own camera move: apply now when the camera is at rest, otherwise once it
+  // settles. Queued requests coalesce into one commit, which reads the sheet
+  // state at that moment.
+  let queued = false;
+  function applyCameraPaddingSafe(): void {
     if (!map.isMoving()) {
-      applyCameraPadding(hasResults);
+      applyCameraPadding();
       return;
     }
-    const alreadyQueued = deferredHasResults !== null;
-    deferredHasResults = hasResults;
-    if (alreadyQueued) return;
+    if (queued) return;
+    queued = true;
     map.once("moveend", () => {
-      const pending = deferredHasResults;
-      deferredHasResults = null;
-      if (pending !== null) applyCameraPadding(pending);
+      queued = false;
+      applyCameraPadding();
     });
   }
 

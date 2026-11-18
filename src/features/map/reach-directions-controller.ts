@@ -11,10 +11,10 @@ import type { EdgeInsets } from "@/features/map/route-framing";
 /**
  * The right-click "how do I get there?" directions flow, extracted
  * from the popup controller. It no longer renders a
- * map-anchored MapLibre popup — the directions now live in the RESULT-SHEET DOCK,
- * replacing the amenity filters so it doesn't cover the
- * map. This controller owns the STATE + side effects only; a React panel
- * (`ReachPanel`) renders whatever `subscribe` reports.
+ * map-anchored MapLibre popup — the directions live in the result sheet, which
+ * opens only for them, so they don't cover the map. This controller owns the
+ * STATE + side effects only; a React panel (`ReachPanel`) renders whatever
+ * `subscribe` reports.
  *
  * Responsibilities (ported verbatim from the popup version — the race handling
  * below must not regress):
@@ -70,7 +70,7 @@ export function createReachDirectionsController({
   /** Toggles amenity declutter while a journey is shown (holder — wired after
    * the amenities controller exists, like the popup version). */
   reachDeclutter: { set: (on: boolean) => void };
-  applyCameraPadding: (hasResults: boolean) => EdgeInsets;
+  applyCameraPadding: () => EdgeInsets;
   /** Closes any open stop/POI popup — the other "active map surface". */
   closeStopPopup: () => void;
 }) {
@@ -185,12 +185,12 @@ export function createReachDirectionsController({
         const steps = buildReachSteps(plan.legs).map((s, i) => ({ ...s, mode: plan.legs[i].mode }));
         // A real public-transport journey: DRAW it and, only if it produced
         // drawable features, declutter + frame so the trip is legible beside the
-        // dock (a transit plan with no drawable coords must not hide markers
+        // sheet (a transit plan with no drawable coords must not hide markers
         // behind an empty map).
         const drawn = journey.draw(plan.legs);
         if (drawn) {
           reachDeclutter.set(true);
-          journey.frame(applyCameraPadding(true));
+          journey.frame(applyCameraPadding());
         }
         // Band honesty: "a little beyond" only
         // while the overshoot is small (≤4/3 of the band); a 60-min trip against
@@ -218,8 +218,8 @@ export function createReachDirectionsController({
   return {
     open,
     close,
-    /** True when directions are currently shown (the result dock is a
-     * ReachPanel). AppMap reads this to arbitrate the result-sheet content. */
+    /** True when directions are currently shown (the result sheet then holds
+     * the ReachPanel). */
     isActive: () => view !== null,
     /** Step hover/focus → highlight that leg + its stops on the map. */
     highlight: (index: number | null) => journey.highlight(index),
@@ -241,7 +241,7 @@ export function createReachDirectionsController({
      */
     reframe: () => {
       if (!journey.canFrame()) return;
-      journey.frame(applyCameraPadding(true), true);
+      journey.frame(applyCameraPadding(), true);
     },
     subscribe(cb: (v: ReachView | null) => void) {
       subscriber = cb;

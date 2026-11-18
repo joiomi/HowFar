@@ -62,7 +62,8 @@ test("search renders a marker, 3 isochrone rings, and the address label", async 
 
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   await expect(map).toHaveAttribute("data-selection", /Piața Unirii/);
-  await expect(page.getByText("Piața Unirii, București")).toBeVisible();
+  // The address bar shows the resolved address.
+  await expect(page.getByRole("combobox")).toHaveValue("Piața Unirii, București");
   expect(errors).toEqual([]);
 });
 
@@ -96,7 +97,7 @@ test("the clear button returns to first open", async ({ page }) => {
   await expect(map).not.toHaveAttribute("data-preset-contours");
   await expect(combobox).toHaveValue("");
   await expect(combobox).toHaveAttribute("placeholder", "Caută o adresă sau atinge harta");
-  await expect(page.getByTestId("first-run")).toBeVisible();
+  await expect(page.getByTestId("first-open-pulse")).toBeVisible();
   await expect(page.getByTestId("clear-address")).toHaveCount(0);
 
   // With no place left there is nothing to recompute: the turtle, a mode switch and the

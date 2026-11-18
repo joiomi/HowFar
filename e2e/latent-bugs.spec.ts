@@ -97,7 +97,7 @@ test("a map click with a malformed reverse-geocode body still renders the isochr
 
   // Reach still renders; the click keeps the generic label; no error banner.
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
-  await expect(map).toHaveAttribute("data-selection", "Selected point");
+  await expect(map).toHaveAttribute("data-selection", "Punct pe hartă");
   await expect(page.getByText("Ceva nu a mers.")).toHaveCount(0);
   await expect(page.getByTestId("error-banner")).toHaveCount(0);
   expect(errors).toEqual([]);

@@ -4,7 +4,7 @@ import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
 // After a responsive relayout, retry the REAL geometric predicate until it holds
 // (rather than a stability proxy). A viewport change reprojects the origin marker
-// and reflows the docks a few frames after `setPadding` — not a monotonic ease —
+// and reflows the floating controls a few frames after `setPadding` — not a monotonic ease —
 // and under CPU stall a "boxes stable across N samples" proxy can latch the
 // pre-motion layout and let a non-retrying hard expect fail. Polling the actual
 // assertion is the only thing that distinguishes "arrived at final" from "motion
@@ -159,15 +159,16 @@ async function expectSubjectClearOfUi(page: Page) {
   const point = await cameraSubjectPixel(page);
   const viewport = page.viewportSize();
   // The address bar is the top surface on a phone and heads the left column on
-  // desktop — the chrome the framed subject must clear.
+  // desktop; the mode pill is the bottom surface on a phone — the chrome the
+  // framed subject must clear.
   const topBar = await page.getByTestId("top-bar").boundingBox();
-  const results = await page.getByTestId("result-sheet").boundingBox();
-  if (!viewport || !topBar || !results) throw new Error("responsive shell has no measurable boxes");
+  const modePill = await page.getByTestId("mode-pill").boundingBox();
+  if (!viewport || !topBar || !modePill) throw new Error("responsive shell has no measurable boxes");
   if (viewport.width >= 768) {
     expect(point.x).toBeGreaterThan(topBar.x + topBar.width + 16);
   } else {
     expect(point.y).toBeGreaterThan(topBar.y + topBar.height + 16);
-    expect(point.y).toBeLessThan(results.y - 16);
+    expect(point.y).toBeLessThan(modePill.y - 16);
   }
 }
 
@@ -187,16 +188,15 @@ function boxesOverlap(a: { x: number; y: number; width: number; height: number }
 
 async function expectInfoButtonClear(page: Page) {
   // The ⓘ button holds the basemap credits in every state, so it must stay on screen,
-  // uncovered, and clear of every other floating surface: the address bar, the mode
-  // pill and the result sheet. (The Transitous credit is mode-gated to transit; its
-  // presence in transit and ABSENCE in walk/car is proven in preset-render.spec.ts.)
+  // uncovered, and clear of every other floating surface: the address bar and the mode
+  // pill (a chosen place opens no result sheet). (The Transitous credit is mode-gated to
+  // transit; its presence in transit and ABSENCE in walk/car is proven in
+  // preset-render.spec.ts.)
   const info = page.getByTestId("info-button");
   await expect(info).toBeInViewport();
   await expectNotCovered(info);
   const [infoBox, ...otherBoxes] = await Promise.all(
-    [info, page.getByTestId("top-bar"), page.getByTestId("mode-pill"), page.getByTestId("result-sheet")].map((l) =>
-      l.boundingBox(),
-    ),
+    [info, page.getByTestId("top-bar"), page.getByTestId("mode-pill")].map((l) => l.boundingBox()),
   );
   if (!infoBox || otherBoxes.some((box) => !box)) throw new Error("info button or shell boxes unavailable");
   for (const box of otherBoxes) expect(boxesOverlap(infoBox, box!)).toBe(false);
@@ -254,20 +254,19 @@ test.skip("staged ring reveal changes the live MapLibre paint before settling", 
   expect(trace).toMatch(/settled:0\.2,0\.2,0\.2$/);
 });
 
-test("mobile shell keeps the selected subject between the address bar and the result sheet", async ({ page }) => {
+test("mobile shell keeps the subject between top bar and mode pill", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await loadPopulatedState(page);
   await expectSubjectClearOfUi(page);
-  const sheet = page.getByTestId("result-sheet");
-  await expect(sheet).toBeInViewport();
-  const overflow = await sheet.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
-  expect(overflow.scroll).toBeLessThanOrEqual(overflow.client);
-  // The amenity category tiles are deferred to the planned amenity pass; in preset mode the sheet
-  // carries the reach result. The canonical proof that the subject survives the
-  // address bar → result-sheet handoff is the `data-selection` stamp (the sheet
-  // header + SelectionCard read the same label); the sheet-in-viewport check above
-  // proves the handoff surface is present.
+  await expectOriginMarkerAtCameraSubject(page);
+  // A chosen place is the pin, the reach and the address in the bar: no result sheet
+  // or card covers the map.
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
+  await expect(page.getByRole("combobox")).toHaveValue("Piața Unirii, București");
   await expect(page.getByTestId("app-map")).toHaveAttribute("data-selection", "Piața Unirii, București");
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+  ).toBe(true);
   await captureRequested(page, "populated-mobile");
 });
 
@@ -279,10 +278,10 @@ test("camera reframes an existing result across desktop and mobile breakpoints",
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(map).toHaveAttribute("data-camera-pad-left", "12");
-  // Crossing into mobile with a resolved selection lands in the peek-sheet shell,
-  // so the insets are the address bar on top and the peek bar below.
+  // Crossing into mobile with a resolved selection frames the map between the address
+  // bar on top and the mode pill below.
   await expect(map).toHaveAttribute("data-camera-pad-top", "76");
-  await expect(map).toHaveAttribute("data-camera-pad-bottom", "124");
+  await expect(map).toHaveAttribute("data-camera-pad-bottom", "70");
   await expectResultFramedAfterResize(page);
 
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -375,7 +374,9 @@ test("the top strip beside the top bar is live map", async ({ page }) => {
   await expect(map).toHaveAttribute("data-selection", "Header gap point");
 });
 
-test("first-run guidance is search-first but lets a map click pass through and dismiss it", async ({ page }) => {
+test("first open shows a pointer-transparent pulse at the map centre; a tap there selects and the pulse goes", async ({
+  page,
+}) => {
   await stubPopulatedState(page);
   await page.route("**/api/reverse**", (route) =>
     route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Onboarding map point" } }),
@@ -383,15 +384,32 @@ test("first-run guidance is search-first but lets a map click pass through and d
   await page.goto("/");
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  const firstRun = page.getByTestId("first-run");
-  await expect(firstRun).toBeVisible();
-  await expect(firstRun.getByText(/or click anywhere on the map/i)).toBeVisible();
+  // No first-run card: the placeholder invites the map tap, and a pulse marks the centre
+  // of the framed map.
+  await expect(page.getByRole("combobox")).toHaveAttribute("placeholder", "Caută o adresă sau atinge harta");
+  const pulse = page.getByTestId("first-open-pulse");
+  await expect(pulse).toBeVisible();
   await captureRequested(page, "idle-desktop");
-  const box = await firstRun.boundingBox();
-  if (!box) throw new Error("first-run guidance has no box");
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  const [box, mapBox] = await Promise.all([pulse.boundingBox(), map.boundingBox()]);
+  if (!box || !mapBox) throw new Error("the first-open pulse or the map has no box");
+  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const subject = await cameraSubjectPixel(page);
+  expect(Math.abs(centre.x - (mapBox.x + subject.x))).toBeLessThanOrEqual(8);
+  expect(Math.abs(centre.y - (mapBox.y + subject.y))).toBeLessThanOrEqual(8);
+  // Pointer-transparent: the map is what a tap there hits.
+  expect(
+    await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid="app-map"]') !== null,
+      centre,
+    ),
+  ).toBe(true);
+  await page.mouse.click(centre.x, centre.y);
   await expect(map).toHaveAttribute("data-selection", "Onboarding map point");
-  await expect(firstRun).toHaveCount(0);
+  await expect(pulse).toHaveCount(0);
+  // Clearing the address returns to first open, pulse included.
+  await page.getByTestId("clear-address").click();
+  await expect(map).not.toHaveAttribute("data-selection");
+  await expect(pulse).toBeVisible();
 });
 
 // Skipped: asserts the old 15/30/45/All ring control +
@@ -702,7 +720,7 @@ test.skip("desktop rail gaps preserve map drag and west-side amenity inspection"
   await expect(page.locator('[data-testid="poi-popup"]').getByText("West-side park")).toBeVisible();
 });
 
-test("reduced motion suppresses decorative surface and spinner animation", async ({ page }) => {
+test("reduced motion suppresses decorative surface, spinner and pulse animation", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const map = await loadPopulatedState(page);
   // The staged ring reveal no longer exists (the preset render paints its shells + contour
@@ -713,7 +731,7 @@ test("reduced motion suppresses decorative surface and spinner animation", async
   await expect(map).toHaveAttribute("data-preset-contours", "10");
   const motion = await page.evaluate(() => {
     const probe = document.createElement("div");
-    probe.className = "hf-spinner hf-surface-in";
+    probe.className = "hf-spinner hf-surface-in hf-pulse";
     document.body.appendChild(probe);
     const style = getComputedStyle(probe);
     const result = { animationName: style.animationName, iterationCount: style.animationIterationCount };

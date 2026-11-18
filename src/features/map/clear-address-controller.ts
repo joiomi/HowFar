@@ -3,9 +3,8 @@ import type { ComboboxAction } from "@/features/search/combobox";
 
 /**
  * Remembers the origin of the last resolved selection, so the shell can tell a
- * newly chosen place (fill the address bar, return the phone sheet to peek) from a
- * recompute of the same one (mode, pace or time change: leave the surfaces as
- * the user arranged them).
+ * newly chosen place (fill the address bar with its address) from a recompute of
+ * the same one (mode, pace or time change: leave the address bar as it is).
  */
 export function createOriginTracker() {
   let last: Origin | null = null;

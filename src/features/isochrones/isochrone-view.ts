@@ -57,7 +57,6 @@ const RAMPS: Record<Mode, Record<Band, { fill: string; line: string }>> = {
 };
 
 export const MARKER_COLOR: Record<Mode, string> = { walk: "#2dd4bf", transit: "#a78bfa", car: "#3b82f6" };
-export const MODE_LABEL: Record<Mode, string> = { walk: "Walking", transit: "Public transport", car: "Driving" };
 /** CSS accent variable per mode (defined in globals.css). Exhaustive Record so a
  * new mode without an accent is a compile error — car never inherits transit's. */
 export const MODE_ACCENT: Record<Mode, string> = {
@@ -102,7 +101,7 @@ export function visibleLegendBands(filter: RingFilter): readonly Band[] {
  * reach within N minutes by this mode".
  * Minutes come from `visibleLegendBands` + `bandMinutes`, so the sentence can
  * never disagree with the painted rings or hardcode 15/30/45 (car reads
- * 10/20/30). Shared by the SelectionCard legend and the mobile peek hint.
+ * 10/20/30). Part of the parked fixed-band model; the live shell does not render it.
  */
 export function reachExplainer(mode: Mode, filter: RingFilter): string {
   const bands = visibleLegendBands(filter);

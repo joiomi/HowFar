@@ -12,9 +12,9 @@ import { MODES, type Mode } from "@/features/map/selection-flow";
  * The floating mode pill: the three travel modes, the active mode's two
  * calibrated presets (walk 10/20, transit 20/40, car 10/25), and one toggle —
  * a turtle for walking pace (pressed = Slow) or a clock for the transit/car
- * departure (8:30 rush, the default, or 12:30). It sits above the result sheet
- * on a phone and under the address bar from 768 px. Presentation only: AppMap
- * owns every state change.
+ * departure (8:30 rush, the default, or 12:30). It sits at the bottom left of a
+ * phone and under the address bar from 768 px. Presentation only: AppMap owns
+ * every state change.
  *
  * A preset only changes which served contour is painted (both come in one
  * response), so it never refetches. A mode whose reach failed keeps a "!" badge
@@ -58,7 +58,7 @@ export default function ModePill({
   return (
     <div
       data-testid="mode-pill"
-      className="hf-mode-pill pointer-events-auto absolute bottom-[calc(var(--hf-sheet-clearance,0px)+0.75rem)] left-3 z-30 flex items-center gap-0.5 rounded-full border border-[var(--hf-border)] bg-[var(--hf-panel)] p-[3px] shadow-[0_12px_30px_rgba(0,0,0,.4)] backdrop-blur-xl md:bottom-auto md:left-4 md:top-[5.25rem]"
+      className="hf-mode-pill pointer-events-auto absolute bottom-3 left-3 z-30 flex items-center gap-0.5 rounded-full border border-[var(--hf-border)] bg-[var(--hf-panel)] p-[3px] shadow-[0_12px_30px_rgba(0,0,0,.4)] backdrop-blur-xl md:bottom-auto md:left-4 md:top-[5.25rem]"
     >
       <div role="group" aria-label="Cum te deplasezi" className="flex items-center gap-0.5">
         {MODES.map((m) => {

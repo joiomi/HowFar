@@ -226,14 +226,14 @@ test("degraded reach: a failed isochrone shows a compact banner over the live ma
   await search(page, "Piata Unirii");
 
   // The failure is one compact alert row over the map: the walking sentence and a ↻,
-  // no walk switch (walking is what failed). No sheet or first-run card takes the
+  // no walk switch (walking is what failed). No sheet or first-open pulse takes the
   // screen; the map stays loaded (the reach failed, the app did not).
   const banner = page.getByTestId("error-banner");
   await expect(banner).toHaveAttribute("role", "alert");
   await expect(banner).toContainText("Nu am putut calcula zona pe jos.");
   await expect(page.getByTestId("banner-walk")).toHaveCount(0);
   await expect(page.getByTestId("result-sheet")).toHaveCount(0);
-  await expect(page.getByTestId("first-run")).toHaveCount(0);
+  await expect(page.getByTestId("first-open-pulse")).toHaveCount(0);
   await expect(map).toHaveAttribute("data-map-loaded", "true");
   await expectBannerClear(page);
   // No reach was drawn — the preset stamps stay unset.

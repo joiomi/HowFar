@@ -7,7 +7,6 @@ import {
   legendColor,
   MARKER_COLOR,
   MODE_ACCENT,
-  MODE_LABEL,
   reachExplainer,
   RING_BANDS,
   RING_FILTER_OPTIONS,
@@ -80,10 +79,9 @@ describe("legendColor / bandMinutes / constants", () => {
     expect(bandMinutes("car", 45)).toBe(30);
   });
 
-  it("draws largest band first and defines the car marker/label/accent", () => {
+  it("draws largest band first and defines the car marker/accent", () => {
     expect(RING_BANDS).toEqual([45, 30, 15]);
     expect(MARKER_COLOR.car).toBe("#3b82f6");
-    expect(MODE_LABEL.car).toBe("Driving");
     expect(MODE_ACCENT.car).toBe("var(--hf-car)");
   });
 });

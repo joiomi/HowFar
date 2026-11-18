@@ -9,11 +9,9 @@ import {
   presetInteriorLineMinutes,
   presetRampColor,
   presetReachCaveat,
-  presetReachExplainer,
   scaleGeometryTowardOrigin,
   selectPresetRings,
 } from "./preset-view";
-import type { Mode } from "@/features/isochrones/preset-reach";
 import { MODES, type Origin, type Ring } from "@/features/map/selection-flow";
 
 const ORIGIN: Origin = { lat: 44.43, lng: 26.1 };
@@ -209,42 +207,6 @@ describe("presetInteriorLineMinutes — the render-midpoint read-back stamp", ()
     expect(presetInteriorLineMinutes("transit", 40)).toEqual([20]);
     expect(presetInteriorLineMinutes("car", 25)).toEqual([10]);
     expect(presetInteriorLineMinutes("car", 10)).toEqual([]);
-  });
-});
-
-describe("presetReachExplainer — the honest reach claim (assertive gate)", () => {
-  const modes: Mode[] = ["walk", "transit", "car"];
-
-  it("names the SELECTED served minute for every mode/preset — never a minute the map isn't drawing", () => {
-    // walk 10/20, transit 20/40, car 10/25 — the exact served contours.
-    expect(presetReachExplainer("walk", 10)).toContain("10-minute walk");
-    expect(presetReachExplainer("walk", 20)).toContain("20-minute walk");
-    expect(presetReachExplainer("transit", 20)).toContain("20 minutes");
-    expect(presetReachExplainer("transit", 40)).toContain("40 minutes");
-    expect(presetReachExplainer("car", 10)).toContain("10-minute drive");
-    expect(presetReachExplainer("car", 25)).toContain("25-minute drive");
-  });
-
-  it("hedges with 'about' in every mode — the reach is an estimate, never a guaranteed envelope", () => {
-    const pairs: [Mode, number][] = [
-      ["walk", 10],
-      ["walk", 20],
-      ["transit", 20],
-      ["transit", 40],
-      ["car", 10],
-      ["car", 25],
-    ];
-    for (const [mode, min] of pairs) {
-      expect(presetReachExplainer(mode, min).toLowerCase()).toContain("about");
-      // Must NOT use "within" at all — even "within about a N-minute walk" reads as
-      // the absolute promise the caveat then contradicts.
-      expect(presetReachExplainer(mode, min)).not.toMatch(/\bwithin\b/i);
-    }
-    expect(modes).toHaveLength(3);
-  });
-
-  it("transit copy states walks to/from stops are included (honest scoping)", () => {
-    expect(presetReachExplainer("transit", 40).toLowerCase()).toContain("walk to and from stops");
   });
 });
 

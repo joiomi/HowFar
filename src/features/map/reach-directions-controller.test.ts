@@ -245,7 +245,7 @@ describe("reach-directions-controller — transit fetch", () => {
 
   it("reframe does NOT touch camera padding when there is no journey to frame", () => {
     // Regression guard for a real, shipped bug: `reframe` used to pass
-    // `applyCameraPadding(true)` as an ARGUMENT, so the padding was committed even
+    // `applyCameraPadding()` as an ARGUMENT, so the padding was committed even
     // when `frame()` would immediately bail. Committing padding goes through
     // `map.setPadding` → `jumpTo` → `stop()`, which cancels any in-flight camera
     // animation. Since `renderSelectionStash` calls reframe right after

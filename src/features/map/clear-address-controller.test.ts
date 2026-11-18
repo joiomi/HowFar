@@ -172,6 +172,7 @@ describe("clear address during a recompute", () => {
       clearAmenities: vi.fn(),
       maybeFetchAmenities: vi.fn(),
       renderSelection,
+      showOrigin: vi.fn(),
     });
     // The response ignores the abort and arrives anyway, so only the token can stop it.
     const signals: AbortSignal[] = [];

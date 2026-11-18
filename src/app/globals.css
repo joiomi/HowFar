@@ -97,15 +97,18 @@ button,
   }
 }
 
-@keyframes hf-origin-pulse {
+/* One pulse for the origin pin's aura (while its reach loads) and the first-open
+   target dot. Both rings are centred with translate(-50%, -50%), so the scale
+   keeps that translate and the ring grows around its centre. */
+@keyframes hf-pulse {
   0% {
     opacity: 0.5;
-    transform: scale(0.55);
+    transform: translate(-50%, -50%) scale(0.55);
   }
   75%,
   100% {
     opacity: 0;
-    transform: scale(1.45);
+    transform: translate(-50%, -50%) scale(1.45);
   }
 }
 
@@ -115,6 +118,11 @@ button,
 
 .hf-spinner {
   animation: hf-spin 700ms linear infinite;
+}
+
+.hf-pulse {
+  transform: translate(-50%, -50%);
+  animation: hf-pulse 1.8s ease-out infinite;
 }
 
 .hf-map-shell::after {
@@ -186,7 +194,11 @@ button,
   height: 30px;
   border: 2px solid var(--hf-origin-color);
   box-shadow: 0 0 18px color-mix(in srgb, var(--hf-origin-color) 55%, transparent);
-  animation: hf-origin-pulse 1.8s ease-out infinite;
+}
+
+/* The pin pulses only while its reach loads; once the reach is drawn it rests. */
+.hf-map-shell[data-sel-status="loading"] .hf-origin-marker__aura {
+  animation: hf-pulse 1.8s ease-out infinite;
 }
 
 .hf-origin-marker__core {
@@ -367,24 +379,6 @@ button,
   .maplibregl-popup .maplibregl-popup-content {
     max-width: min(300px, calc(100vw - 2rem));
   }
-
-  /* ONE bottom-clearance source: how far above the viewport bottom
-     the result sheet's top edge sits at its current state. The MapLibre bottom
-     controls (the zoom control), the mode pill and the Transitous credit all
-     consume this variable, so none of them can float mid-map or disagree with
-     the sheet. */
-  .hf-map-shell[data-has-results="true"] {
-    --hf-sheet-clearance: calc(min(30dvh, 14.5rem) + 3.25rem);
-  }
-  .hf-map-shell[data-has-results="true"][data-sheet-state="peek"] {
-    /* Peek = one-line bar (~64px) above the 2.8rem sheet offset + breathing. */
-    --hf-sheet-clearance: 7.5rem;
-  }
-
-  .hf-map-shell[data-has-results="true"] .maplibregl-ctrl-bottom-right,
-  .hf-map-shell[data-has-results="true"] .maplibregl-ctrl-bottom-left {
-    bottom: var(--hf-sheet-clearance);
-  }
 }
 
 /* A three-button navigation stack is taller than the usable map corridor on
@@ -502,6 +496,8 @@ button,
   .hf-stop-popup__route--loading,
   .hf-stop-popup[data-state="loading"] .hf-stop-popup__msg::before,
   .hf-origin-marker__aura,
+  .hf-map-shell[data-sel-status="loading"] .hf-origin-marker__aura,
+  .hf-pulse,
   .hf-spinner,
   .hf-surface-in {
     animation: none;
