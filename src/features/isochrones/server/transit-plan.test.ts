@@ -164,27 +164,27 @@ describe("bestPlan", () => {
     expect(bestPlan({})).toEqual({ reachable: false });
   });
 
-  it("drops malformed itineraries (missing/≤0 duration) so they can't win the sort (T2)", () => {
+  it("drops malformed itineraries (missing/≤0 duration) so they can't win the sort", () => {
     const broken = { legs: [{ mode: "BUS", routeShortName: "9", duration: 60, from: { name: "X" }, to: { name: "Y" } }] }; // no duration
     const plan = bestPlan({ itineraries: [broken, FAST] }) as Extract<ReachPlan, { reachable: true }>;
     expect(plan.totalMinutes).toBe(57); // the valid trip, not the 0-minute broken one
   });
 
-  it("tolerates a null/garbled itinerary or leg entry without throwing (T2)", () => {
+  it("tolerates a null/garbled itinerary or leg entry without throwing", () => {
     expect(() => bestPlan({ itineraries: [null as never, SLOW] })).not.toThrow();
     const plan = parseItinerary({ duration: 600, legs: [null as never, { mode: "BUS", routeShortName: "5", duration: 300, from: { name: "A" }, to: { name: "B" } }] }) as Extract<ReachPlan, { reachable: true }>;
     expect(plan.legs).toHaveLength(1);
     expect(plan.legs[0].line).toBe("5");
   });
 
-  it("falls back to `direct` (walk-only) when there are no transit itineraries (T4)", () => {
+  it("falls back to `direct` (walk-only) when there are no transit itineraries", () => {
     const walk = { duration: 8 * 60, legs: [{ mode: "WALK", duration: 8 * 60, from: { name: "START" }, to: { name: "END" } }] };
     const plan = bestPlan({ itineraries: [], direct: [walk] }) as Extract<ReachPlan, { reachable: true }>;
     expect(plan.totalMinutes).toBe(8);
     expect(plan.legs.every((l) => l.mode === "WALK")).toBe(true);
   });
 
-  it("prefers a transit itinerary over `direct` when both exist (T4)", () => {
+  it("prefers a transit itinerary over `direct` when both exist", () => {
     const walk = { duration: 40 * 60, legs: [{ mode: "WALK", duration: 40 * 60, from: { name: "START" }, to: { name: "END" } }] };
     const plan = bestPlan({ itineraries: [FAST], direct: [walk] }) as Extract<ReachPlan, { reachable: true }>;
     expect(plan.legs.some((l) => l.mode === "SUBWAY")).toBe(true); // FAST's M2
@@ -393,13 +393,13 @@ describe("planTrip", () => {
     // Ceiling: cap the client deadline so raising the budget pair can
     // never drift up and make every genuine phone failure slower.
     expect(REACH_TIMEOUT_MS).toBeLessThanOrEqual(15_000);
-    // G2 heal-loop margin: a server success at ~budget must still beat the
+    // Heal-loop margin: a server success at ~budget must still beat the
     // client deadline by a comfortable margin (else a slow response+JSON gets
     // cached AFTER the client gave up and the next click "heals").
     expect(REACH_TIMEOUT_MS - PLAN_BUDGET_MS).toBeGreaterThanOrEqual(2_000);
   });
 
-  it("bounds each /plan attempt by the absolute budget (single modestly-long attempt, G1/G3) — timeoutMs === PLAN_BUDGET_MS, not a shorter split", async () => {
+  it("bounds each /plan attempt by the absolute budget (single modestly-long attempt) — timeoutMs === PLAN_BUDGET_MS, not a shorter split", async () => {
     providerFetch.mockResolvedValue(planResponse([FAST]));
     await planTrip(FROM, TO, DEP);
     const opts = providerFetch.mock.calls[0][1] as { timeoutMs?: number };
@@ -415,7 +415,7 @@ describe("planTrip", () => {
     expect(providerFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("KEEPS a determinate reachable (walk-only / non-transit) first answer when the retry throws — does NOT discard it as an error (G4)", async () => {
+  it("KEEPS a determinate reachable (walk-only / non-transit) first answer when the retry throws — does NOT discard it as an error", async () => {
     // A walk-only itinerary in `itineraries` parses reachable:true with no
     // transit leg → the loop retries hoping for a transit trip; if that retry
     // THROWS, the reachable answer must stand (not become a 502).
@@ -520,7 +520,7 @@ describe("planTrip", () => {
     expect(providerFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("an empty first answer + a TRANSIENT failed retry surfaces an HONEST failure and caches NOTHING (F1: the empty was the suspect we retried, unconfirmed)", async () => {
+  it("an empty first answer + a TRANSIENT failed retry surfaces an HONEST failure and caches NOTHING (the empty was the suspect we retried, unconfirmed)", async () => {
     providerFetch
       .mockResolvedValueOnce(planResponse([])) // suspect empty — the reason we retry
       .mockRejectedValueOnce(new TypeError("network blip")); // transient confirmation failure
@@ -530,7 +530,7 @@ describe("planTrip", () => {
     expect(store.size).toBe(0);
   });
 
-  it("an empty first answer + a DETERMINISTIC (429) retry failure KEEPS the not-reachable answer (H4 — a rate-limited retry gives no new reachability info; don't 502 a genuine no-route)", async () => {
+  it("an empty first answer + a DETERMINISTIC (429) retry failure KEEPS the not-reachable answer (a rate-limited retry gives no new reachability info; don't 502 a genuine no-route)", async () => {
     providerFetch
       .mockResolvedValueOnce(planResponse([])) // MOTIS successfully returned empty
       .mockResolvedValueOnce({ ok: false, status: 429, json: () => Promise.resolve({}) }); // retry rejected by host

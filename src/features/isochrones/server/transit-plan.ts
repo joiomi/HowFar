@@ -215,7 +215,7 @@ export function parseItinerary(it: MotisItinerary): ReachPlan {
     // build a multi-MB ReachPlan that gets cached (6h) and shipped to the client.
     // A real Bucharest trip is well under this.
     if (legs.length >= MAX_REACH_LEGS) break;
-    if (!l || typeof l !== "object") continue; // tolerate null/garbled leg entries (T2)
+    if (!l || typeof l !== "object") continue; // tolerate null/garbled leg entries
     const mode = str(l.mode) ?? "UNKNOWN";
     const minutes = minutesOf(l.duration);
     const isWalk = mode === "WALK";
@@ -252,8 +252,7 @@ export function parseItinerary(it: MotisItinerary): ReachPlan {
  * Pick the best itinerary and trim it. MOTIS does NOT return itineraries sorted
  * usefully, so we rank ourselves. Transit options (`itineraries`) win; if there
  * are none, fall back to `direct` (walk/bike) so a very-close destination still
- * gets an answer (T4). Itineraries without a finite positive duration are dropped
- * (T2).
+ * gets an answer. Itineraries without a finite positive duration are dropped.
  *
  * Ranking is a TRANSFER-PENALISED total order on RAW seconds — an
  * extra transfer must save more than `TRANSFER_PENALTY_S` to be chosen, so we
@@ -427,7 +426,7 @@ async function fetchAndParse(
         body = await fetchPlanBody(url, host, intervals.transit, budget.signal);
       } catch (err) {
         // Keep a DETERMINATE reachable first answer (transit OR a walk-only/
-        // UNKNOWN-mode itinerary) rather than discard it on a retry throw (G4).
+        // UNKNOWN-mode itinerary) rather than discard it on a retry throw.
         if (plan?.reachable) break;
         const retriable = err instanceof ProviderError && err.retriable;
         // A suspect-empty first answer we retried to confirm: retry only a
@@ -437,10 +436,10 @@ async function fetchAndParse(
           continue;
         }
         // Confirmation retry failed. If it was TRANSIENT (network/abort) we still
-        // haven't confirmed the empty — surface an honest failure, cache nothing
-        // (F1 Critical). But a DETERMINISTIC failure (429/503/malformed) gives no
-        // new reachability info, so keep the first empty observation rather than
-        // turn a correct "no route" into a 502 on a rate-limited host (H4).
+        // haven't confirmed the empty — surface an honest failure, cache nothing.
+        // But a DETERMINISTIC failure (429/503/malformed) gives no new reachability
+        // info, so keep the first empty observation rather than turn a correct
+        // "no route" into a 502 on a rate-limited host.
         if (plan !== null && !retriable) break;
         throw err;
       }

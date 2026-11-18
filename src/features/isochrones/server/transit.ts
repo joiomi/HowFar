@@ -181,8 +181,8 @@ function parseStops(all: OneToAllStop[]): TransitStop[] {
 }
 
 // In-flight requests keyed by cache key: two concurrent cold callers for the
-// same origin+departure share ONE heavy one-to-all request (the ors.ts T3
-// pattern — fair use under bursts). Cleared on settle. Shared across the legacy
+// same origin+departure share ONE heavy one-to-all request (the same single-flight
+// pattern as ors.ts — fair use under bursts). Cleared on settle. Shared across the legacy
 // and preset paths — their cache-key prefixes (transit:v5 vs transit:preset:v1)
 // keep the two families distinct.
 const inFlight = new Map<string, Promise<TransitIsochroneResult>>();

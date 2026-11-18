@@ -68,7 +68,7 @@ export const MODE_ACCENT: Record<Mode, string> = {
 
 /** The legend swatch color (line ramp) for a `band` in `mode`. `RAMPS` is an
  * exhaustive `Record<Mode, Record<Band, …>>`, so every (mode, band) resolves —
- * the return is always a defined color (impl F4: no dead optional chaining). */
+ * the return is always a defined color (no dead optional chaining). */
 export function legendColor(mode: Mode, band: Band): string {
   return RAMPS[mode][band].line;
 }

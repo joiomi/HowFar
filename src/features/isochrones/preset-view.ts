@@ -257,8 +257,8 @@ export function presetInteriorLineMinutes(mode: Mode, selectedMin: number): numb
  * the selected preset. The number is the SELECTED served contour, so the sentence
  * can never claim a minute the map isn't drawing. "in about N minutes" — never
  * "within" — because the reach is a typical-street-walk estimate, not a guaranteed
- * envelope (the caveat spells that out). Reviewed for overstatement in NEITHER
- * direction: it must not over-promise reach, and must not scare users off a
+ * envelope (the caveat spells that out). It must not overstate reach in either
+ * direction: it must not over-promise, and must not scare users off a
  * fundamentally-sound estimate.
  */
 export function presetReachExplainer(mode: Mode, selectedMin: number): string {
