@@ -1,14 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { emptyAmenities } from "./amenity-fixtures";
 
-// Visual right-click journey (task 054; unified to public-transport-only in
-// task 060), migrated to the phone-first preset client (task 022): a right-click
+// Visual right-click journey on the phone-first preset client: a right-click
 // in ANY mode auto-switches to Public transport and DRAWS the trip on the map
 // (`data-reach-journey`), and ties popup-step hover to on-map highlight
 // (`data-reach-hover`); closing / a new selection / a mode change clears the draw.
 // A plan with no transit leg is reported as "No public-transport route" (no draw).
-// The preset client suppresses amenity markers (deferred to a later pass), so the amenity
-// DECLUTTER half of task 054/061 is out of scope here — the journey draw/clear
+// The preset client suppresses amenity markers (deferred to the planned amenity pass), so the amenity
+// DECLUTTER half is out of scope here — the journey draw/clear
 // behaviour is what this file now proves. Provider calls stubbed by exact path;
 // the right-click is a native right-button click → contextmenu.
 
@@ -27,7 +26,7 @@ function polyRing(minutes: number, d: number) {
     },
   };
 }
-// The calibrated preset shapes served on ?model=preset (task 020): walk [10,20] /
+// The calibrated preset shapes served on ?model=preset: walk [10,20] /
 // transit [20,40] / car [10,25]. Sizes are exaggerated so a centre right-click is
 // deterministically inside the innermost band (the right-click band math).
 const WALK = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(10, 0.28), polyRing(20, 0.3)] };
@@ -82,7 +81,7 @@ async function reachRenderedCounts(page: Page) {
     const lineIdx = new Set<number>();
     const stopIdx = new Set<number>();
     for (const f of m.querySourceFeatures("reach-path")) {
-      // The reach-path source also carries the kind:"destination" pin (task 058)
+      // The reach-path source also carries the kind:"destination" pin
       // — exclude it; count only journey legs (kind:"leg") + used stops
       // (kind:"stop"), deduped by their unique index.
       if (f.geometry.type === "LineString" && f.properties.kind === "leg") lineIdx.add(f.properties.legIndex as number);
@@ -92,7 +91,7 @@ async function reachRenderedCounts(page: Page) {
   });
 }
 // The drawn journey's screen-space bbox (project every reach-path coord). Used to
-// prove the directions popup does not blanket the whole path (task 057 P1).
+// prove the directions popup does not blanket the whole path.
 async function journeyScreenBBox(page: Page) {
   return page.evaluate(() => {
     const m = (window as unknown as { __hfMap?: { querySourceFeatures: (s: string) => { geometry: { type: string; coordinates: unknown } }[]; project: (c: [number, number]) => { x: number; y: number } } }).__hfMap;
@@ -196,7 +195,7 @@ test("transit right-click DRAWS the journey", async ({ page }) => {
   // + the 2 used stops (board + alight) — the check review required.
   await expect.poll(() => reachRenderedCounts(page)).toEqual({ lines: 3, stops: 2 });
 
-  // task 058: the camera fits the journey (data-reach-framed) and the directions
+  // The camera fits the journey (data-reach-framed) and the directions
   // DOCK (result sheet) covers only a MINORITY of the drawn path, so the user can
   // see the way beside it. The dock is a fixed side/bottom panel (not a click-
   // anchored popup), and the frame pads for it, so overlap is bounded low; the
@@ -285,11 +284,11 @@ test("switching mode mid-journey clears the draw", async ({ page }) => {
   await expect(map).not.toHaveAttribute("data-reach-journey", /.*/);
 });
 
-test("walk-mode right-click AUTO-SWITCHES to Public transport and draws the journey (task 060)", async ({ page }) => {
+test("walk-mode right-click AUTO-SWITCHES to Public transport and draws the journey", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
   await search(page, map); // still in walk mode
   await rightClickCentre(page);
-  // The single owner-asked action: flip to Public transport + draw the trip.
+  // The single unified action: flip to Public transport + draw the trip.
   await expect(map).toHaveAttribute("data-mode", "transit");
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
@@ -303,7 +302,7 @@ test("walk-mode right-click AUTO-SWITCHES to Public transport and draws the jour
   await expect.poll(() => coordsInView(page, PLAN_EXTENT)).toBe(true);
 });
 
-test("car-mode right-click AUTO-SWITCHES to Public transport and draws the journey (task 060)", async ({ page }) => {
+test("car-mode right-click AUTO-SWITCHES to Public transport and draws the journey", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
   await search(page, map);
   await page.getByRole("button", { name: "Car", exact: true }).click();
@@ -338,7 +337,7 @@ test("camera race: a transit recompute that lands AFTER the plan does not clip t
   await expect.poll(() => coordsInView(page, PLAN_EXTENT)).toBe(true);
 });
 
-test("a walk-only plan → 'No public-transport route' (task 060: no walk-band answer), no draw", async ({ page }) => {
+test("a walk-only plan → 'No public-transport route' (no walk-band answer), no draw", async ({ page }) => {
   const { map } = await setup(page);
   // Override /api/reach to return a direct walk-only plan for this test.
   await page.route("**/api/reach**", (route) => route.fulfill({ json: WALK_ONLY_PLAN }));
@@ -350,10 +349,10 @@ test("a walk-only plan → 'No public-transport route' (task 060: no walk-band a
   await expect(map).not.toHaveAttribute("data-reach-journey", /.*/);
 });
 
-// QUARANTINED for a later pass (task 022): the amenity browser + text filter this test
-// drives is part of the amenity subsystem the phone-first preset client suppresses.
-// Kept VERBATIM so the "filter state survives a directions round-trip" regression
-// is restored when the amenity browser returns (a later pass).
+// Skipped: the amenity browser + text filter this test drives is part of the amenity
+// subsystem the phone-first preset client suppresses. Kept VERBATIM so the
+// "filter state survives a directions round-trip" regression
+// is restored when the amenity browser returns in the planned amenity pass.
 test.skip("amenity Browse text filter SURVIVES opening + closing directions", async ({ page }) => {
   const { map } = await setup(page);
   await search(page, map);

@@ -63,7 +63,7 @@ test("landing page renders the map shell and finishes loading tiles", async ({ p
   // rendered DOM, not just the style object. OSM (ODbL); ESA WorldCover landcover
   // credited with its licence name + link and a "modified" indication (CC BY 4.0,
   // distributed via Daylight — the tiles bundle it); Natural Earth (public-domain,
-  // shown by owner decision). A unit test on the style object alone would stay
+  // shown deliberately). A unit test on the style object alone would stay
   // green if the attribution control were removed or the credits regressed.
   const attrib = page.locator(".maplibregl-ctrl-attrib");
   // The "modified" indication must sit ON the ESA credit, contiguously between

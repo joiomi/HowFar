@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { emptyAmenities } from "./amenity-fixtures";
 
-// Task 017: MapLibre (327 KB gz) is deferred off the first-load critical path — the eager shell
+// MapLibre (327 KB gz) is deferred off the first-load critical path — the eager shell
 // (search box, header, controls) is interactive before the map engine loads, and the engine
 // hydrates behind it. This spec guards the two things that regression-risk that boundary:
 //   1. The map still loads on its own (auto-load "map hydrates behind it") and draws rings.

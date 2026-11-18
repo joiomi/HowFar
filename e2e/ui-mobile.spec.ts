@@ -21,7 +21,7 @@ function ring(minutes: number, distance: number) {
 
 const ISOCHRONE = {
   origin: { lat: 44.4268, lng: 26.1025 },
-  // The calibrated walk preset [10, 20] served on ?model=preset (task 020).
+  // The calibrated walk preset [10, 20] served on ?model=preset.
   rings: [ring(10, 0.01), ring(20, 0.02)],
 };
 
@@ -49,7 +49,7 @@ async function touchSwipe(page: Page, from: { x: number; y: number }, to: { x: n
   // Dispatch the whole gesture WITHOUT awaiting each ack: under CPU contention a
   // per-step round-trip stretched the gap between touchStart and the first
   // touchMove past the 500ms long-press threshold, so the "swipe" read as a
-  // stationary hold and fired the right-click reach action (task 062 repro:
+  // stationary hold and fired the right-click reach action (observed:
   // 726ms to the first move). A real finger's moves stream continuously; the
   // burst keeps the emulated ones in one delivery window while staying ordered
   // (CDP processes queued input in dispatch order).
@@ -70,12 +70,12 @@ async function touchSwipe(page: Page, from: { x: number; y: number }, to: { x: n
   await session.detach();
 }
 
-// QUARANTINED for a later pass (task 022): this end-to-end touch journey pivots on amenity
+// Skipped: this end-to-end touch journey pivots on amenity
 // INSPECTION — the amenity count, category toggles, amenity browser, POI popup, and
-// transit-stop line popup — the amenity subsystem the phone-first preset client
+// transit-stop line popup — the amenity subsystem the phone-first preset UI
 // suppresses. The surviving touch-shell contracts (suggestion scroll, sheet peek/
 // expand, orientation, map-reclaim) are covered by the migrated "collapsed dock +
-// peek sheet" test below and by preset-render.spec.ts. Restore when amenities return.
+// peek sheet" test below and by preset-render.spec.ts. Restore in the planned amenity pass.
 test.skip("touch journey stays usable through selection, results, inspection, map gestures, and orientation", async ({
   page,
 }) => {
@@ -153,7 +153,7 @@ test.skip("touch journey stays usable through selection, results, inspection, ma
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
   await expect(map).toHaveAttribute("data-amenity-count", "5");
 
-  // Task 062: the sheet opens at PEEK on mobile — expand it before driving the
+  // The sheet opens at PEEK on mobile — expand it before driving the
   // full result content (this tap is itself part of the new contract).
   await page.getByTestId("sheet-toggle").tap();
   await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sheet-state", "expanded");
@@ -258,7 +258,7 @@ test.skip("touch journey stays usable through selection, results, inspection, ma
   ).toBe(true);
 });
 
-test("Car mode toggle: three options meet the 44px target and don't overflow or occlude zoom controls (task 053, C-I)", async ({
+test("Car mode toggle: three options meet the 44px target and don't overflow or occlude zoom controls", async ({
   page,
 }) => {
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
@@ -306,7 +306,7 @@ test("Car mode toggle: three options meet the 44px target and don't overflow or 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
-// task 057: the right-click (long-press) transit directions must stay a COMPACT
+// The right-click (long-press) transit directions must stay a COMPACT
 // card on a phone — not a slab that blankets the map — and still draw the journey.
 // Uses a RETRYING long-press (poll until the reach popup appears) so a single
 // dropped touch gesture can't flake the run (the headless long-press caveat).
@@ -338,7 +338,7 @@ test("mobile: long-press transit directions show a compact card and draw the jou
   await page.getByRole("combobox").fill("Piata Unirii");
   await page.getByRole("button", { name: "Go" }).click();
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
-  // Task 062: the resolved selection collapsed the dock to the state pill —
+  // The resolved selection collapsed the dock to the state pill —
   // reopening it IS the mode-change path now.
   await page.getByTestId("state-pill").tap();
   await page.getByRole("button", { name: "Public transport", exact: true }).click();
@@ -360,7 +360,7 @@ test("mobile: long-press transit directions show a compact card and draw the jou
     await expect(map).toHaveAttribute("data-reach-state", "transit", { timeout: 2000 });
   }).toPass({ timeout: 20_000 });
 
-  // Docked directions (task 058): the panel lives in the result-sheet bottom
+  // Docked directions: the panel lives in the result-sheet bottom
   // sheet, capped at min(30dvh,14.5rem) — never a full-screen slab (Pixel 7 is
   // 412px wide). The sheet scrolls; the panel is inside it.
   const panel = await page.getByTestId("reach-panel").boundingBox();
@@ -375,11 +375,11 @@ test("mobile: long-press transit directions show a compact card and draw the jou
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
-// task 060: the long-press half of "right-click = get me there by public
+// The long-press half of "right-click = get me there by public
 // transport" — a long-press from WALK mode must auto-switch to transit, plan the
 // trip (exactly one /api/reach), draw the journey, and NOT leave a trailing
 // synthetic-click that reselects a new origin.
-test("mobile: long-press from Walk auto-switches to Public transport and draws the journey (task 060)", async ({ page }) => {
+test("mobile: long-press from Walk auto-switches to Public transport and draws the journey", async ({ page }) => {
   const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
   const reachCalls: string[] = [];
   await page.route("**/api/geocode**", (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }));
@@ -424,7 +424,7 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
     await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pt(cx, cy) });
     await page.waitForTimeout(650); // > long-press hold threshold, no move
     await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    // The long-press flips Walk → Public transport (the owner's unified action).
+    // The long-press flips Walk → Public transport (the unified right-click action).
     await expect(map).toHaveAttribute("data-mode", "transit", { timeout: 2000 });
   }).toPass({ timeout: 20_000 });
 
@@ -434,16 +434,16 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   // reselection would have geocoded a new origin (the label stays Piața Unirii).
   expect(reachCalls).toHaveLength(1);
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
-  // Task 062: active directions FORCE the sheet expanded — a journey answer
+  // Active directions FORCE the sheet expanded — a journey answer
   // must never hide behind the peek bar.
   await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sheet-state", "expanded");
 });
 
-// Task 062: below md the shell hands the screen to the map — the dock collapses
+// Below md the shell hands the screen to the map — the dock collapses
 // to a state pill on a resolved selection and the result sheet opens at a peek
 // bar, while every piece of state (address, mode, time budget, pace, filters)
 // stays visible and one tap from its editor.
-test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays visible and editable (task 062)", async ({
+test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays visible and editable", async ({
   page,
 }) => {
   await page.route("**/api/suggest**", (route) =>
@@ -499,7 +499,7 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   expect(await page.evaluate(() => localStorage.getItem("hf:ring-hint-dismissed:v1"))).toBe("1");
 
   // The camera settled on the origin — the padding flip did not cancel the
-  // selection flyTo (task-060 trap class).
+  // selection flyTo.
   await expect
     .poll(async () => {
       const center = await map.getAttribute("data-camera-center");
@@ -510,7 +510,7 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
     .toBe(true);
 
   // Map strip: the contiguous unobstructed corridor between pill and peek bar
-  // is the majority of the screen (the owner's core complaint: it was ~13%).
+  // is the majority of the screen (it must not shrink back to ~13%).
   const viewport = page.viewportSize()!;
   const sheetBox = await page.getByTestId("result-sheet").boundingBox();
   if (!sheetBox) throw new Error("result sheet has no box");
@@ -572,7 +572,7 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   await page.getByTestId("dock-collapse").tap();
   await expect(pill).toContainText("20 min");
 
-  // (The amenity filters/browser peek chips are deferred to a later pass; the pace peek
+  // (The amenity filters/browser peek chips are deferred to the planned amenity pass; the pace peek
   // chip remains the one live refinement on the phone shell.)
 
   // Pace chip names the current pace and lands on the pace control.
@@ -588,7 +588,7 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
   await expect(shell).toHaveAttribute("data-dock-state", "collapsed");
 
-  // Touch never sees hover chrome (task 062): taps synthesize mousemove, but
+  // Touch never sees hover chrome: taps synthesize mousemove, but
   // the hover grow + preview are gated on a real fine pointer — no preview
   // panel may ever have appeared in this touch-only session.
   await expect(page.getByTestId("cluster-preview")).toHaveCount(0);

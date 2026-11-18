@@ -3,7 +3,7 @@ import type { AmenityCounts, AmenityCountsByBand } from "@/features/amenities/am
 /**
  * Shared shape helpers for stubbed `/api/amenities` responses.
  *
- * Task 065 made the payload band-aware: it carries a `clip` descriptor and per-(category,
+ * The payload is band-aware: it carries a `clip` descriptor and per-(category,
  * band) pre-cap totals, and the client now REJECTS a response without a usable
  * `countsByBand` rather than recounting the rows it received. Every spec that stubs the
  * endpoint therefore has to produce the real shape — these helpers keep that in one place
@@ -49,7 +49,7 @@ export const EMPTY_COUNTS: AmenityCounts = {
  * against an amenity error state.
  */
 export function emptyAmenities(origin: { lat: number; lng: number }) {
-  // No flat `counts`: task 065 dropped it from the contract, so a fixture that still sent
+  // No flat `counts`: it is not part of the contract, so a fixture that still sent
   // one would re-document a field the app no longer has.
   return {
     origin,
@@ -62,7 +62,7 @@ export function emptyAmenities(origin: { lat: number; lng: number }) {
 /**
  * Ensure every stubbed amenity row carries a ring band.
  *
- * The client REJECTS a payload whose rows lack one (task 065): a band-less marker would be
+ * The client REJECTS a payload whose rows lack one: a band-less marker would be
  * drawn under every ring filter, including outside the shading, which the band contract
  * exists to prevent. Applied at payload-assembly sites so it holds
  * for programmatically generated fixtures too, not just object literals. Defaults to the

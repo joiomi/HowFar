@@ -1,18 +1,17 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { innerBandCounts, WALK_CLIP, withBands } from "./amenity-fixtures";
 
-// QUARANTINED for a later pass (task 022, phone-first preset client). The preset UI
-// renders no amenity markers, so the pin-overlap / clustering / aggregate-count
-// legibility proofs below have nothing to assert against. Kept VERBATIM so the
-// task-061 legibility regressions are restored intact when amenities return (a later pass).
+// Skipped: the phone-first preset UI renders no amenity markers, so the pin-overlap /
+// clustering / aggregate-count legibility proofs below have nothing to assert against.
+// Kept VERBATIM so these legibility regressions are restored intact in the planned amenity pass.
 test.beforeEach(() => {
-  test.skip(true, "a later pass: amenity markers suppressed by the phone-first preset client (task 022).");
+  test.skip(true, "Amenity markers are parked until the planned amenity pass; kept verbatim to re-enable then.");
 });
 
 /**
- * Amenity legibility (task 061).
+ * Amenity legibility.
  *
- * The owner's report was that amenities crowd into unreadable clumps. The fix is
+ * Amenities must not crowd into unreadable clumps. The fix is
  * structural — anything closer than the clustering radius is aggregated at EVERY
  * zoom — so the test for it must be structural too: **no two rendered amenity
  * marks may overlap, at any zoom**.
@@ -28,7 +27,7 @@ test.beforeEach(() => {
  */
 
 /** The slice of the exposed map handle these assertions use (`window.__hfMap`,
- * exposed for RENDERED-state e2e — see mind map [16]). Declared structurally so
+ * exposed for RENDERED-state e2e). Declared structurally so
  * the spec needs no maplibre types. */
 interface MapHandle {
   getZoom: () => number;
@@ -73,7 +72,7 @@ const MAP_MAX_ZOOM = 22;
 const PIN_STROKE_PX = 1.75;
 const PIN_HOVER_SCALE = 1.4;
 const PIN_HOVER_STROKE_PX = 2.5;
-// Task 062: donuts hover-grow too, and collision reserves THEIR grown size as
+// Donuts hover-grow too, and collision reserves THEIR grown size as
 // well — so the no-overlap measurement must hold with every donut at its
 // hovered footprint, exactly like the pins.
 const DONUT_HOVER_SCALE = 1.15;
@@ -109,7 +108,7 @@ interface Fixture {
   osmType?: string;
   osmId?: number;
   distanceMeters?: number;
-  /** Ring band (task 065). The client REJECTS a payload whose rows lack one, because a
+  /** Ring band. The client REJECTS a payload whose rows lack one, because a
    * band-less marker would be drawn under every ring filter — including outside the
    * shading. These fixtures all sit within the inner band. */
   band?: number;
@@ -331,7 +330,7 @@ async function visibleMarks(page: Page) {
       donuts.push({ name: `cluster(${el.dataset.clusterTotal})`, x, y, r: b.width / 2 });
     }
 
-    // Fanned leaves (task 061 W20) are marks too, so the no-overlap invariant has to
+    // Fanned leaves are marks too, so the no-overlap invariant has to
     // measure them; leaving them out would let a fan reintroduce the crowding it
     // exists to resolve without any test noticing.
     const leaves: { name: string; x: number; y: number }[] = [];
@@ -375,7 +374,7 @@ async function visibleMarks(page: Page) {
         ...p,
         r: pinRadius(raw.zoom) * PIN_HOVER_SCALE + PIN_HOVER_STROKE_PX,
       })),
-      // Donuts at their hover-grown footprint (task 062) — tangency legal,
+      // Donuts at their hover-grown footprint — tangency legal,
       // intersection is the regression this measurement exists to catch.
       ...raw.donuts.map((d) => ({ ...d, r: d.r * DONUT_HOVER_SCALE })),
       ...raw.leaves.map((l) => ({ ...l, r: leafR })),
@@ -914,7 +913,7 @@ test("the browser list shows distances, and the cap is admitted WITHOUT opening 
   // while the map's markers can merge several of them (coincident transit stops), so
   // quoting both numbers side by side compared different units (found in review).
   await expect(page.getByTestId("amenity-cap-note")).toContainText(/every place in range \(\d+\)/);
-  // Copy pinned deliberately: it must NOT claim "nearest" (task 065 — admission is
+  // Copy pinned deliberately: it must NOT claim "nearest" (admission is
   // distance-stratified, so the rendered set is a spread, not the closest N).
   await expect(page.getByTestId("amenity-cap-note")).toContainText(/spread across the area/);
   await expect(page.getByTestId("amenity-cap-note")).not.toContainText(/nearest/);
@@ -925,7 +924,7 @@ test("the browser list shows distances, and the cap is admitted WITHOUT opening 
   await expect(page.getByTestId("amenity-browser")).toContainText(/\d+ m|\d+(\.\d)? km/);
 });
 
-test("hovering a donut grows it, shows a synchronous preview, and yields to the click ladder (task 062)", async ({
+test("hovering a donut grows it, shows a synchronous preview, and yields to the click ladder", async ({
   page,
 }) => {
   // A group past the fan cap resolves through the LIST — no camera move on

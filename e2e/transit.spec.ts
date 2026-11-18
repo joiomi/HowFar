@@ -80,7 +80,7 @@ test("toggling Walk→Transit re-renders transit rings for the same origin witho
   await expect(map).toHaveAttribute("data-mode", "transit");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   // The legend reflects the mode (scope to the legend — the toggle button now
-  // also reads "Public transport" after the task-052 rename).
+  // also reads "Public transport" after the mode rename).
   await expect(page.getByTestId("ring-legend").getByText("Public transport")).toBeVisible();
 
   // Call accounting: exactly one walk call, one transit call, and NO second

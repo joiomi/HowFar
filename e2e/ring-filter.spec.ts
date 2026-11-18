@@ -1,19 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
-// QUARANTINED for a later pass (task 022, phone-first preset client). Two removed
-// surfaces: (1) the 15/30/45/All ring-display-filter control is replaced by the
-// two-chip preset bar — the surviving "chip → visible contour, no refetch" intent
-// is now proven in preset-render.spec.ts; (2) the task-065 amenity-band cumulative
-// visibility test exercises amenity markers the preset UI suppresses. Kept VERBATIM
-// so the task-065 amenity-band regression is restored when amenities return (a later pass).
+// Skipped: two surfaces are gone from the phone-first preset UI. (1) The 15/30/45/All
+// ring-display-filter control is replaced by the two-chip preset bar — the surviving
+// "chip → visible contour, no refetch" intent is proven in preset-render.spec.ts;
+// (2) the amenity-band cumulative visibility test exercises amenity markers the preset
+// UI suppresses. Kept VERBATIM so the amenity-band regression is restored in the
+// planned amenity pass.
 test.beforeEach(() => {
-  test.skip(true, "a later pass: ring-filter control replaced by preset chips + amenity markers suppressed (task 022).");
+  test.skip(true, "Ring-filter control is replaced by preset chips and amenity markers are parked until the planned amenity pass; kept verbatim to re-enable then.");
 });
 
-// Ring display filter (task 024): the 15/30/45/All control flips per-minute
+// Ring display filter: the 15/30/45/All control flips per-minute
 // layer visibility — all three rings stay FETCHED (data-isochrone-rings=3),
-// only the displayed band changes. Default is the 15-min band (owner-picked).
+// only the displayed band changes. Default is the 15-min band.
 // Providers stubbed by EXACT path (never /api/**, which would swallow tiles).
 
 function ring(minutes: number, d: number) {
@@ -132,7 +132,7 @@ test("the filter persists across a mode toggle AND a new selection (view prefere
   await expect(map).toHaveAttribute("data-ring-filter", "30");
 });
 
-// ── Task 065: amenity visibility follows the SHADING ─────────────────────────
+// ── Amenity visibility follows the SHADING ───────────────────────────────────
 //
 // The clip is now the whole reach area of the current mode, and each place carries
 // the ring band it sits in. Because a ring layer paints the WHOLE reach polygon for

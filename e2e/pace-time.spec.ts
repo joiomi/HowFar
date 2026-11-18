@@ -1,12 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import { emptyAmenities } from "./amenity-fixtures";
 
-// Pace + time-context selectors (task 051), migrated to the phone-first preset
-// client (task 022). Providers are stubbed by EXACT path. The mock cannot prove
-// the server ring→count coupling (that lives in unit + integration tests + the G6
-// live calibration); what e2e proves is that the controls SEND the right params
+// Pace + time-context selectors on the phone-first preset client. Providers are
+// stubbed by EXACT path. The mock cannot prove
+// the server ring→count coupling (that lives in unit + integration tests + the live
+// calibration); what e2e proves is that the controls SEND the right params
 // and the UI shows the honesty copy. The preset client suppresses amenity markers
-// (deferred to a later pass), so the pace/time re-render is proven by the REQUEST it
+// (deferred to the planned amenity pass), so the pace/time re-render is proven by the REQUEST it
 // drives (a new reach flight carrying the changed param), not by an amenity count.
 // Waits are on data-* stamps + captured URLs, never sleeps.
 
@@ -27,7 +27,7 @@ function ring(minutes: number, d: number) {
     },
   };
 }
-// Walk answers the calibrated preset [10, 20] (task 020), not the retired 15/30/45.
+// Walk answers the calibrated preset [10, 20].
 const WALK = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [ring(10, 0.01), ring(20, 0.02)] };
 
 // Captured outgoing request URLs, so we can assert the exact query the controls send.
@@ -75,8 +75,8 @@ test("defaults: exactly two paces (Slow, Normal), Normal active, BOTH meanings v
   await expect(paceGroup.getByRole("button")).toHaveCount(2);
   await expect(page.getByRole("button", { name: /Normal/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: /Brisk/ })).toHaveCount(0);
-  // Each option shows its short meaning WITHOUT being selected (owner ask / panel E).
-  // The SPEEDS are pinned on both options (task 064: 3 and 5 km/h). Normal had
+  // Each option shows its short meaning WITHOUT being selected.
+  // The SPEEDS are pinned on both options (3 and 5 km/h). Normal had
   // no km/h assertion before, so a wrong Normal speed rendered green.
   await expect(page.getByTestId("pace-blurb-slow")).toContainText("3 km/h");
   await expect(page.getByTestId("pace-blurb-normal")).toContainText("average adult");
@@ -95,12 +95,12 @@ test("changing pace to Slow sends &pace=slow (a new reach flight) and shows the 
   await page.getByRole("button", { name: /Slow/ }).click();
   await expect(page.getByTestId("pace-hint")).toContainText("estimated reach"); // non-normal honesty cue (walk too)
   // The pace change drives a fresh reach flight carrying pace=slow — the re-render
-  // proof now that amenity markers (the old count proof) are deferred to a later pass.
+  // proof now that amenity markers (the old count proof) are deferred to the planned amenity pass.
   await expect.poll(() => cap.iso.length).toBeGreaterThan(isoBefore);
   expect(cap.iso.some((u) => /pace=slow/.test(u))).toBe(true);
 });
 
-test("pace control is Walk-only; switching to Public transport hides it and requests Normal even after Slow (task 052)", async ({ page }) => {
+test("pace control is Walk-only; switching to Public transport hides it and requests Normal even after Slow", async ({ page }) => {
   const cap = await stubBase(page);
   await loadAndSearch(page);
   // Walk: the pace control is present.
@@ -132,7 +132,7 @@ test("time control: two options (Crowded default, Not crowded), no Custom editor
   await expect(timeGroup.getByRole("button")).toHaveCount(2);
   await expect(page.getByRole("button", { name: "Custom…" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Crowded", exact: true })).toHaveAttribute("aria-pressed", "true");
-  // Peak-honesty copy (task 058 D1): metro is road-traffic-immune, surface times are timetable-nominal.
+  // Peak-honesty copy: metro is road-traffic-immune, surface times are timetable-nominal.
   await expect(page.getByTestId("transit-departure-note")).toContainText("affected by road traffic");
 
   await page.getByRole("button", { name: "Not crowded", exact: true }).click();

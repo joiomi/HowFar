@@ -1,10 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { emptyAmenities } from "./amenity-fixtures";
 
-// Car travel mode (task 053), migrated to the phone-first preset client (task 022).
+// Car travel mode on the phone-first preset client.
 // The client sends `&model=preset`, so /api/car answers the CALIBRATED car preset
-// [10, 25] (task 020) — not the retired 10/20/30 bands. Car has NO pace and NO
-// per-minute ring-filter; its time-of-day control (Crowded / Not crowded) still
+// [10, 25]. Car has NO pace and NO per-minute ring-filter; its time-of-day control (Crowded / Not crowded) still
 // reshapes the reach for traffic realism. Providers are stubbed by EXACT path so
 // the real self-hosted basemap tiles still load. The reach is drawn as the preset
 // shells + contour lines (`preset-reach-fill`/`-line` sources), and the read-back
@@ -29,7 +28,7 @@ function polyRing(minutes: number, d: number) {
 // ~0.32° exceeds the Bucharest maxBounds (~0.6°×0.5°), so this fixture also
 // exercises the off-map clipping flagged in review (C-B/F5) — not a
 // viewport-tiny mock. The `car` meta block mirrors the real /api/car payload
-// (task 058) so the honesty-note slot label + right-click carMeta threading are
+// so the honesty-note slot label + right-click carMeta threading are
 // exercised e2e.
 const CAR_META = { basis: "estimate", slotId: "am-peak", slotLabel: "weekday morning rush" };
 const CAR = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(10, 0.3), polyRing(25, 0.32)], car: CAR_META };
@@ -76,7 +75,7 @@ test("Car mode fetches /api/car with the preset model + time context, NO pace, a
   const { map, carCalls } = await setup(page);
   await selectCar(page, map);
 
-  // The car request carries the preset model AND the time context (task 058 — car
+  // The car request carries the preset model AND the time context (car
   // reach is time-aware for traffic realism) but NEVER pace (a walk concept).
   expect(carCalls.length).toBeGreaterThan(0);
   const carUrl = carCalls[carCalls.length - 1]!;
@@ -97,13 +96,13 @@ test("Car mode fetches /api/car with the preset model + time context, NO pace, a
   expect(carCalls.length).toBe(carCallsBefore); // chip change is pure visibility, no refetch
 });
 
-test("Car mode shows NO walking-pace control, but DOES show a driving-time control (task 058)", async ({ page }) => {
+test("Car mode shows NO walking-pace control, but DOES show a driving-time control", async ({ page }) => {
   const { map } = await setup(page);
   await selectCar(page, map);
   await openRefine(page);
   // Pace is a walk concept — NOT PRESENT (count 0), not merely CSS-hidden (a
-  // rendered-then-hidden control would still be a regression, impl F3 + panel
-  // grok-3: the two controls are gated independently, never one merged wrapper).
+  // rendered-then-hidden control would still be a regression: the two controls are gated
+  // independently, never one merged wrapper).
   await expect(page.getByRole("group", { name: "Walking pace" })).toHaveCount(0);
   // Car reach IS time-aware now: a driving-time selector is present, under its
   // OWN label (never the transit one — so pace can't resurrect in car).
@@ -123,7 +122,7 @@ async function openRefine(page: Page) {
 
 // Rendered lng/lat span of the DRAWN preset reach — NOT viewport-clipped
 // (querySourceFeatures), so it measures the actual drawn contour size regardless
-// of camera fit. Proves the owner's core claim: peak reach is smaller than weekend.
+// of camera fit. Proves the core claim: peak reach is smaller than weekend.
 async function presetReachSpan(page: Page): Promise<number> {
   return page.evaluate(() => {
     const m = (window as unknown as { __hfMap?: { querySourceFeatures: (s: string) => { geometry: { type: string; coordinates: unknown } }[] } }).__hfMap;
@@ -140,10 +139,10 @@ async function presetReachSpan(page: Page): Promise<number> {
   });
 }
 
-test("Car time-of-day actually changes reach: Crowded rings are strictly smaller than Not crowded (owner item 1/3)", async ({ page }) => {
+test("Car time-of-day actually changes reach: Crowded rings are strictly smaller than Not crowded", async ({ page }) => {
   // Distinct geometry per traffic slot — small at am-peak (Crowded), large at
   // midday (Not crowded) — so this proves the RENDERED reach shrinks at peak, not
-  // just that a request fired (panel gpt5.5-3/luna-4/terra-3/grok-1). A regression
+  // just that a request fired. A regression
   // that ignored time and painted one fixed size would fail the span comparison.
   const carCalls: string[] = [];
   const small = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(10, 0.03), polyRing(25, 0.05)], car: { basis: "estimate", slotId: "am-peak", slotLabel: "weekday morning rush" } };
@@ -186,12 +185,12 @@ test("Car mode shows the driving-estimate honesty note naming the assumed traffi
   await expect(note).toBeVisible();
   await expect(note).toContainText("estimate");
   await expect(note).toContainText("traffic");
-  // Slot label from the /api/car `car` block is threaded into the note (task 058) —
+  // Slot label from the /api/car `car` block is threaded into the note —
   // a dropped meta block would fall back to "typical" and fail this.
   await expect(note).toContainText("weekday morning rush");
 });
 
-// Task 060: right-click no longer produces a car drive-band answer — in EVERY
+// Right-click never produces a car drive-band answer — in EVERY
 // mode it auto-switches to Public transport and draws the journey. That unified
 // behavior (incl. from car mode) is covered end-to-end in reach-journey.spec.ts
 // ("car-mode right-click AUTO-SWITCHES…"), which has the transit + plan fixtures

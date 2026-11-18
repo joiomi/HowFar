@@ -3,15 +3,14 @@ import { innerBandCounts, WALK_CLIP ,
   withBands,
 } from "./amenity-fixtures";
 
-// QUARANTINED for a later pass (task 022, phone-first preset client). Transit stops are
-// amenity markers, which the preset UI suppresses — there is no stop to click, so
-// the line-popup flow below cannot run. Kept VERBATIM so the task-021 stop-line
-// regressions are restored intact when amenity markers return (a later pass).
+// Skipped: transit stops are amenity markers, which the phone-first preset UI
+// suppresses — there is no stop to click, so the line-popup flow below cannot run.
+// Kept VERBATIM so the stop-line regressions are restored intact in the planned amenity pass.
 test.beforeEach(() => {
-  test.skip(true, "a later pass: transit-stop markers suppressed by the phone-first preset client (task 022).");
+  test.skip(true, "Transit-stop markers are parked until the planned amenity pass; kept verbatim to re-enable then.");
 });
 
-// Transit-stop line popup (task 021). A click on a transit marker opens a popup
+// Transit-stop line popup. A click on a transit marker opens a popup
 // listing the lines that serve it — and must NOT start a new isochrone
 // selection (no reverse/isochrone request). Providers stubbed by EXACT path.
 
@@ -37,7 +36,7 @@ const WALK = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [ring(15, 0.02), r
 // The map flies to the origin at zoom 13 after a selection. We put the transit
 // marker at a small east offset so it projects ~70px right of the container
 // centre — well clear of the origin DOM marker (which would otherwise swallow
-// the click, task 021) — and project it with the same Web-Mercator math
+// the click) — and project it with the same Web-Mercator math
 // MapLibre uses, so the test clicks the rendered GL circle deterministically.
 const ORIGIN = { lat: 44.4268, lng: 26.1025 };
 const STOP_DLNG = 0.006; // ≈ 70px east at zoom 13
@@ -51,7 +50,7 @@ function amenities(
     lng: number;
     name: string;
     category: string;
-    /** Ring band (task 065) — required by the client, see amenity-fixtures.ts. */
+    /** Ring band — required by the client, see amenity-fixtures.ts. */
     band?: number;
     osmType?: string;
     osmId?: number;
@@ -216,8 +215,7 @@ test("a stop-lines failure shows an error state, not a stuck spinner", async ({ 
   await expect(popup(page).getByText(/unavailable/i)).toBeVisible();
 });
 
-// Task 024 REVERSED the pre-024 contract ("only transit is inspectable"): the
-// owner asked for EVERY amenity to open its info instead of reselecting.
+// EVERY amenity (not only transit stops) opens its info popup instead of reselecting.
 test("clicking a NON-transit marker opens its info popup WITHOUT starting a selection", async ({ page }) => {
   let reverseCalls = 0;
   await stubBase(page);
@@ -232,7 +230,7 @@ test("clicking a NON-transit marker opens its info popup WITHOUT starting a sele
 
   const map = await loadAndSearch(page);
   // Click ~9px off the marker center — inside the forgiving 12px pad that a
-  // 5px circle would have missed (the owner's precise-click complaint).
+  // 5px circle would have missed (a precise click must not be required).
   const pos = await offsetPixel(map, STOP_DLNG, 0);
   await map.click({ position: { x: pos.x + 9, y: pos.y } });
 
@@ -279,8 +277,8 @@ test("an amenity sitting exactly on the searched origin is still clickable (orig
   );
 
   const map = await loadAndSearch(page);
-  // The origin's padded-centre pixel = the origin DOM marker's spot; before
-  // task 024 the pin swallowed this click (parked limitation from task 021).
+  // The origin's padded-centre pixel = the origin DOM marker's spot; the
+  // origin pin must not swallow this click.
   const o = await originPixel(map);
   await map.click({ position: { x: o.x, y: o.y } });
 
@@ -303,7 +301,7 @@ test("a transit stop with no OSM identity falls back to the info popup (never si
   await expect(poi.getByText("Transit stops")).toBeVisible();
 });
 
-// --- Merged coincident transit stops (task 047) -----------------------------
+// --- Merged coincident transit stops -----------------------------
 // The server fuses coincident stops before responding, so behind the stub we
 // assert the CLIENT contract: a members-bearing marker fans out to one
 // /api/stop-lines call per member under one deadline and renders the UNION.
@@ -416,7 +414,7 @@ test("hovering near a marker arms the hover state; leaving clears it", async ({ 
   await expect(map).not.toHaveAttribute("data-amenity-hover", /.*/);
 });
 
-// --- Route paths (task 024): a line row draws its full path + stops ---------
+// --- Route paths: a line row draws its full path + stops ---------
 
 const ROUTE_PATH = {
   segments: [
@@ -554,7 +552,7 @@ test("clicking the drawn route is a no-op; clicking bare map away from it clears
   expect(reverseCalls).toBe(0);
 
   // Bare map well below the line → a normal selection starts and tears down
-  // the popup + path (the map-click clear the owner's flow relies on).
+  // the popup + path (the map-click clear that selection flow relies on).
   await map.click({ position: { x: lineX, y: lineY + 250 } });
   await expect(map).toHaveAttribute("data-selection", /fresh spot/i);
   await expect(popup(page)).toHaveCount(0);

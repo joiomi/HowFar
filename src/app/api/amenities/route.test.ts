@@ -76,7 +76,7 @@ describe("GET /api/amenities", () => {
   });
 
   it("400 when `mode` is absent — never a silent walk default", async () => {
-    // A defaulting mode would let an un-updated client keep the pre-065 behaviour:
+    // A defaulting mode would let an un-updated client keep the old behaviour:
     // a 15-minute WALK marker set painted over transit/car shading, with nothing
     // anywhere reporting a problem.
     const res = await call("?lat=44.4268&lng=26.1025");

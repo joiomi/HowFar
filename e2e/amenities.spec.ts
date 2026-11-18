@@ -1,21 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
-// QUARANTINED for a later pass (task 022, phone-first preset client). The preset UI
-// suppresses the amenity subsystem this whole file exercises (no /api/amenities
-// fetch, no markers, no category tiles) — an owner-approved deferral, re-added
-// with the band migration in a later pass. The tests are kept VERBATIM (not deleted) so
+// Skipped: the phone-first preset UI suppresses the amenity subsystem this whole file
+// exercises (no /api/amenities fetch, no markers, no category tiles); amenities return
+// in the planned amenity pass. The tests are kept VERBATIM (not deleted) so
 // the amenity regressions they encode are restored intact when amenities return.
 test.beforeEach(() => {
-  test.skip(true, "a later pass: amenity subsystem deferred by the phone-first preset client (task 022).");
+  test.skip(true, "Amenity UI is parked until the planned amenity pass; kept verbatim to re-enable then.");
 });
 
 // Amenities slice (M2 slice 3). Providers STUBBED by EXACT path (never /api/**,
 // which would swallow /api/tiles). Amenity fetch identity is origin × mode ×
-// effectivePace × timeContext (task 065): the clip is the selected mode's reach area, so
+// effectivePace × timeContext: the clip is the selected mode's reach area, so
 // a Walk↔Transit or crowded↔quiet toggle REFETCHES. Only a ring-filter change is local.
-// (Pre-065 this read "amenities are mode-independent … preserved across a toggle" — the
-// retired contract, which the tests below now assert against.)
 
 function ring(minutes: number, d: number) {
   return {
@@ -103,10 +100,9 @@ test("a selection renders amenity markers + five category counts, and a mode tog
   await expect(map).toHaveAttribute("data-amenity-count", "5");
   await expect(page.getByText("200")).toBeVisible();
 
-  // Toggle to Transit. Task 065 REVERSED the old contract here: the clip is now the
-  // current mode's reach area, so the set of places in range genuinely changes and the
-  // markers must be REFETCHED rather than persisted. The old assertion (one fetch per
-  // address, markers preserved) described the 15-minute-walk-in-every-mode clip.
+  // Toggle to Transit. The clip is the current mode's reach area, so the set of
+  // places in range genuinely changes and the markers must be REFETCHED rather than
+  // persisted (a persisted set would describe a 15-minute-walk clip in every mode).
   await page.getByRole("button", { name: "Public transport", exact: true }).click();
   await expect(map).toHaveAttribute("data-mode", "transit");
   await expect(async () => {
@@ -208,10 +204,9 @@ test("a mode toggle mid-flight supersedes the in-flight amenity fetch and paints
   await search(page);
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
 
-  // Toggle before the amenities resolve. Task 065: the toggle changes the CLIP, so the
-  // in-flight walk request is now for the wrong area — it is superseded and a transit
-  // request replaces it. Before 065 the right answer was the opposite (keep the
-  // in-flight fetch, since every mode shared one walk clip).
+  // Toggle before the amenities resolve. The toggle changes the CLIP, so the
+  // in-flight walk request is for the wrong area — it is superseded and a transit
+  // request replaces it.
   await page.getByRole("button", { name: "Public transport", exact: true }).click();
   await expect(map).toHaveAttribute("data-mode", "transit");
 
@@ -291,8 +286,7 @@ test("a transient amenities failure self-heals via one automatic retry (no user 
   await search(page);
 
   // The 502 must NOT surface: the panel stays on "loading" through the retry
-  // window and lands on counts — the owner-reported "click again and it works"
-  // now happens by itself.
+  // window and lands on counts — the user never has to "click again" for it to work.
   await expect(page.getByText(/amenities unavailable/i)).not.toBeVisible();
   await expect(map).toHaveAttribute("data-amenity-count", "5", { timeout: 10_000 });
   expect(calls).toBe(2); // the failed attempt + exactly one automatic retry
@@ -338,8 +332,8 @@ test("a mode toggle after an amenities error refetches instead of stranding the 
   await search(page);
   await expect(page.getByText(/amenities unavailable/i)).toBeVisible({ timeout: 10_000 });
 
-  // The toggle recomputes the SAME origin — before task 024 the stale origin key
-  // swallowed this refetch and the error persisted forever.
+  // The toggle recomputes the SAME origin — a stale origin key must not swallow this
+  // refetch and leave the error up forever.
   healthy = true;
   await page.getByRole("button", { name: "Public transport", exact: true }).click();
   await expect(map).toHaveAttribute("data-mode", "transit");

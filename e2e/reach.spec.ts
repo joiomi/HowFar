@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { emptyAmenities } from "./amenity-fixtures";
 
-// Right-click "how do I get there?" (task 052 D). Provider calls stubbed by EXACT
+// Right-click "how do I get there?". Provider calls stubbed by EXACT
 // path. Walk reach is answered client-side (point-in-ring on the drawn rings);
 // transit reach fetches a MOTIS trip plan from /api/reach (mocked here). The
 // right-click is a native right-button click on the map canvas → contextmenu.
@@ -31,10 +31,10 @@ const TRANSIT = {
   departure: "2026-07-29T05:30:00.000Z",
 };
 // Empty rings ⇒ point-in-ring is always null ⇒ transit right-click is
-// "unreachable" with no /api/reach call (the T1 gate).
+// "unreachable" with no /api/reach call.
 const emptyRing = (minutes: number) => ({ minutes, geometry: { type: "MultiPolygon", coordinates: [] } });
 const TRANSIT_EMPTY = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [emptyRing(20), emptyRing(40)], departure: "2026-07-29T05:30:00.000Z" };
-// Legs carry coords + decoded path (the server now surfaces these — task 054),
+// Legs carry coords + decoded path (the server now surfaces these),
 // so the popup text AND the on-map journey draw are both exercised.
 const PLAN = {
   reachable: true,
@@ -89,10 +89,10 @@ test("right-click with no selection shows the hint", async ({ page }) => {
   await expect(page.getByTestId("reach-panel")).toContainText("Pick a starting point");
 });
 
-test("Escape closes the directions even after focus has left the panel (panel fable-1)", async ({ page }) => {
+test("Escape closes the directions even after focus has left the panel", async ({ page }) => {
   const { map } = await setup(page);
   await search(page, map);
-  await rightClickCentre(page); // task 060: any-mode right-click → transit directions
+  await rightClickCentre(page); // any-mode right-click → transit directions
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   // Move focus off the panel to the map container (tabIndex=-1) — a panel-scoped
   // Escape handler would go dead here; the document-level one must still close.
@@ -102,7 +102,7 @@ test("Escape closes the directions even after focus has left the panel (panel fa
   await expect(map).not.toHaveAttribute("data-reach-state", /.+/);
 });
 
-test("walk mode: right-click auto-switches to Public transport and plans the trip (task 060)", async ({ page }) => {
+test("walk mode: right-click auto-switches to Public transport and plans the trip", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
   await search(page, map); // walk mode
   await rightClickCentre(page);
@@ -135,7 +135,7 @@ test("public-transport mode: right-click shows the planned trip with a specific 
   expect(decodeURIComponent(reachCalls[0])).toContain("departure=2026-07-29T05:30");
 });
 
-test("directions DOCK in the result sheet — selection/filters block hidden, no reach popup, Back restores it (task 058, owner item 2)", async ({ page }) => {
+test("directions DOCK in the result sheet — selection/filters block hidden, no reach popup, Back restores it", async ({ page }) => {
   const { map } = await setup(page);
   await search(page, map);
   await page.getByRole("button", { name: "Public transport", exact: true }).click();
@@ -154,7 +154,7 @@ test("directions DOCK in the result sheet — selection/filters block hidden, no
   // …there is NO MapLibre reach popup covering the map…
   await expect(page.locator(".maplibregl-popup")).toHaveCount(0);
   // …and the selection card + amenity filters are hidden while directions are
-  // active (owner's ask; the block stays mounted-but-hidden so its state survives).
+  // active (the block stays mounted-but-hidden so its state survives).
   await expect(selectionBlock).not.toBeVisible();
 
   // Back restores the selection card + filters and clears the directions.
@@ -164,7 +164,7 @@ test("directions DOCK in the result sheet — selection/filters block hidden, no
   await expect(sheet).toHaveAttribute("aria-label", "Location result");
 });
 
-test("public-transport mode: a point outside the drawn rings STILL plans the trip (task 060 — the no-fetch T1 gate is gone)", async ({ page }) => {
+test("public-transport mode: a point outside the drawn rings STILL plans the trip (there is no no-fetch gate)", async ({ page }) => {
   const reachCalls: string[] = [];
   await page.route("**/api/amenities**", (route) =>
     route.fulfill({ json: emptyAmenities({ lat: 44.4268, lng: 26.1025 }) }),
@@ -184,10 +184,10 @@ test("public-transport mode: a point outside the drawn rings STILL plans the tri
   await page.getByRole("button", { name: "Public transport", exact: true }).click();
   await expect(map).toHaveAttribute("data-mode", "transit");
 
-  // Owner's new intent: right-click ALWAYS shows the PT way. With no ring to fall
+  // Right-click ALWAYS shows the PT way. With no ring to fall
   // inside, the band defaults to the SELECTED transit preset (default chip = 20;
   // the client frames against the reach it actually draws, never a hidden 40/45
-  // contour — G2.7) and the planner IS called (honesty comes from the drawn path +
+  // contour) and the planner IS called (honesty comes from the drawn path +
   // band-honesty copy, not a silent no-fetch).
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-state", "transit");

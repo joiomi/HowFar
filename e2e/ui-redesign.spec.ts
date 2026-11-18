@@ -45,7 +45,7 @@ function ring(minutes: number, distance: number) {
 
 const WALK = {
   origin: { lat: 44.4268, lng: 26.1025 },
-  // The calibrated walk preset [10, 20] served on ?model=preset (task 020).
+  // The calibrated walk preset [10, 20] served on ?model=preset.
   rings: [ring(10, 0.01), ring(20, 0.02)],
 };
 
@@ -158,7 +158,7 @@ async function cameraSubjectPixel(page: Page) {
 async function expectSubjectClearOfUi(page: Page) {
   const point = await cameraSubjectPixel(page);
   const viewport = page.viewportSize();
-  // Task 062: below md a resolved selection collapses the dock to the state
+  // Below md a resolved selection collapses the dock to the state
   // pill — whichever top surface is present is the chrome the subject clears.
   const command = (await page.getByTestId("command-surface").count())
     ? await page.getByTestId("command-surface").boundingBox()
@@ -175,7 +175,7 @@ async function expectSubjectClearOfUi(page: Page) {
 
 async function expectOriginMarkerAtCameraSubject(page: Page) {
   const point = await cameraSubjectPixel(page);
-  // Scoped to the ORIGIN marker's own class: since task 061, cluster donuts are
+  // Scoped to the ORIGIN marker's own class: cluster donuts are
   // also MapLibre DOM markers, so a bare `.maplibregl-marker` matches several.
   const marker = await page.locator(".hf-origin-marker").boundingBox();
   if (!marker) throw new Error("origin marker has no box");
@@ -201,7 +201,7 @@ async function expectAttributionClearOfResults(page: Page) {
   expect(boxesOverlap(osmBox, resultBox)).toBe(false);
 }
 
-// QUARANTINED for a later pass (task 022): asserts the retired staged ring reveal
+// Skipped: asserts the old staged ring reveal
 // (`data-ring-reveal*`), amenity encoding, and the old "Within a 15-min walk" copy —
 // all replaced by the preset render (proven in preset-render.spec.ts).
 test.skip("deterministic populated fixture renders the complete map result", async ({ page }, testInfo) => {
@@ -210,7 +210,7 @@ test.skip("deterministic populated fixture renders the complete map result", asy
   await expect(map).toHaveAttribute("data-ring-reveal-sequence", "15");
   await expect(map).toHaveAttribute("data-ring-reveal", "settled");
   await expect(map).toHaveAttribute("data-camera-motion", "animated");
-  // task 061: category is encoded as colour + a real per-category ICON, replacing
+  // Category is encoded as colour + a real per-category ICON, replacing
   // the single-letter glyphs. The stamp lands only once every sprite image is
   // registered, so this asserts the encoding is actually available.
   await expect(map).toHaveAttribute("data-amenity-encoding", "color+icon");
@@ -226,8 +226,8 @@ test.skip("deterministic populated fixture renders the complete map result", asy
   });
 });
 
-// QUARANTINED for a later pass (task 022): the staged 45→30→15 ring reveal + `data-ring-paint*`
-// trace + the 15/30/45/All ring control are retired; the preset render paints shells +
+// Skipped: the staged 45→30→15 ring reveal + `data-ring-paint*`
+// trace + the 15/30/45/All ring control no longer exist; the preset render paints shells +
 // contour lines directly (preset-render.spec.ts).
 test.skip("staged ring reveal changes the live MapLibre paint before settling", async ({ page }) => {
   await stubPopulatedState(page);
@@ -261,7 +261,7 @@ test("mobile shell keeps the selected subject between command surface and result
   await expect(sheet).toBeInViewport();
   const overflow = await sheet.evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
   expect(overflow.scroll).toBeLessThanOrEqual(overflow.client);
-  // The amenity category tiles are deferred to a later pass; in preset mode the sheet
+  // The amenity category tiles are deferred to the planned amenity pass; in preset mode the sheet
   // carries the reach result. The canonical proof that the subject survives the
   // command-surface → result-sheet handoff is the `data-selection` stamp (the sheet
   // header + SelectionCard read the same label); the sheet-in-viewport check above
@@ -278,7 +278,7 @@ test("camera reframes an existing result across desktop and mobile breakpoints",
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(map).toHaveAttribute("data-camera-pad-left", "12");
-  // Task 062: crossing into mobile with a resolved selection lands in the
+  // Crossing into mobile with a resolved selection lands in the
   // collapsed-dock + peek-sheet shell, so the insets are the compact pair.
   await expect(map).toHaveAttribute("data-camera-pad-top", "140");
   await expect(map).toHaveAttribute("data-camera-pad-bottom", "124");
@@ -373,7 +373,7 @@ test("first-run guidance is search-first but lets a map click pass through and d
   await expect(firstRun).toHaveCount(0);
 });
 
-// QUARANTINED for a later pass (task 022): asserts the retired 15/30/45/All ring control +
+// Skipped: asserts the old 15/30/45/All ring control +
 // the amenity browser trigger. Touch-size/search-first focus of the SURVIVING preset
 // controls (mode+preset bar) is covered by preset-render.spec.ts + ui-mobile.spec.ts.
 test.skip("core controls meet touch-size, search-first focus, and live-state contracts", async ({ page }) => {
@@ -424,7 +424,7 @@ test.skip("core controls meet touch-size, search-first focus, and live-state con
 
   await search.fill("Piața Unirii");
   await search.press("Enter");
-  // Task 062: a fresh search keeps the dock expanded and the focused combobox
+  // A fresh search keeps the dock expanded and the focused combobox
   // itself carries the live busy state (the amenity live region now sits
   // behind the sheet's peek bar until expanded).
   await expect(search).toHaveAttribute("aria-busy", "true");
@@ -457,7 +457,7 @@ test.skip("core controls meet touch-size, search-first focus, and live-state con
   const hasAuthAction = (await authAction.count()) > 0;
   let passedAuthAction = false;
   // Budget covers the search + mode/ring chrome, the amenity browser/tiles, AND
-  // the task-051 reach refinements (pace + transit departure) now in the result
+  // the reach refinements (pace + transit departure) now in the result
   // sheet, before the map canvas becomes the focus target.
   for (let step = 0; step < 28 && !(await canvas.evaluate((element) => element === document.activeElement)); step += 1) {
     await page.keyboard.press("Tab");
@@ -472,8 +472,8 @@ test.skip("core controls meet touch-size, search-first focus, and live-state con
   await expect.poll(() => map.getAttribute("data-camera-center")).not.toBe(centerBefore);
 });
 
-// QUARANTINED for a later pass (task 022): the "nearby browser" is the amenity browser,
-// suppressed in preset mode (deferred to a later pass).
+// Skipped: the "nearby browser" is the amenity browser,
+// suppressed in preset mode (deferred to the planned amenity pass).
 test.skip("nearby browser starts clean when a new location replaces the result", async ({ page }) => {
   await page.route("**/api/geocode**", (route) => {
     const second = new URL(route.request().url()).searchParams.get("q")?.includes("Second");
@@ -527,7 +527,7 @@ test.skip("nearby browser starts clean when a new location replaces the result",
   await expect(page.getByRole("button", { name: /Mega Image Unirii/ })).toHaveCount(0);
 });
 
-// QUARANTINED for a later pass (task 022): the keyboard place browser drives amenity POIs +
+// Skipped: the keyboard place browser drives amenity POIs +
 // transit stops (the amenity subsystem), suppressed in preset mode.
 test.skip("keyboard-only place browser opens a POI, transit stop, and route with focus return", async ({ page }) => {
   await stubPopulatedState(page);
@@ -627,7 +627,7 @@ test("selection failure remains understandable and composed", async ({ page }) =
   await captureRequested(page, "selection-error-desktop");
 });
 
-// QUARANTINED for a later pass (task 022): pivots on clicking a west-side amenity marker +
+// Skipped: pivots on clicking a west-side amenity marker +
 // its poi-popup (the amenity subsystem, suppressed in preset mode). The map-drag guard
 // rides on that marker's pixel, so it cannot run standalone here.
 test.skip("desktop rail gaps preserve map drag and west-side amenity inspection", async ({ page }) => {
@@ -679,10 +679,10 @@ test.skip("desktop rail gaps preserve map drag and west-side amenity inspection"
 test("reduced motion suppresses decorative surface and spinner animation", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const map = await loadPopulatedState(page);
-  // The staged ring reveal is retired (the preset render paints its shells + contour
+  // The staged ring reveal no longer exists (the preset render paints its shells + contour
   // lines directly); under reduced motion the camera settles instantly and the
   // reach is drawn without animation — assert the instant camera + the fully-painted
-  // preset contours rather than the retired reveal stamps.
+  // preset contours rather than reveal stamps.
   await expect(map).toHaveAttribute("data-camera-motion", "instant");
   await expect(map).toHaveAttribute("data-preset-contours", "10");
   const motion = await page.evaluate(() => {
@@ -698,9 +698,9 @@ test("reduced motion suppresses decorative surface and spinner animation", async
   expect(motion.iterationCount).toBe("1");
 });
 
-// QUARANTINED for a later pass (task 022): opens the amenity POI popup (`poi-popup`) to
+// Skipped: opens the amenity POI popup (`poi-popup`) to
 // inspect the MapLibre popup chrome; amenity markers/popups are suppressed in preset
-// mode. Restore when the amenity popup returns (a later pass).
+// mode. Restore when the amenity popup returns in the planned amenity pass.
 test.skip("MapLibre popup keeps the redesigned dark chrome after CSS bundling", async ({ page }) => {
   await loadPopulatedState(page);
   await clickEastAmenity(page);

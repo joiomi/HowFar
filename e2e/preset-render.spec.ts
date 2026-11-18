@@ -3,16 +3,16 @@ import { emptyAmenities } from "./amenity-fixtures";
 
 /**
  * Phone-first deterministic read-back oracle. The BINDING proof of the
- * phone-first preset render is NOT a WebGL pixel diff (cross-machine raster flake,
- * rule 13) but the `data-*` stamps the render writes: the served preset contours,
+ * phone-first preset render is NOT a WebGL pixel diff (cross-machine raster flake)
+ * but the `data-*` stamps the render writes: the served preset contours,
  * the calibrated interior-line minutes (the render-midpoint honesty), the chip →
  * painted-contour mapping (pure client visibility, no refetch), amenity
  * suppression, the first-paint placeholder, and the transit attribution.
  *
  * The client is preset-only, so every stub returns the CALIBRATED preset contours
- * (walk [10,20], transit [20,40], car [10,25]) — the shapes task 020 serves on
+ * (walk [10,20], transit [20,40], car [10,25]) — the shapes the server serves on
  * `?model=preset`. 390×844 (a phone viewport) is set in the project config; this
- * suite asserts semantics, and the owner does the live visual review.
+ * suite asserts semantics, and the visual look is reviewed live.
  */
 
 // Pin the exact phone viewport the phone-first design targets (390×844). This spec
@@ -121,7 +121,7 @@ test("walk preset: default chip 10 draws only the 10-min contour, the 20 chip ad
   // The chip is pure client-side visibility: the route returned BOTH contours,
   // so the chip change must NOT trigger a second isochrone flight.
   expect(isoCalls).toBe(1);
-  // Amenities are DEFERRED in preset mode (owner decision): ZERO fetches.
+  // Amenities are DEFERRED in preset mode (by design): ZERO fetches.
   expect(amenityCalls).toBe(0);
   expect(errors).toEqual([]);
 });
