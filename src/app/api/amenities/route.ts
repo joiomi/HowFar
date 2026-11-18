@@ -10,15 +10,15 @@ import { parseModeStrict } from "@/features/map/selection-flow";
 import { errorResponse, jsonError, outOfAreaGuard, parseLatLng } from "@/lib/api-util";
 
 /**
- * Amenities inside the reach area of a travel mode (task 065).
+ * Amenities inside the reach area of a travel mode.
  *
  * `mode` is REQUIRED and fail-loud: the clip follows the mode, so silently
  * defaulting a missing mode to walk would serve a 15-minute-walk marker set over
- * transit or car shading — the exact defect this task removes — with nothing
+ * transit or car shading — the exact defect a required mode prevents — with nothing
  * reporting it. `preset` selects the departure/traffic context that the transit and
  * car rings are computed at, so the markers match the polygon the user sees; it is
  * parsed by the SAME `parseTimeContext` the /api/transit and /api/car routes use,
- * and rejects retired `weekday`/`time` params (task 059).
+ * and rejects retired `weekday`/`time` params.
  */
 export const dynamic = "force-dynamic";
 

@@ -77,7 +77,7 @@ describe("GET /api/car", () => {
     expect(drivingIsochrone).not.toHaveBeenCalled();
   });
 
-  it("400 on a retired preset id (weekend/midday/evening no longer exist)", async () => {
+  it("400 on a retired preset id (weekend/midday/evening are not presets)", async () => {
     expect((await call("?lat=44.4268&lng=26.1025&preset=weekend")).status).toBe(400);
     expect(drivingIsochrone).not.toHaveBeenCalled();
   });

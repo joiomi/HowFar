@@ -51,7 +51,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* In the base layer, NOT unlayered (task 062): unlayered author rules beat
+/* In the base layer, NOT unlayered: unlayered author rules beat
    every @layer rule, so this reset was silently overriding ALL Tailwind
    font/text utilities on form controls — every button in the app rendered
    16px text whatever its text-[…] class said (the cause of the clipped
@@ -215,12 +215,12 @@ button,
     0 0 24px color-mix(in srgb, var(--hf-origin-color) 68%, transparent);
 }
 
-/* Transit-stop/POI popup (tasks 021/024). Dark-glass, matching the map overlay
+/* Transit-stop/POI popup. Dark-glass, matching the map overlay
    UI; overrides MapLibre's default light popup chrome, including the tip
    triangle colour for every anchor position. Every selector is prefixed with
    the popup ROOT class so it outranks maplibre-gl.css by specificity — the
    two stylesheets' bundle order is build-dependent (a later maplibre chunk
-   silently reverted these to the white chrome, caught by screenshot, task 024).
+   silently reverted these to the white chrome, caught by screenshot).
 
    Popups mount inside the map sibling under the z-20 command plane — raise them
    above chrome (z-30) so tall stop lists stay interactive, but keep them under
@@ -334,7 +334,7 @@ button,
   color: var(--hf-muted);
 }
 
-/* A selectable line row (task 024): clicking draws the line's full path +
+/* A selectable line row: clicking draws the line's full path +
    stops on the map; the active row stays highlighted, an error turns amber. */
 .hf-stop-popup__route {
   display: flex;
@@ -384,7 +384,7 @@ button,
     max-width: min(300px, calc(100vw - 2rem));
   }
 
-  /* ONE bottom-clearance source (task 062): how far above the viewport bottom
+  /* ONE bottom-clearance source: how far above the viewport bottom
      the result sheet's top edge sits at its current state. The MapLibre bottom
      controls (incl. the basemap attribution: OSM + ESA WorldCover + Natural Earth) AND the Transitous badge both consume
      this variable, so neither can float mid-map or disagree with the sheet. */
@@ -457,7 +457,7 @@ button,
   }
 }
 
-/* Cluster "N places here" list (task 061) — the floor of the amenity resolution
+/* Cluster "N places here" list — the floor of the amenity resolution
    ladder. Because clustering never dissolves, genuinely coincident places can
    only be read here, so this list has to be comfortably scrollable and its rows
    have to meet the same 44px touch target as the rest of the UI. */

@@ -4,7 +4,7 @@ import { errorResponse, jsonError, outOfAreaGuard, parseLatLng } from "@/lib/api
 import { stopLines, type OsmType } from "@/features/amenities/server/stop-lines";
 
 /**
- * Transit lines serving one OSM stop (task 021). GET
+ * Transit lines serving one OSM stop. GET
  * `?type=node|way|relation&id=<posint>&lat=&lng=&name=`.
  *
  * `outOfAreaGuard` rejects out-of-Bucharest coordinates with ZERO provider calls

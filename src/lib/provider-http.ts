@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 /**
  * Shared upstream-fetch plumbing for the server-side provider clients
  * (Nominatim, ORS, and later Overpass/Open-Meteo). Two jobs:
- *   1. A per-PROVIDER serialized rate limiter (bucket `provider@host`, task 009)
+ *   1. A per-PROVIDER serialized rate limiter (bucket `provider@host`)
  *      — Nominatim's ToS mandates ≤1 req/s, and caching alone doesn't bound
  *      *distinct* cold requests. Keying on the provider (not the bare host) keeps
  *      providers behind one self-hosted domain from serializing together; the
@@ -21,7 +21,7 @@ export const USER_AGENT = "HowFar/1.0 (+https://github.com/joitamihnea1999/HowFa
  * `retriable` marks a failure a caller may retry once (a transient network drop
  * or our own abort/timeout, as opposed to a deterministic upstream status);
  * clients that wrap raw fetch errors set it from `isRetriableFetchError` so a
- * retry loop can classify AFTER wrapping (task 018). */
+ * retry loop can classify AFTER wrapping. */
 export class ProviderError extends Error {
   readonly retriable: boolean;
   constructor(message: string, opts?: { retriable?: boolean }) {
@@ -37,8 +37,8 @@ export class ProviderError extends Error {
  * / "network down") or an abort/timeout (`AbortError` / `TimeoutError`, incl.
  * our own request-deadline abort). A `ProviderError` — which wraps a real
  * upstream STATUS — is deterministic and NOT retriable (don't hammer a provider
- * that is actively refusing). Task 018: the owner saw `/api/transit` + `/api/reach`
- * fail intermittently on exactly these shapes, healing on an identical retry.
+ * that is actively refusing). Intermittent `/api/transit` + `/api/reach` failures on
+ * exactly these shapes heal on an identical retry.
  */
 export function isRetriableFetchError(err: unknown): boolean {
   if (err instanceof ProviderError) return false;
@@ -56,7 +56,7 @@ export function isRetriableFetchError(err: unknown): boolean {
  * Run `attempt`; on ONE transient failure (`isRetriableFetchError`) wait
  * `backoffMs` then run it exactly once more. Deterministic failures rethrow
  * immediately, and `canRetry` (when given) can veto the retry — e.g. a caller
- * with an absolute time budget refuses a retry that wouldn't fit (task 018).
+ * with an absolute time budget refuses a retry that wouldn't fit.
  * Bounded at two attempts total.
  */
 export async function retryOnceOnTransient<T>(
@@ -86,7 +86,7 @@ export function roundCoord(n: number): string {
 // apart. A rejected call doesn't break the chain (we swallow to keep it moving).
 // The bucket key is `${provider}@${host}` (see providerFetch), so DIFFERENT
 // providers behind ONE self-hosted domain do NOT serialize into a single chain
-// (task 009) — before this, a 20 s MOTIS call head-of-line-blocked a 300 ms
+// — otherwise a 20 s MOTIS call head-of-line-blocks a 300 ms
 // Photon autocomplete once both resolved to the same host. NOTE this fixes
 // CROSS-provider blocking only: two calls in the SAME bucket (e.g. the two MOTIS
 // callers, which deliberately share `transit@host` for one ToS budget) still
@@ -171,7 +171,7 @@ export interface ProviderFetchOptions {
  *  env), so the `@` delimiter can't be forged from a hostname. The host half is
  *  canonicalized (lowercased, trailing DNS dot stripped) so case/`host.`-variant
  *  spellings of ONE server collapse to ONE bucket instead of racing it in
- *  parallel at 2× the fair-use rate (task 009). */
+ *  parallel at 2× the fair-use rate. */
 export function providerFetch(url: string, opts: ProviderFetchOptions): Promise<Response> {
   const host = opts.rateHost.toLowerCase().replace(/\.$/, "");
   return withRateLimit(`${opts.provider}@${host}`, opts.minIntervalMs, () =>

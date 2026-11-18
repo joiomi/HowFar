@@ -12,7 +12,7 @@ import { ProviderError } from "@/lib/provider-http";
 import { GET } from "./route";
 
 const call = (qs: string) => GET(new Request(`http://localhost/api/amenities${qs}`));
-/** A valid request needs coords AND a mode (task 065: mode is required, not defaulted). */
+/** A valid request needs coords AND a mode (mode is required, not defaulted). */
 const ORIGIN = "?lat=44.4268&lng=26.1025&mode=walk";
 
 beforeEach(() => {
@@ -46,7 +46,7 @@ describe("GET /api/amenities", () => {
       amenities: [{ lat: 44.44, lng: 26.12, name: "Catena", category: "pharmacies", band: 15 }],
       // The real payload always carries `catalogue` (freshness), so the mock must too —
       // otherwise the exact-key assertion below pins a 4-key shape production never
-      // returns, and a regression dropping `catalogue` would ship green. Four round-3
+      // returns, and a regression dropping `catalogue` would ship green.
       catalogue: { sourceTimestamp: "2026-07-26T03:03:36.000Z", stale: false },
     };
     nearbyAmenities.mockResolvedValue(result);
@@ -75,7 +75,7 @@ describe("GET /api/amenities", () => {
     logged.mockRestore();
   });
 
-  it("400 when `mode` is absent — never a silent walk default (task 065 P10)", async () => {
+  it("400 when `mode` is absent — never a silent walk default", async () => {
     // A defaulting mode would let an un-updated client keep the pre-065 behaviour:
     // a 15-minute WALK marker set painted over transit/car shading, with nothing
     // anywhere reporting a problem.
@@ -113,7 +113,7 @@ describe("GET /api/amenities", () => {
 
     nearbyAmenities.mockReset();
     expect((await call("?lat=44.4268&lng=26.1025&mode=transit&preset=rush")).status).toBe(400);
-    // Retired task-059 params must not sneak a departure past the preset contract.
+    // Retired `weekday`/`time` params must not sneak a departure past the preset contract.
     expect((await call("?lat=44.4268&lng=26.1025&mode=transit&weekday=3&time=08:30")).status).toBe(400);
     expect(nearbyAmenities).not.toHaveBeenCalled();
   });

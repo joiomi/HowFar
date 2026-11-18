@@ -6,16 +6,16 @@ import { departureFields, parseTimeContext } from "@/features/isochrones/time-co
 import { errorResponse, jsonError, outOfAreaGuard } from "@/lib/api-util";
 
 /**
- * Right-click "how do I get there?" (task 052 D). Plans the best public-transport
+ * Right-click "how do I get there?": plans the best public-transport
  * trip from the selected origin (`fromLat`/`fromLng`) to a clicked point
  * (`toLat`/`toLng`) at the selection's departure, via the free MOTIS engine, and
  * returns the trimmed itinerary for the popup. Walk-mode reach is answered on the
  * CLIENT (point-in-ring on the already-drawn rings) — this route is transit-only.
  *
  * Both coordinate pairs are parsed and area-guarded BEFORE any provider call, so
- * an out-of-area or malformed request costs zero upstream traffic (plan-panel P9).
+ * an out-of-area or malformed request costs zero upstream traffic.
  * The client passes the selection's resolved `departure` ISO so the planned trip
- * matches the timetable the painted rings were computed for (P5); absent/invalid,
+ * matches the timetable the painted rings were computed for; absent/invalid,
  * we derive it from the same preset/day+time contract the isochrone uses.
  */
 
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
   const to = parsePoint(url, "toLat", "toLng");
   if (to instanceof NextResponse) return to;
 
-  // Area-guard BOTH points before touching the provider (P9): an off-area origin
+  // Area-guard BOTH points before touching the provider: an off-area origin
   // OR destination is rejected with zero upstream traffic.
   const fromOutside = outOfAreaGuard(from.lat, from.lng);
   if (fromOutside) return fromOutside;
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
   // Validate the time-context params UP FRONT so a retired preset id or the
   // removed `weekday`/`time` params fail loud (400) even when a `departure` ISO is
   // ALSO supplied — the same fail-loud contract /api/transit + /api/car honor
-  // (task 059 impl panel: the departure branch must not be a validation bypass).
+  // (the departure branch must not be a validation bypass).
   // Absent params → default context (harmless; a valid departure ISO wins below).
   const timeContext = parseTimeContext({
     preset: url.searchParams.get("preset"),
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
   let departureIso: string;
   const parsedDeparture = departureRaw ? Date.parse(departureRaw) : NaN;
   // Bound a client-supplied departure before it enters the cache key / provider
-  // call (impl T6): reject anything more than ~60 days off "now" and round to the
+  // call: reject anything more than ~60 days off "now" and round to the
   // minute, so crafted millisecond-precision departures can't spam distinct MOTIS
   // calls / cache rows on the shared Transitous host bucket.
   const HORIZON_MS = 60 * 24 * 60 * 60 * 1000;
@@ -84,7 +84,7 @@ export async function GET(request: Request) {
   }
 
   // The clicked reach band (minutes) so the planner prefers a trip within the
-  // painted "~N-min reach" (task 057). Bounded; ignored if absent/invalid.
+  // painted "~N-min reach". Bounded; ignored if absent/invalid.
   const maxRaw = url.searchParams.get("maxMinutes");
   const maxNum = maxRaw === null ? NaN : Number(maxRaw);
   const maxMinutes = Number.isFinite(maxNum) && maxNum > 0 && maxNum <= 120 ? maxNum : undefined;

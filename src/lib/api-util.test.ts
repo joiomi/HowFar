@@ -13,7 +13,7 @@ describe("errorResponse", () => {
     expect(errorResponse(new ProviderError("nominatim responded 503"), "geocode").status).toBe(502);
     expect(logged).toHaveBeenCalledExactlyOnceWith("[api:geocode] ProviderError: nominatim responded 503");
   });
-  it("maps EnvError → 503 (misconfiguration, not an internal bug) (task 007)", () => {
+  it("maps EnvError → 503 (misconfiguration, not an internal bug)", () => {
     expect(errorResponse(new EnvError("ORS_BASE_URL", "bad"), "isochrone").status).toBe(503);
   });
   it("maps any other error → 500, still logged", () => {

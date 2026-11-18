@@ -51,7 +51,7 @@ describe("withRateLimit", () => {
     );
   });
 
-  it("bypasses the serialize-chain at interval 0 — concurrent callers do NOT queue (task 009)", async () => {
+  it("bypasses the serialize-chain at interval 0 — concurrent callers do NOT queue", async () => {
     // Self-host "no throttle": three same-bucket calls at interval 0 must all
     // start before any resolves, i.e. run concurrently rather than one-at-a-time.
     const starts: number[] = [];
@@ -139,7 +139,7 @@ describe("providerFetch", () => {
     expect((seen[0]?.headers as Record<string, string>)["User-Agent"]).toBe("test-agent");
   });
 
-  it("keys the rate-limit bucket per PROVIDER, so two providers on ONE host don't serialize (task 009)", async () => {
+  it("keys the rate-limit bucket per PROVIDER, so two providers on ONE host don't serialize", async () => {
     // The self-host bug this fixes: with all providers behind one domain, a
     // host-only bucket collapsed them into one chain (a slow MOTIS call blocked
     // a fast autocomplete). Bucket = `${provider}@${host}`, so distinct

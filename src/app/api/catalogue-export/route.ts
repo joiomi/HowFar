@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   try {
     const page = await exportCataloguePage(after, limit);
     // Null means the catalogue is not servable: either no active dataset, or the
-    // active one's region does not match the configured extent (task 013). The
+    // active one's region does not match the configured extent. The
     // precise cause is logged server-side; the public body stays neutral (and does
     // not falsely claim "no catalogue" when one exists for another region).
     if (!page) return NextResponse.json({ error: "Amenity catalogue unavailable" }, { status: 503 });

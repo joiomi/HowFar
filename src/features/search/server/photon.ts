@@ -12,9 +12,9 @@ import { providerFetch, ProviderError, sha256Hex, USER_AGENT } from "@/lib/provi
  * client debounces + a min query length.
  */
 
-// Host/base are config-driven (task 007) — default = today's public Photon.
+// Host/base are config-driven — default = today's public Photon.
 // Read inside the fetch function; the rate-limit host derives from the base.
-// Interval is config-driven too (task 009, `intervals.photon`, default 300 ms).
+// Interval is config-driven too (`intervals.photon`, default 300 ms).
 const TIMEOUT_MS = 6_000;
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 // Photon bbox is minLon,minLat,maxLon,maxLat.

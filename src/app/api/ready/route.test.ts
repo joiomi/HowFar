@@ -5,7 +5,7 @@ const { probeDb } = vi.hoisted(() => ({ probeDb: vi.fn() }));
 // tests resolve well within it.
 vi.mock("@/lib/health", () => ({ probeDb, DB_PROBE_TIMEOUT_MS: 50 }));
 
-// Readiness now also reads the active amenity dataset (region cross-check, task 013),
+// Readiness also reads the active amenity dataset (region cross-check),
 // so `db()` must be mocked — without it `db()` builds a real Prisma pool. Default:
 // no active dataset ⇒ readiness is unaffected by the catalogue (unchanged behavior).
 const { findActive } = vi.hoisted(() => ({ findActive: vi.fn() }));
@@ -37,7 +37,7 @@ describe("GET /api/ready (readiness — deployment healthcheck + Playwright gate
     expect(await res.json()).toEqual({ ready: false });
   });
 
-  it("503 when a provider env var is set-but-invalid — fails the healthcheck, not the first request (task 007)", async () => {
+  it("503 when a provider env var is set-but-invalid — fails the healthcheck, not the first request", async () => {
     probeDb.mockResolvedValue(true);
     vi.stubEnv("ORS_BASE_URL", "not-a-url");
     const res = await GET();
@@ -49,7 +49,7 @@ describe("GET /api/ready (readiness — deployment healthcheck + Playwright gate
     expect(body.configError).toBeUndefined();
   });
 
-  // ---- region cross-check (task 013) ----
+  // ---- region cross-check ----
 
   it("503 when the active catalogue's region does not match the configured extent (post-flip deploy) and logs the configured vs recorded boxes", async () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});

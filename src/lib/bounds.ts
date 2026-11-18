@@ -1,5 +1,5 @@
 /**
- * Launch scope is a SINGLE city (Bucharest today), config-driven since task 007.
+ * Launch scope is a SINGLE city (Bucharest today), config-driven.
  * The extent is lifted into `NEXT_PUBLIC_MAP_BBOX` = "minLng,minLat,maxLng,maxLat"
  * (build-time inlined, so it is available in both server and client bundles);
  * when unset it defaults to today's Bucharest+Ilfov box, keeping the current
@@ -10,9 +10,9 @@
  * Isomorphic (no server-only deps): the server uses `inLaunchArea` to geofence
  * provider results; the client uses `LAUNCH_MAX_BOUNDS` for `maxBounds`.
  *
- * Names are region-neutral (`LAUNCH_*`) since task 013: the launch area is one
- * city today but the VALUE is config-driven, so `BUCHAREST_*` was renamed to stop
- * implying a hardcoded city. The extent is a SINGLE city on
+ * Names are region-neutral (`LAUNCH_*`): the launch area is one
+ * city today but the VALUE is config-driven, so the names do not imply a
+ * hardcoded city. The extent is a SINGLE city on
  * purpose: the transit grid allocates memory proportional to the bbox span
  * (transit-grid.ts), so an all-country box would OOM — hence the per-axis span
  * cap below.
@@ -133,7 +133,7 @@ export function coerceBbox(value: unknown): Bbox | null {
 /**
  * Exact equality of two boxes (null/undefined ⇒ not equal). Used to decide whether
  * an active amenity dataset's recorded import bbox matches the resolved runtime
- * extent (task 013).
+ * extent.
  *
  * Exact — not epsilon — comparison is correct here and was verified empirically:
  * the recorded bbox originates from the same `DEFAULT_BBOX` literal / same

@@ -9,8 +9,8 @@ import { withTimeout } from "@/lib/timeout";
 // the migration history), the provider/region configuration parses, AND the active
 // amenity catalogue's recorded region matches the configured extent — the deployment's
 // healthcheck target, so a deploy with a broken DATABASE_URL, a malformed provider
-// env var (task 007), or a catalogue belonging to a different city than the
-// configured extent (task 013) is reported unhealthy rather than passing the
+// env var, or a catalogue belonging to a different city than the
+// configured extent is reported unhealthy rather than passing the
 // healthcheck and then serving the wrong city's data / 5xx-ing the first request.
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export async function GET() {
 
   // parseProviderConfig throws EnvError on a SET-but-invalid provider var
   // (bad URL/scheme, empty pool, a non-integer/out-of-range rate interval, or a
-  // sub-fair-use interval left on a public provider host — task 009). The extent
+  // sub-fair-use interval left on a public provider host). The extent
   // is validated separately at build (bounds.ts import). Absent vars use the
   // public defaults and never throw. (Not covered here: the conditional ORS key
   // — a public-host base with ORS_API_KEY unset still passes readiness and only
@@ -35,7 +35,7 @@ export async function GET() {
     console.error(`[api:ready] provider configuration invalid: ${msg}`);
   }
 
-  // Active-catalogue region check (task 013). Only probed when the DB is already up
+  // Active-catalogue region check. Only probed when the DB is already up
   // (no point, and no second failure mode, when probeDb has failed). A definitive
   // MISMATCH fails readiness; a query ERROR also fails readiness (fail closed — we
   // cannot confirm the region), never silently passing. A missing catalogue does

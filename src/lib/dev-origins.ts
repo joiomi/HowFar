@@ -1,7 +1,7 @@
 /**
  * Parse `ALLOWED_DEV_ORIGINS` (a comma-separated env var) into the list Next's
  * top-level `allowedDevOrigins` config expects, for LAN device testing of the
- * dev server (task 018 — formalizes the owner's manual `next.config.ts` edit).
+ * dev server.
  *
  * Next compares ONLY the request HOSTNAME against these entries
  * (`next/dist/server/lib/router-utils/block-cross-site-dev.js` matches

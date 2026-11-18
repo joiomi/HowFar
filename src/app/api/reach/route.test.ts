@@ -14,7 +14,7 @@ const call = (query: string) => GET(new Request(`http://localhost/api/reach?${qu
 beforeEach(() => planTrip.mockReset());
 
 describe("GET /api/reach", () => {
-  it("rejects malformed / missing coordinates with 400 and ZERO provider calls (P9)", async () => {
+  it("rejects malformed / missing coordinates with 400 and ZERO provider calls", async () => {
     expect((await call(`${TO}`)).status).toBe(400); // no from
     expect((await call(`${FROM}`)).status).toBe(400); // no to
     expect((await call(`fromLat=nope&fromLng=26.1&${TO}`)).status).toBe(400);
@@ -22,7 +22,7 @@ describe("GET /api/reach", () => {
     expect(planTrip).not.toHaveBeenCalled();
   });
 
-  it("area-guards BOTH points with 422 before any provider call (P9)", async () => {
+  it("area-guards BOTH points with 422 before any provider call", async () => {
     // Out-of-area origin (Paris) → 422, no plan.
     expect((await call(`fromLat=48.85&fromLng=2.35&${TO}&preset=crowded`)).status).toBe(422);
     // Out-of-area destination → 422, no plan.
@@ -38,7 +38,7 @@ describe("GET /api/reach", () => {
   it("plans the trip using the client's resolved departure ISO (minute-rounded) when it's within the horizon", async () => {
     planTrip.mockResolvedValue({ reachable: true, totalMinutes: 57, transfers: 0, legs: [] });
     // Near-now + minute-aligned so it's within the ±60-day horizon regardless of
-    // the runner's clock (T6), and the round-to-minute is a no-op.
+    // the runner's clock, and the round-to-minute is a no-op.
     const iso = new Date(Math.round((Date.now() + 3_600_000) / 60000) * 60000).toISOString();
     const res = await call(`${FROM}&${TO}&departure=${encodeURIComponent(iso)}`);
     expect(res.status).toBe(200);
@@ -57,7 +57,7 @@ describe("GET /api/reach", () => {
     expect(planTrip.mock.calls[0][3]).toBeUndefined();
   });
 
-  it("ignores an out-of-horizon departure and derives from the time context instead (T6)", async () => {
+  it("ignores an out-of-horizon departure and derives from the time context instead", async () => {
     planTrip.mockResolvedValue({ reachable: false });
     const farFuture = new Date(Date.now() + 200 * 24 * 3600 * 1000).toISOString();
     const res = await call(`${FROM}&${TO}&departure=${encodeURIComponent(farFuture)}&preset=quiet`);

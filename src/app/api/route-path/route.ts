@@ -5,7 +5,7 @@ import { routePath } from "@/features/amenities/server/route-path";
 
 /**
  * The drawable path (track segments + named stops) of one OSM transit route
- * relation (task 024). GET `?rel=<posint>&lat=&lng=`.
+ * relation. GET `?rel=<posint>&lat=&lng=`.
  *
  * `outOfAreaGuard` on lat/lng (the clicked stop's location) mirrors the
  * stop-lines posture: it keeps casual off-area traffic off the community

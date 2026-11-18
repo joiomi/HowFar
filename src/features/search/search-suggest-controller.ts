@@ -6,7 +6,7 @@ import {
 } from "@/features/search/combobox";
 
 /**
- * The autocomplete debounce + fetch glue (tasks 013/020), split out of `AppMap`.
+ * The autocomplete debounce + fetch glue, split out of `AppMap`.
  * The combobox reducer owns every state transition; this controller owns only
  * the imperative bits — the debounce timer and the AbortController — and tags
  * each fetch with the generation current when it was scheduled so a superseded

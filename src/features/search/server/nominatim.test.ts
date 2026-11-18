@@ -91,7 +91,7 @@ describe("reverseGeocode", () => {
   });
 });
 
-describe("config-driven host (task 007)", () => {
+describe("nominatim config-driven host", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("defaults to today's public Nominatim host, byte-exact (URL + rateHost)", async () => {
@@ -100,7 +100,7 @@ describe("config-driven host (task 007)", () => {
     const [url, opts] = providerFetch.mock.calls[0] as [string, { rateHost: string; provider: string; minIntervalMs: number }];
     expect(url.startsWith("https://nominatim.openstreetmap.org/search?")).toBe(true);
     expect(opts.rateHost).toBe("nominatim.openstreetmap.org");
-    // task 009: labelled bucket + config-driven interval (default 1100)
+    // labelled bucket + config-driven interval (default 1100)
     expect(opts.provider).toBe("nominatim");
     expect(opts.minIntervalMs).toBe(1100);
   });

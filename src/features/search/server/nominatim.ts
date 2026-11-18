@@ -15,10 +15,10 @@ const VIEWBOX = `${LAUNCH_BBOX.minLng},${LAUNCH_BBOX.maxLat},${LAUNCH_BBOX.maxLn
  * wrapper) so a bad/repeated query can't hammer the 1 req/s budget.
  */
 
-// Host/base are config-driven (task 007) — default = today's public Nominatim.
+// Host/base are config-driven — default = today's public Nominatim.
 // Read inside the request functions (never at module top level) so an override
 // takes effect; the rate-limit host is derived from the configured base. The
-// rate-limit interval is config-driven too (task 009, `intervals.nominatim`,
+// rate-limit interval is config-driven too (`intervals.nominatim`,
 // default 1100 ms = OSM ToS ≤1 req/s with margin — see PROVIDER_INTERVAL_DEFAULTS).
 const TIMEOUT_MS = 8_000;
 const TTL_OK_MS = 30 * 24 * 60 * 60 * 1000;

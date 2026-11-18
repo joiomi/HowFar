@@ -9,7 +9,7 @@ import { tilesPmtilesPath } from "@/lib/env";
 // design: the "external API keys stay server-side" constraint rules out
 // browser-keyed tile providers.
 
-// Path is config-driven (task 007, `TILES_PMTILES_PATH`) — default =
+// Path is config-driven (`TILES_PMTILES_PATH`) — default =
 // <cwd>/data/tiles/bucharest.pmtiles, so an unset env is unchanged. Read INSIDE
 // the handlers (never a module-top-level const) so an override takes effect and
 // the accessor stays consistent with providerConfig's non-memoized contract.

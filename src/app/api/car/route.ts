@@ -7,9 +7,9 @@ import { parseTimeContext } from "@/features/isochrones/time-context";
 import { errorResponse, jsonError, outOfAreaGuard, parseLatLng } from "@/lib/api-util";
 
 /**
- * Driving-car isochrone (tasks 053/058). Mirrors /api/isochrone but for the car
+ * Driving-car isochrone. Mirrors /api/isochrone but for the car
  * mode: fixed ORS driving-car profile, 10/20/30-min labels. Car has NO pace
- * (a walk concept), but task 058 makes it TIME-AWARE: a `preset` or
+ * (a walk concept), but it is TIME-AWARE: a `preset` or
  * `weekday`+`time` selects a Bucharest traffic slot whose congestion factor
  * shrinks the free-flow ranges so the painted band reflects real drive time.
  * The response carries a `car` block describing the basis (always "estimate" —

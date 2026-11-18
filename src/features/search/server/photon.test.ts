@@ -121,7 +121,7 @@ describe("photon suggest", () => {
   });
 });
 
-describe("config-driven host (task 007)", () => {
+describe("photon config-driven host", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("defaults to today's public Photon host, byte-exact (URL + rateHost + focus)", async () => {
@@ -129,9 +129,9 @@ describe("config-driven host (task 007)", () => {
     await suggest("default host");
     const [url, opts] = providerFetch.mock.calls[0] as [string, { rateHost: string; provider: string; minIntervalMs: number }];
     expect(url.startsWith("https://photon.komoot.io/api?")).toBe(true);
-    expect(url).toContain("lat=44.43&lon=26.10"); // focus kept byte-identical in P1
+    expect(url).toContain("lat=44.43&lon=26.10"); // focus kept byte-identical
     expect(opts.rateHost).toBe("photon.komoot.io");
-    // task 009: labelled bucket + config-driven interval (default 300)
+    // labelled bucket + config-driven interval (default 300)
     expect(opts.provider).toBe("photon");
     expect(opts.minIntervalMs).toBe(300);
   });

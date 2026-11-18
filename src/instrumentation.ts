@@ -1,4 +1,4 @@
-// Next.js instrumentation hook — runs ONCE when the server process starts (task 017, gap #8).
+// Next.js instrumentation hook — runs ONCE when the server process starts.
 // This is the correct home for provider warmup: process-start, not a request handler, and in
 // particular NOT `/api/ready` (readiness must stay a bounded local probe).
 export async function register() {

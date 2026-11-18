@@ -58,7 +58,7 @@ describe("LAUNCH_MAX_BOUNDS", () => {
   });
 });
 
-describe("default extent (byte-identity, task 007)", () => {
+describe("default extent (byte-identity)", () => {
   // NOT self-referential: pins the DEFAULT box to today's exact literals so the
   // config lift cannot silently move the current Bucharest deployment.
   it("with NEXT_PUBLIC_MAP_BBOX unset, is exactly Bucharest+Ilfov", () => {
@@ -66,7 +66,7 @@ describe("default extent (byte-identity, task 007)", () => {
   });
 });
 
-describe("parseBbox (task 007)", () => {
+describe("parseBbox", () => {
   it("parses a well-formed single-city box", () => {
     expect(parseBbox("23.4,46.6,23.7,46.9")).toEqual({
       minLng: 23.4,
@@ -109,7 +109,7 @@ describe("parseBbox (task 007)", () => {
   });
 });
 
-describe("resolveBbox via NEXT_PUBLIC_MAP_BBOX (task 007, fresh module load)", () => {
+describe("resolveBbox via NEXT_PUBLIC_MAP_BBOX (fresh module load)", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.resetModules();

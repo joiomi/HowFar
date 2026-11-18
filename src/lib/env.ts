@@ -93,11 +93,11 @@ export function serverEnv(): ServerEnv {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Region / self-host configuration (Phase 1 config lift, task 007).
+// Region / self-host configuration.
 //
 // Every remote-provider host and the tile path is lifted here as an OPTIONAL env
-// var, each DEFAULTING to today's public value — so an unset environment is
-// byte-for-byte identical to the pre-lift build, and pointing at a self-hosted
+// var, each DEFAULTING to today's public value — so an unset environment keeps
+// the public defaults, and pointing at a self-hosted
 // instance (or a different Romanian city) becomes an `.env` edit rather than a
 // code change. Read via `providerConfig()` — deliberately NON-memoized and
 // SEPARATE from `serverEnv()` so provider clients never gain a dependency on the
@@ -136,17 +136,16 @@ export const TILES_PATH_DEFAULT_SEGMENTS = ["data", "tiles", "bucharest.pmtiles"
 
 /**
  * Per-provider rate-limit spacing (min ms between upstream calls to the same
- * provider bucket), lifted out of the client modules (task 009) so a self-host
+ * provider bucket), lifted out of the client modules so a self-host
  * operator — who owns the box and has no public ToS — can retune or disable
- * throttling per provider. Each default is the client's original value and the
- * rationale that used to sit next to it:
+ * throttling per provider. Each default and its rationale:
  *   - nominatim 1100 → OSM ToS ≤1 req/s, with margin
  *   - photon    300  → komoot public; gentle spacing
  *   - ors       1500 → free tier ~40 isochrone req/min ⇒ ≥1.5 s (PROVIDERS.md)
  *   - transit   1500 → community-run MOTIS; be a good citizen (one-to-all + plan share it)
  *   - overpass  1100 → fair-use per host (interactive pool)
  * `0` disables the throttle entirely (see `withRateLimit`: it bypasses the
- * serialize-chain at ≤0). Unset ⇒ these exact defaults ⇒ byte-identical to pre-lift.
+ * serialize-chain at ≤0). Unset ⇒ these exact defaults.
  */
 export const PROVIDER_INTERVAL_DEFAULTS = {
   nominatim: 1100,
@@ -240,7 +239,7 @@ function intervalMs(source: EnvSource, name: string, fallback: number): number {
   const n = Number(trimmed);
   // Upper bound = Node's max setTimeout delay (2^31−1 ms). A larger value would
   // be silently CLAMPED to 1 ms by setTimeout (defeating the throttle), so reject
-  // it loudly instead (task 009). ~24.8 days is already absurd for
+  // it loudly instead. ~24.8 days is already absurd for
   // a rate-limit interval, so the ceiling costs no real config range.
   const MAX_TIMER_MS = 2_147_483_647;
   if (!Number.isInteger(n) || n < 0 || n > MAX_TIMER_MS) {
@@ -256,7 +255,7 @@ function intervalMs(source: EnvSource, name: string, fallback: number): number {
  *  with a single trailing DNS root dot stripped. `EXAMPLE.org`, `example.org`,
  *  and `example.org.` all resolve to the same service but WHATWG `URL.host`
  *  keeps them distinct — canonicalize so a case/trailing-dot variant can neither
- *  evade public-host detection nor split a rate-limit bucket (task 009). */
+ *  evade public-host detection nor split a rate-limit bucket. */
 export function canonicalHost(rawUrl: string): string {
   return new URL(rawUrl).host.toLowerCase().replace(/\.$/, "");
 }
@@ -269,7 +268,7 @@ function isPublicHost(base: string, defaultBase: string): boolean {
 
 /**
  * Fail closed when a single-base provider still points at a PUBLIC host but over
- * cleartext `http:` (task 009). For ORS this would transmit the secret key in
+ * cleartext `http:`. For ORS this would transmit the secret key in
  * the clear; for all four it is a misconfiguration that otherwise degrades
  * silently (keyless/blocked request → runtime 502 while `/api/ready` stays
  * green). Rejecting at parse turns it into a loud healthcheck failure. A
@@ -305,7 +304,7 @@ function assertNoHttpOnPublicHost(cfg: ProviderConfig): void {
 }
 
 /**
- * Safety guard (task 009): you may only RELAX a provider's rate
+ * Safety guard: you may only RELAX a provider's rate
  * limit below its ToS-safe default when you actually self-host that provider.
  * Setting e.g. `NOMINATIM_MIN_INTERVAL_MS=0` while `NOMINATIM_BASE_URL` is still
  * the public default would let the LIVE deployment exceed OSM's ≤1 req/s and get
@@ -413,7 +412,7 @@ function sameList(a: readonly string[], b: readonly string[]): boolean {
  * cache is "slower but correct" — the degradation posture the app already
  * commits to.
  *
- * `PROVIDER_DATA_REVISION` (task 009) is an OPTIONAL free-form token (e.g. an
+ * `PROVIDER_DATA_REVISION` is an OPTIONAL free-form token (e.g. an
  * OSM-extract date) folded into the tag — mirroring `CAR_FACTOR_REVISION` one
  * level up. Self-hosted ORS/MOTIS keep byte-identical URLs after a graph rebuild
  * from a newer extract, so nothing else in the tag would change and stale rings

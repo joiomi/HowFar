@@ -174,7 +174,7 @@ describe("parseProviderConfig (region/self-host config lift)", () => {
   });
 });
 
-describe("parseProviderConfig — per-provider rate-limit intervals (task 009)", () => {
+describe("parseProviderConfig — per-provider rate-limit intervals", () => {
   it("defaults to today's exact per-client spacing when nothing is set (byte-identity)", () => {
     const { intervals } = parseProviderConfig({});
     expect(intervals.nominatim).toBe(1100);
@@ -254,7 +254,7 @@ describe("parseProviderConfig — per-provider rate-limit intervals (task 009)",
   it("the overpass floor keys off the INTERACTIVE pool only — a public BULK pool doesn't block interval 0", () => {
     // `intervals.overpass` governs only the interactive client; bulk-overpass.ts
     // uses raw fetch with no bucket/interval, so a public bulk pool is irrelevant
-    // to the interactive throttle floor (task 009, intentional).
+    // to the interactive throttle floor (intentional).
     const cfg = parseProviderConfig({
       OVERPASS_ENDPOINTS: "https://op.internal/api/interpreter", // interactive self-hosted
       OVERPASS_BULK_ENDPOINTS: "https://overpass-api.de/api/interpreter", // bulk still public (https)
@@ -274,7 +274,7 @@ describe("parseProviderConfig — per-provider rate-limit intervals (task 009)",
   });
 });
 
-describe("parseProviderConfig — http on a public provider host fails closed (task 009)", () => {
+describe("parseProviderConfig — http on a public provider host fails closed", () => {
   it("rejects http:// on the public ORS host (would expose the key over cleartext)", () => {
     expect(() => parseProviderConfig({ ORS_BASE_URL: "http://api.openrouteservice.org" })).toThrowError(
       /https:\/\/ for the public provider host/,
@@ -332,7 +332,7 @@ describe("parseProviderConfig — http on a public provider host fails closed (t
   });
 });
 
-describe("fetch-tiles.sh default drift guard (task 007)", () => {
+describe("fetch-tiles.sh default drift guard", () => {
   // The build script has its own copy of the extent + archive-path defaults
   // (it can't import TS). Guard that they don't drift from the app's defaults,
   // else an unset deploy would extract a different box/path than the app reads.
@@ -405,7 +405,7 @@ describe("configCacheTag + taggedCacheKey", () => {
     );
   });
 
-  // PROVIDER_DATA_REVISION (task 009): bump on a self-hosted graph rebuild to
+  // PROVIDER_DATA_REVISION: bump on a self-hosted graph rebuild to
   // cold the namespace even though every host URL stays byte-identical.
   it("cold-namespaces on PROVIDER_DATA_REVISION alone, even with default hosts", () => {
     expect(configCacheTag({})).toBe(""); // absent → still default
