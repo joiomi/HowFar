@@ -29,7 +29,7 @@ option if bit-exact tile rebuilds ever become a requirement.
 | Component | Pin | Resolved digest |
 |---|---|---|
 | Nominatim | `mediagis/nominatim:5.3` (Nominatim 5.3.2, osm2pgsql 1.11.0, PG 16, PostGIS 3.4) | `sha256:7923a8e67197fc6d4f4ecb7c0e8bbedffeddcfdf4519596fe946e46a28f5a9f8` |
-| Photon | `komoot/photon` jar **1.3.0** (`photon-1.3.0.jar`, 94 MB) on `eclipse-temurin:21-jre` | jre `sha256:7a65df4b22d2de92d4e04056e884f3b9122d70b21e2847fd66084278bd0ce037` |
+| Photon | `komoot/photon` jar **1.3.0** (`photon-1.3.0.jar`, 94 MiB) on `eclipse-temurin:21-jre` | jre `sha256:7a65df4b22d2de92d4e04056e884f3b9122d70b21e2847fd66084278bd0ce037` |
 | ORS | `openrouteservice/openrouteservice:v9.10.0` | `sha256:cd7d8f3cc1b753b12d706577aca92f7bc952aa9ef9a685394ad86cef9f829473` |
 | pmtiles generator | `protomaps/basemaps` @ commit **`a50c699adc60a45c899971b1e11275e61f13bfbf`** built via `maven:3.9-eclipse-temurin-21` (`sha256:8f6ac126f7810bb5549c4cd122d2bf0e9cda5bdeb0838aa928f09e779fd8bef8`) | — |
 
@@ -45,7 +45,7 @@ option if bit-exact tile rebuilds ever become a requirement.
 | Engine | Wall-time | Peak RAM | On-disk |
 |---|---|---|---|
 | Nominatim import (`IMPORT_STYLE=full`) | ~24 min | ~4.2 GiB | PG DB 5.4 GB + flatnode **106 GB** (pruned by default post-import → ~8 GB) |
-| Photon index (from Nominatim DB) | ~2.7 min | ~0.75 GiB | 468 MB (+94 MB jar) |
+| Photon index (from Nominatim DB) | ~2.7 min | ~0.75 GiB | 468 MB (+94 MiB jar) |
 | ORS graph (foot-walking + driving-car) | ~6.6 min | ~1.82 GiB (XMX 2 g) | 799 MB |
 | pmtiles (protomaps/basemaps, all-Romania z0–15) | ~5 min + one-time ~2.25 GB base-source download | XMX 6 g | 684 MB |
 | Extract download | ~1 min | — | 312 MB |

@@ -9,7 +9,7 @@ import {
   type PerOriginBar,
 } from "@/features/isochrones/calibration-acceptance";
 
-describe("calibration-acceptance — coverage guard (a recorded precondition)", () => {
+describe("calibration-acceptance — coverage guard (no dropped sector)", () => {
   const full: CoverageCell[] = [
     { origin: "Unirii", target: 10, n: 6 },
     { origin: "Grozavesti", target: 10, n: 6 },
@@ -28,7 +28,7 @@ describe("calibration-acceptance — coverage guard (a recorded precondition)", 
   });
 });
 
-describe("calibration-acceptance — per-origin bar (a recorded precondition)", () => {
+describe("calibration-acceptance — per-origin bar (pre-declared, never pooled)", () => {
   const bar: PerOriginBar = { medTolerance: 0.1, overRateBar: 0.06, maxOverMinCeil: 6 };
   const ok: OriginTargetRate = { n: 6, overRate: 0, maxOverMin: 2, medMin: 10.2 };
 

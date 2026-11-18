@@ -67,7 +67,7 @@ const NOMINAL_MINUTES = [15, 30, 45];
 // car-traffic.ts) so the painted band reflects real drive time. We do NOT call
 // a live-traffic provider — TomTom's free tier is Evaluation-Use-only (Portal
 // T&C §2.2) and its Results can't be cached-to-scale (§11.4) or turned into a
-// derived product (§11.6.1); Mapbox/HERE are disqualified/parked. See
+// derived product (§11.6.1); Mapbox/HERE are disqualified/deferred. See
 // docs/PROVIDERS.md "Car traffic realism". Payloads stay ≤~34 KB / ~1050 coords
 // — within the ApiCache row budget, so no size cap is needed.
 const CAR_RANGES_S = [600, 1200, 1800];
@@ -319,7 +319,7 @@ async function fetchAndCache(
   // default host the key is required and sent as `Authorization`; a self-hosted
   // ORS (any non-default base) needs no key, so we neither require it nor send
   // it — a stale `ORS_API_KEY` left in the env must NOT leak to a self-host.
-  // (A self-host that itself requires auth is a parked follow-up: an explicit
+  // (A self-host that itself requires auth is a deferred follow-up: an explicit
   //  self-host auth var, not this public key.)
   // Public ⇔ CANONICAL host matches the default AND scheme is https:
   //  - canonicalHost lowercases + strips a trailing dot + ignores the default

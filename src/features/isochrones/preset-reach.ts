@@ -35,12 +35,13 @@
  *   - TRANSIT minutes are contour thresholds of the transit field; 20/40 are
  *     interior to the shipped 15/45 envelope (`transit-grid.ts`) and were measured
  *     DIRECTLY on the served preset code (`transitPresetIsochrone`, thresholds
- *     [20,40], field kept at 45) against MOTIS `/plan` best-journey at 3 origins —
- *     central 0% over-claim, only KNOWN peripheral tails (Berceni SE +33, Militari
- *     west +6) — receipt `scripts/calibrate/receipts/transit-2026-09-03.json`. The transit
- *     union at 40 folds in the walk-40 contour; its walk-union component west of the
- *     CFR/A1 barrier corridor is covered by the accepted-anisotropy limitation, not a
- *     separate direct measurement. The UI must not overstate transit reach at the edges.
+ *     [20,40], field kept at 45) against MOTIS `/plan` best-journey at 4 origins
+ *     (Unirii, Grozăvești, Berceni, Militari) — central 0% over-claim, only KNOWN
+ *     peripheral tails (Berceni SE +33, Militari west +6) — receipt
+ *     `scripts/calibrate/receipts/transit-2026-09-03.json`. The transit union at 40
+ *     folds in the walk-40 contour; its walk-union component west of the CFR/A1
+ *     barrier corridor is what the Militari +6 tail measures, and it is covered by the
+ *     accepted-anisotropy limitation. The UI must not overstate transit reach at the edges.
  */
 
 import { CALIBRATION_SPEED_M_PER_MIN, PACE_MODEL, type Pace } from "@/features/isochrones/pace";

@@ -5,9 +5,10 @@ import { innerBandCounts, WALK_CLIP ,
 
 // Skipped: transit stops are amenity markers, which the phone-first preset UI
 // suppresses — there is no stop to click, so the line-popup flow below cannot run.
-// Kept VERBATIM so the stop-line regressions are restored intact in the planned amenity pass.
+// Kept UNCHANGED in behaviour so the stop-line regressions are restored intact in the
+// planned amenity pass.
 test.beforeEach(() => {
-  test.skip(true, "Transit-stop markers are parked until the planned amenity pass; kept verbatim to re-enable then.");
+  test.skip(true, "Transit-stop markers are parked until the planned amenity pass; kept unchanged in behaviour to re-enable then.");
 });
 
 // Transit-stop line popup. A click on a transit marker opens a popup

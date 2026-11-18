@@ -255,9 +255,10 @@ decision on accounts. Do not build on it, and do not remove it piecemeal outside
   and `transitIsochrone` (`server/transit.ts`), served by `/api/isochrone`, `/api/transit` and
   `/api/car` when `?model` is absent (car labels 10/20/30). The UI never sends that request. Kept
   because the amenity clip in `amenities/server/catalogue.ts` still computes its reach area
-  through these functions. Two other callers: the process-start warmup (`warmup.ts`) primes ORS
-  through `walkingIsochrone`/`drivingIsochrone`, and the perf API harness (`scripts/perf`) requests
-  the routes without `?model`.
+  through these functions. Three other callers: the process-start warmup (`warmup.ts`) primes ORS
+  through `walkingIsochrone`/`drivingIsochrone`, the perf API harness (`scripts/perf`) requests
+  the routes without `?model`, and so does the self-host parity check
+  (`docker/selfhost/parity-check.mjs`, `/api/isochrone` and `/api/car`).
 - **Legacy client pieces.** `ModeToggle` (the component; its icon/label constants are live),
   `RingSelector`, `ring-reveal-controller` (still constructed by `AppMap`, but drives band layers
   that stay empty), and the three-band ramp in `isochrone-view.ts`. Replaced by the preset bar and
@@ -270,7 +271,7 @@ decision on accounts. Do not build on it, and do not remove it piecemeal outside
   they open only from amenity markers, so they are unreachable in the current UI.
 - **Quarantined e2e specs.** `amenities`, `amenity-legibility`, `ring-filter` and `stop-lines`
   are skipped whole, and individual tests in `reach-journey`, `ui-mobile` and `ui-redesign` are
-  skipped. All are kept verbatim so the amenity pass can re-enable them.
+  skipped. All are kept as-is apart from comments so the amenity pass can re-enable them.
 - **Auth and `SavedSearch`.** Auth.js with optional Google/GitHub sign-in (the header shows a
   sign-in control, or "Sign-in unavailable" when no provider is configured) and the `SavedSearch`
   table. Signing in unlocks nothing yet, and no code reads or writes `SavedSearch`. Kept until a

@@ -129,7 +129,7 @@ test("public-transport mode: right-click shows the planned trip with a specific 
   await expect(panel).toContainText("Bus 243 → Bd. Lacul Tei");
   await expect(panel).toContainText("Walk 9 min");
   // The trip was fetched with both endpoints AND the selection's resolved
-  // departure ISO (so the plan matches the painted rings' time — P5).
+  // departure ISO (so the plan matches the painted rings' time).
   expect(reachCalls.length).toBeGreaterThan(0);
   expect(reachCalls[0]).toMatch(/fromLat=.*&fromLng=.*&toLat=.*&toLng=/);
   expect(decodeURIComponent(reachCalls[0])).toContain("departure=2026-07-29T05:30");
@@ -164,7 +164,7 @@ test("directions DOCK in the result sheet — selection/filters block hidden, no
   await expect(sheet).toHaveAttribute("aria-label", "Location result");
 });
 
-test("public-transport mode: a point outside the drawn rings STILL plans the trip (there is no no-fetch gate)", async ({ page }) => {
+test("public-transport mode: a point outside the drawn rings STILL plans the trip (no gate skips the fetch)", async ({ page }) => {
   const reachCalls: string[] = [];
   await page.route("**/api/amenities**", (route) =>
     route.fulfill({ json: emptyAmenities({ lat: 44.4268, lng: 26.1025 }) }),
@@ -221,7 +221,7 @@ test("a failed mode recompute clears the reach legend — no '~N min' claim over
   // Desktop path (chromium project): the legend pill is shown whenever a reach is
   // drawn. A mode toggle whose recompute FAILS sets status="error" (not "loading"),
   // retains lastSelection, and clears the drawn reach — the legend must not keep
-  // claiming "~N min" over the now-blank map (impl review). On mobile the sheet
+  // claiming "~N min" over the now-blank map. On mobile the sheet
   // expands on error and hides the legend anyway; this is the desktop guard.
   await page.route("**/api/amenities**", (route) =>
     route.fulfill({ json: emptyAmenities({ lat: 44.4268, lng: 26.1025 }) }),

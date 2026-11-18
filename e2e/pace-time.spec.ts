@@ -112,8 +112,8 @@ test("pace control is Walk-only; switching to Public transport hides it and requ
   // Switch to Public transport: the pace control is GONE (pace is walk-only)…
   await page.getByRole("button", { name: "Public transport", exact: true }).click();
   await expect(page.getByRole("group", { name: "Walking pace" })).toHaveCount(0);
-  // …and the transit reach used Normal, not the remembered Slow — the P4 regression
-  // guard (effective pace, not sel.pace): every transit request is pace=normal.
+  // …and the transit reach used Normal, not the remembered Slow — the regression
+  // guard for effective pace (not sel.pace): every transit request is pace=normal.
   await expect.poll(() => cap.transit.length).toBeGreaterThan(0);
   expect(cap.transit.every((u) => /pace=normal/.test(u))).toBe(true);
   expect(cap.transit.some((u) => /pace=slow/.test(u))).toBe(false);

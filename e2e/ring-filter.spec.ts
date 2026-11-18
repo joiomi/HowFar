@@ -5,10 +5,10 @@ import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 // ring-display-filter control is replaced by the two-chip preset bar — the surviving
 // "chip → visible contour, no refetch" intent is proven in preset-render.spec.ts;
 // (2) the amenity-band cumulative visibility test exercises amenity markers the preset
-// UI suppresses. Kept VERBATIM so the amenity-band regression is restored in the
-// planned amenity pass.
+// UI suppresses. Kept UNCHANGED in behaviour so the amenity-band regression is restored
+// in the planned amenity pass.
 test.beforeEach(() => {
-  test.skip(true, "Ring-filter control is replaced by preset chips and amenity markers are parked until the planned amenity pass; kept verbatim to re-enable then.");
+  test.skip(true, "Ring-filter control is replaced by preset chips and amenity markers are parked until the planned amenity pass; kept unchanged in behaviour to re-enable then.");
 });
 
 // Ring display filter: the 15/30/45/All control flips per-minute

@@ -197,8 +197,8 @@ test("first paint shows a realistic map placeholder, never a dark void", async (
   const map = page.getByTestId("app-map");
   // BEFORE the live map loads the placeholder must be VISIBLE (not merely attached) —
   // the "no dark void" contract is that its texture actually shows at first paint. A
-  // placeholder that initialised hidden would pass a bare attachment check (impl
-  // review), so assert the visible state (and toBeVisible) while the map is still loading.
+  // placeholder that initialised hidden would pass a bare attachment check, so
+  // assert the visible state (and toBeVisible) while the map is still loading.
   await expect(map).not.toHaveAttribute("data-map-loaded", "true"); // still loading
   await expect(placeholder).toHaveAttribute("data-map-placeholder", "visible");
   await expect(placeholder).toBeVisible();
@@ -230,7 +230,7 @@ test("a FAILED recompute hides the reach legend + hint — no reach claim over a
   await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK_PRESET }));
   // Transit recompute fails: status becomes "error" (not "loading"), lastSelection is
   // retained and the drawn reach is cleared. The LegendPill/RingHint honesty surfaces
-  // must NOT keep claiming "~N min" over the now-blank map (impl review).
+  // must NOT keep claiming "~N min" over the now-blank map.
   await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
 

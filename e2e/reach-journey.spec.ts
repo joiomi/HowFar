@@ -64,8 +64,8 @@ const PLAN2 = {
   ],
 };
 
-// Rendered map state (NOT the code's own data-* stamps) — the true check the
-// review required: what MapLibre actually painted. Counts DISTINCT
+// Rendered map state (NOT the code's own data-* stamps) — the true check:
+// what MapLibre actually painted. Counts DISTINCT
 // legs/stops (deduped by the unique legIndex/stopIndex props) because
 // queryRenderedFeatures/querySourceFeatures return a feature once per tile it
 // touches — a raw length double-counts. Wrapped in expect.poll by callers so a
@@ -110,7 +110,7 @@ async function journeyScreenBBox(page: Page) {
 // True when every given [lng,lat] projects INSIDE the map viewport. We pass the
 // KNOWN journey extremes (PLAN's origin + far endpoint) rather than reading
 // querySourceFeatures — the latter only returns loaded tiles, so a clipped far
-// leg could go unchecked and pass vacuously (found in review). project()
+// leg could go unchecked and pass vacuously. project()
 // works on any coord regardless of tiling, so this is tile-independent.
 async function coordsInView(page: Page, coords: [number, number][]) {
   return page.evaluate((cs) => {
@@ -192,7 +192,7 @@ test("transit right-click DRAWS the journey", async ({ page }) => {
   await expect(page.getByTestId("reach-panel")).toContainText("By public transport");
 
   // RENDERED-state truth (not the code's own stamps): the map paints 3 leg lines
-  // + the 2 used stops (board + alight) — the check review required.
+  // + the 2 used stops (board + alight).
   await expect.poll(() => reachRenderedCounts(page)).toEqual({ lines: 3, stops: 2 });
 
   // The camera fits the journey (data-reach-framed) and the directions
@@ -298,7 +298,7 @@ test("walk-mode right-click AUTO-SWITCHES to Public transport and draws the jour
   await expect.poll(() => reachRenderedCounts(page)).toEqual({ lines: 3, stops: 2 });
   await expect(map).toHaveAttribute("data-camera-settled", "true");
   // Polled (the frame is animated) + tile-independent: the whole trip is framed,
-  // not clipped by the cross-mode flyTo (found in review).
+  // not clipped by the cross-mode flyTo.
   await expect.poll(() => coordsInView(page, PLAN_EXTENT)).toBe(true);
 });
 
@@ -312,12 +312,12 @@ test("car-mode right-click AUTO-SWITCHES to Public transport and draws the journ
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
   expect(reachCalls).toHaveLength(1);
   await expect.poll(() => reachRenderedCounts(page)).toEqual({ lines: 3, stops: 2 });
-  // Car→transit runs the identical flyTo-vs-frame race as walk — assert it too (found in review).
+  // Car→transit runs the identical flyTo-vs-frame race as walk — assert it too.
   await expect(map).toHaveAttribute("data-camera-settled", "true");
   await expect.poll(() => coordsInView(page, PLAN_EXTENT)).toBe(true);
 });
 
-test("camera race: a transit recompute that lands AFTER the plan does not clip the journey (found in review)", async ({ page }) => {
+test("camera race: a transit recompute that lands AFTER the plan does not clip the journey", async ({ page }) => {
   const { map } = await setup(page);
   // Delay ONLY /api/transit so the mode-switch recompute resolves well after the
   // /api/reach plan has drawn+framed the journey — the worst-case ordering for the
@@ -350,9 +350,9 @@ test("a walk-only plan → 'No public-transport route' (no walk-band answer), no
 });
 
 // Skipped: the amenity browser + text filter this test drives is part of the amenity
-// subsystem the phone-first preset client suppresses. Kept VERBATIM so the
-// "filter state survives a directions round-trip" regression
-// is restored when the amenity browser returns in the planned amenity pass.
+// subsystem the phone-first preset client suppresses. Kept UNCHANGED in behaviour so
+// the "filter state survives a directions round-trip" regression is restored when the
+// amenity browser returns in the planned amenity pass.
 test.skip("amenity Browse text filter SURVIVES opening + closing directions", async ({ page }) => {
   const { map } = await setup(page);
   await search(page, map);

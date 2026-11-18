@@ -723,7 +723,7 @@ describe("amenityResultCacheKey config namespacing", () => {
   });
 });
 
-// --- phone-first preset: amenity-clip isolation from the preset serving path (a recorded precondition) --
+// --- amenity-clip isolation: the clip never consumes the preset serving path ---
 describe("amenity clip stays on the 3-ring legacy model (isolation)", () => {
   const sq = (scale: number): GeoJSON.Polygon => squareRing(scale);
 
@@ -751,9 +751,9 @@ describe("amenity clip stays on the 3-ring legacy model (isolation)", () => {
 
 // Static guard: the amenity clip must consume ONLY the legacy 3-ring isochrone
 // entry points. Pointing it at a preset (2-ring) function would break clipRingsFrom
-// and the Band model; the band-model migration belongs to the planned amenity pass, so until then this fails
-// loud if a future edit wires the clip to the preset path.
-describe("amenity clip source isolation (a recorded precondition)", () => {
+// and the Band model; the band-model migration belongs to the planned amenity pass,
+// so until then this fails loud if a future edit wires the clip to the preset path.
+describe("amenity clip source isolation (legacy isochrone entry points only)", () => {
   const src = readFileSync(join(process.cwd(), "src/features/amenities/server/catalogue.ts"), "utf8");
   it("catalogue.ts imports the LEGACY isochrone entry points, never the preset ones", () => {
     expect(src).toMatch(/\bwalkingIsochrone\b/);

@@ -3,10 +3,10 @@ import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
 // Skipped: the phone-first preset UI suppresses the amenity subsystem this whole file
 // exercises (no /api/amenities fetch, no markers, no category tiles); amenities return
-// in the planned amenity pass. The tests are kept VERBATIM (not deleted) so
+// in the planned amenity pass. The tests are kept UNCHANGED in behaviour (not deleted) so
 // the amenity regressions they encode are restored intact when amenities return.
 test.beforeEach(() => {
-  test.skip(true, "Amenity UI is parked until the planned amenity pass; kept verbatim to re-enable then.");
+  test.skip(true, "Amenity UI is parked until the planned amenity pass; kept unchanged in behaviour to re-enable then.");
 });
 
 // Amenity providers are STUBBED by EXACT path (never /api/**,

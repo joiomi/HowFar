@@ -275,7 +275,7 @@ test("Car mode toggle: three options meet the 44px target and don't overflow or 
     await expect(btn).toBeVisible();
     const box = await btn.boundingBox();
     if (!box) throw new Error(`no box for ${name}`);
-    // 44px minimum touch target on BOTH axes (found in review: 3-up was ~37px WIDE
+    // 44px minimum touch target on BOTH axes (a 3-up row can drop to ~37px WIDE
     // at 375px), and no horizontal overflow past the viewport.
     expect(box.height).toBeGreaterThanOrEqual(44);
     expect(box.width).toBeGreaterThanOrEqual(44);
@@ -581,8 +581,7 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
   await expect(page.getByRole("button", { name: /Slow/ })).toBeVisible();
   // Actually CHANGE the pace: the same-origin recompute must keep the sheet
-  // expanded (it used to snap back to peek mid-comparison, dropping focus —
-  // found in review).
+  // expanded (snapping back to peek mid-comparison would drop focus).
   await page.getByRole("button", { name: /Slow/ }).tap();
   await expect(page.getByTestId("peek-chip-refine")).toHaveCount(0); // still expanded, no peek chips
   await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
@@ -596,7 +595,7 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   // Error path: a failed recompute REOPENS the dock (never a stale pill over
   // an error) AND forces the sheet expanded — the SelectionCard inside is the
   // only surface with the failure message, and a peek bar reading "Result"
-  // over a hidden alert is a silent failure (found in review).
+  // over a hidden alert is a silent failure.
   failIsochrone = true;
   await pill.tap();
   await page.getByRole("combobox").fill("Unirii");

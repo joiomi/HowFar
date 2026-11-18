@@ -28,7 +28,7 @@ this doc are the only committed artefacts.
 - Disk: budget **~120 GB** during import (the Nominatim flatnode alone is ~106 GB). The
   runbook **deletes the flatnode by default** after the import (§2), dropping to **~8 GB**
   resident — see the table below. Downloads: extract ~312 MB,
-  Photon jar ~98 MB, and a one-time **~2.25 GB** of Protomaps base sources for the tiles
+  Photon jar ~98 MB (94 MiB), and a one-time **~2.25 GB** of Protomaps base sources for the tiles
   (Natural Earth + OSM water/land polygons + Daylight landcover; cached after first build).
 - RAM: the imports are the heavy part. Every service has an explicit `mem_limit`
   and heap cap tuned for a modest box — **run the imports one at a time** (below),
@@ -47,7 +47,7 @@ All commands are run from the repository root.
 | Engine | Import/build wall-time | Peak RAM | On-disk |
 |---|---|---|---|
 | Nominatim (`IMPORT_STYLE=full`) | ~24 min | ~4.2 GiB | PG DB 5.4 GB + flatnode **106 GB** (deleted by default post-import → ~8 GB) |
-| Photon (index from Nominatim DB) | ~2.7 min | ~0.75 GiB | 468 MB (+94 MB jar) |
+| Photon (index from Nominatim DB) | ~2.7 min | ~0.75 GiB | 468 MB (+94 MiB jar) |
 | ORS (foot-walking + driving-car) | ~6.6 min | ~1.82 GiB (XMX 2 g) | graph 799 MB + **752 MB SRTM elevation cache** |
 | pmtiles (protomaps/basemaps) | ~5 min + one-time ~2.25 GB base-source download | XMX 6 g | 684 MB (all-Romania z0–15) |
 | **Extract download** | ~1 min | — | 312 MB |
@@ -60,7 +60,7 @@ geocoder keeps answering byte-identically (verified: `/search` + `/reverse` retu
 after the flatnode is removed and the container restarted). Keep it only if you plan to run OSM
 replication (`KEEP_FLATNODE=1`, §2). **Tradeoff if you delete and later need it back:** no
 in-place rebuild — you re-import Nominatim (~24 min). The "~8 GB resident" counts the serving
-engine data + the pmtiles archive (Nominatim DB 5.4 GB + Photon 468 MB + jar 94 MB + ORS 799 MB +
+engine data + the pmtiles archive (Nominatim DB 5.4 GB + Photon 468 MB + jar 94 MiB + ORS 799 MB +
 tiles 684 MB ≈ 7.5 GB) plus a **752 MB SRTM elevation cache** (`ors-elevation` volume). ORS fetches
 SRTM elevation for its graph build (as the public ORS does — so it is faithful for parity, not a
 divergence), but SRTM is an **external, unpinned** input downloaded on demand, like the tile base

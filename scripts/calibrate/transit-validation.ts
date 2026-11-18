@@ -203,7 +203,7 @@ async function main() {
         if (j == null) { dropped++; continue; }
         samples.push({ minutes: ring.minutes, bearing, journeyMin: j });
       }
-      // COVERAGE (a recorded precondition): a ray-miss or failed journey is a DROPPED sector,
+      // COVERAGE: a ray-miss or failed journey is a DROPPED sector,
       // recorded so an incomplete run fails rather than false-greens on survivors.
       coverageCells.push({ origin: origin.name, target: ring.minutes, n: samples.length });
       if (dropped) log(`  ⚠ ${ring.minutes}min: ${dropped} sector(s) dropped (ray-miss/failed journey)`);
@@ -236,7 +236,7 @@ async function main() {
   receipt.pooled = pooled;
   receipt.worstOverRate = worstOver;
 
-  // --- HARDENED GATES (a recorded precondition): coverage + a PRE-DECLARED central-origin bar.
+  // --- HARDENED GATES: coverage + a PRE-DECLARED central-origin bar.
   const EXPECTED = BEARINGS.length; // every bearing must yield a sample
   const coverageGaps = coverageShortfalls(coverageCells, EXPECTED);
   for (const g of coverageGaps) log(`  ✗ COVERAGE ${g}`);

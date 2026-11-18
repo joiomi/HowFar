@@ -3,9 +3,10 @@ import { innerBandCounts, WALK_CLIP, withBands } from "./amenity-fixtures";
 
 // Skipped: the phone-first preset UI renders no amenity markers, so the pin-overlap /
 // clustering / aggregate-count legibility proofs below have nothing to assert against.
-// Kept VERBATIM so these legibility regressions are restored intact in the planned amenity pass.
+// Kept UNCHANGED in behaviour so these legibility regressions are restored intact in the
+// planned amenity pass.
 test.beforeEach(() => {
-  test.skip(true, "Amenity markers are parked until the planned amenity pass; kept verbatim to re-enable then.");
+  test.skip(true, "Amenity markers are parked until the planned amenity pass; kept unchanged in behaviour to re-enable then.");
 });
 
 /**
@@ -171,7 +172,7 @@ function adversarialAmenities(): Fixture[] {
     osmType: "node",
     osmId: 5100,
     distanceMeters: 430, band: 15 });
-  // (4) CENTROID-DRIFT case (found in review): a seed plus members spread widely to ONE
+  // (4) CENTROID-DRIFT case: a seed plus members spread widely to ONE
   // side drags the cluster centroid off the seed and toward a lone pin placed just
   // beyond the clustering radius. That pin is legally unclustered (it is far from the
   // SEED) yet ends up within a few px of the donut — the overlap that donut-vs-donut
@@ -251,7 +252,7 @@ async function jumpTo(page: Page, zoom: number, center = [ORIGIN.lng, ORIGIN.lat
   );
   // Reading before the new zoom's tiles land would measure the PREVIOUS
   // clustering — a subtle way to make this whole suite meaningless.
-  // NOT swallowed: a review pointed out that catching this let the whole invariant pass
+  // NOT swallowed: catching this would let the whole invariant pass
   // while measuring the PREVIOUS zoom's marks — the failure mode this wait exists to
   // prevent. If the source never settles, that is a real result and must fail loudly.
   await page.waitForFunction(
@@ -490,11 +491,11 @@ test("no aggregate ever claims more places than the map actually holds", async (
   // A truthfulness invariant asserted against the fixture size, so it holds no matter
   // HOW the implementation keeps it: no visible mark may claim more places than exist.
   //
-  // HONEST LIMIT — this is a non-regression check, NOT proof of the review fix.
-  // F3 is the mid-zoom double count: while a zoom is in flight the source holds the OLD
+  // HONEST LIMIT — this is a non-regression check, NOT proof of the mid-zoom
+  // double-count fix. The double count: while a zoom is in flight the source holds the OLD
   // tiling and the NEW one, whose clusters cover the same places under different ids,
-  // and merging across them paints ~2x the real total. I checked whether this test
-  // catches that by disabling the generation filter and rebuilding: it stayed GREEN.
+  // and merging across them paints ~2x the real total. With the generation filter
+  // disabled and the app rebuilt, this test stays GREEN.
   // The window is a frame or two and a Playwright `evaluate` round-trip is longer than
   // that, so the sampler cannot reliably land inside it. The partition is proven where
   // it can be observed deterministically instead — `pickClusterGeneration` in
@@ -527,8 +528,8 @@ test("MapLibre still stamps the tile zoom the generation filter depends on", asy
   // The mid-zoom double-count fix partitions candidates by `feature._z`, which is
   // MapLibre-private. If an upgrade renames or drops it, `pickClusterGeneration` keeps
   // every candidate — i.e. the ~2x "donut that lies" comes back with no unit test going
-  // red, because the unit tests necessarily feed a hand-set `_z` (review,
-  // review). This is the assertion that makes that dependency fail LOUD instead.
+  // red, because the unit tests necessarily feed a hand-set `_z`. This is the
+  // assertion that makes that dependency fail LOUD instead.
   await stub(page);
   await loadAndSearch(page);
   await jumpTo(page, 14);
@@ -561,9 +562,8 @@ test("MapLibre still stamps the tile zoom the generation filter depends on", asy
 test("keyboard activation of a coincident mark opens an operable list, not a fan", async ({ page }) => {
   // The fan is pointer-only: its leaves are WebGL geometry with no focusable affordance,
   // and opening it REMOVES the donut button the keyboard user was standing on — so for
-  // them it is a dead end (reviewers). Keyboard activation is
-  // therefore routed to the list, which must itself be operable: focus moves into it and
-  // Escape dismisses it.
+  // them it is a dead end. Keyboard activation is therefore routed to the list, which
+  // must itself be operable: focus moves into it and Escape dismisses it.
   await stub(page, coincident(3, TRIO_AT));
   const map = await loadAndSearch(page);
   await jumpTo(page, 17, [TRIO_AT.lng, TRIO_AT.lat]);
@@ -906,12 +906,12 @@ test("the browser list shows distances, and the cap is admitted WITHOUT opening 
   await loadAndSearch(page);
 
   // The counts (534) exceed the returned markers, so the cap must be stated where the
-  // chips are — not hidden behind "Browse places", which left the default view showing
+  // chips are — not hidden behind "Browse places", where the default view would show
   // chips claiming hundreds against donuts covering only the capped set.
   await expect(page.getByTestId("amenity-cap-note")).toBeVisible();
   // Deliberately does NOT assert an "N of M" pair: the chip totals count raw places
   // while the map's markers can merge several of them (coincident transit stops), so
-  // quoting both numbers side by side compared different units (found in review).
+  // quoting both numbers side by side would compare different units.
   await expect(page.getByTestId("amenity-cap-note")).toContainText(/every place in range \(\d+\)/);
   // Copy pinned deliberately: it must NOT claim "nearest" (admission is
   // distance-stratified, so the rendered set is a spread, not the closest N).

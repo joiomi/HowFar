@@ -67,7 +67,7 @@ export function createMapStyle(tilesUrl: string): maplibregl.StyleSpecification 
         //    "modified". ESA's fuller "Contains modified Copernicus Sentinel data …"
         //    acknowledgement + the exact WorldCover vintage live in README/docs and
         //    at the linked data-access page; the vintage is not pinned in our build
-        //    (parked), so it is NOT asserted here.
+        //    (not yet done), so it is NOT asserted here.
         //  - Natural Earth — public-domain ("crediting unnecessary"); shown by design.
         // Mapzen POI-icon sprite (MIT) is hot-linked from protomaps.github.io
         // (glyphs/sprite above), i.e. referenced not redistributed; its MIT notice is

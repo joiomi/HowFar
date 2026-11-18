@@ -41,7 +41,7 @@ export const PLAN_BUDGET_MS = 12_000;
  * retry needs the configured transit spacing (default 1.5 s — the interval is
  * config-driven) plus a realistic response window. Tuned for the
  * default; a self-host that sets a very different TRANSIT_MIN_INTERVAL_MS may
- * want this derived from the interval (parked follow-up). */
+ * want this derived from the interval (not yet done). */
 const RETRY_MIN_REMAINING_MS = 3_000;
 /** Short backoff before the single retry (transient network drop OR an
  * effectively-empty response), bounded by the absolute budget. */

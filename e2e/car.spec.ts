@@ -26,10 +26,9 @@ function polyRing(minutes: number, d: number) {
 }
 // Car response carries the calibrated [10, 25] preset. The outer (25-min) ring
 // ~0.32° exceeds the Bucharest maxBounds (~0.6°×0.5°), so this fixture also
-// exercises the off-map clipping flagged in review (C-B/F5) — not a
-// viewport-tiny mock. The `car` meta block mirrors the real /api/car payload
-// so the honesty-note slot label + right-click carMeta threading are
-// exercised e2e.
+// exercises off-map clipping — not a viewport-tiny mock. The `car` meta block
+// mirrors the real /api/car payload so the honesty-note slot label +
+// right-click carMeta threading are exercised e2e.
 const CAR_META = { basis: "estimate", slotId: "am-peak", slotLabel: "weekday morning rush" };
 const CAR = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(10, 0.3), polyRing(25, 0.32)], car: CAR_META };
 const WALK = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(10, 0.28), polyRing(20, 0.3)] };

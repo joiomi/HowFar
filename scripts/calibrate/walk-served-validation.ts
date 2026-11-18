@@ -45,7 +45,8 @@ const SPACING_MS = 2100;
 const TOL_MIN = 5;
 const NORMAL_SPEED = PACE_MODEL.normal.speedMPerMin; // 5 km/h = 83.33 m/min — the served pace
 
-/** 3 fit origins + a 4th UNTOUCHED origin (Militari, west) for a recorded precondition. */
+/** 3 fit origins + a 4th UNTOUCHED origin (Militari, west) that was never in the fit,
+ *  so the served ranges are also validated out of sample. */
 const ORIGINS = [
   { name: "Unirii", lat: 44.4268, lng: 26.1025 },
   { name: "Grozavesti", lat: 44.443, lng: 26.06 },
