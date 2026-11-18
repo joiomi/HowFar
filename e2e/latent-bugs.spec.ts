@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Regression specs for three edge-case bugs in the map selection and search flow.
@@ -59,14 +60,13 @@ test("toggling Transit then back to Walk before transit resolves keeps the origi
   });
 
   const map = await waitForMap(page);
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-mode", "walk");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
 
   // Toggle to Transit (slow, in-flight) then straight back to Walk.
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
-  await page.getByRole("button", { name: "Walk" }).click();
+  await pickMode(page, "transit");
+  await pickMode(page, "walk");
 
   // The origin survived: the walk isochrone re-renders from lastSelection with
   // NO re-geocode. (Before the fix, lastSelection was nulled and the map went

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Slice-1 interactivity, provider calls STUBBED (CI has no ORS key / can't hit
@@ -57,8 +58,7 @@ test("search renders a marker, 3 isochrone rings, and the address label", async 
   await stubIsochrone(page);
 
   const map = await waitForMap(page);
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
 
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   await expect(map).toHaveAttribute("data-selection", /Piața Unirii/);

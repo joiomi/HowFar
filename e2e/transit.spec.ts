@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectSearchBusy, expectSearchIdle, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Transit slice: Walk/Transit toggle. Provider calls STUBBED by EXACT path
@@ -70,13 +71,12 @@ test("toggling Walk→Transit re-renders transit rings for the same origin witho
   const map = await waitForMap(page);
 
   // 1. Search → walking isochrone (default mode).
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   await expect(map).toHaveAttribute("data-mode", "walk");
 
   // 2. Toggle to Transit → transit isochrone for the SAME origin.
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   // The legend reflects the mode (scope to the legend — the toggle button now
@@ -107,11 +107,10 @@ test("a transit provider error surfaces a friendly message, not a crash", async 
   await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "Upstream provider error" } }));
 
   const map = await waitForMap(page);
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-mode", "walk");
 
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await pickMode(page, "transit");
   await expect(page.getByText(/could not compute transit reach/i)).toBeVisible();
 });
 
@@ -129,17 +128,14 @@ test("toggling mode while the first search is still loading does not strand the 
   await page.route("**/api/transit**", (route) => route.fulfill({ json: TRANSIT }));
 
   await waitForMap(page);
-  const combobox = page.getByRole("combobox");
-  await combobox.fill("Piata Unirii");
-  await expect(combobox).toHaveValue("Piata Unirii"); // controlled input committed
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
 
   // Loading: the submit button's accessible name becomes "Searching". Wait for
   // it so the toggle is genuinely mid-flight (no prior selection to fall back on).
-  await expect(page.getByRole("button", { name: "Searching" })).toBeVisible({ timeout: 5000 });
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await expectSearchBusy(page);
+  await pickMode(page, "transit");
 
   // Aborting the in-flight search must return the UI to idle immediately — the
   // "Go" button reappears and is enabled well before the 5 s isochrone would resolve.
-  await expect(page.getByRole("button", { name: "Go" })).toBeEnabled({ timeout: 2000 });
+  await expectSearchIdle(page);
 });

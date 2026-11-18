@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { search } from "./shell";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
 // After a responsive relayout, retry the REAL geometric predicate until it holds
@@ -82,8 +83,7 @@ async function loadPopulatedState(page: Page) {
   await page.goto("/");
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await page.getByRole("combobox").fill("Piața Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piața Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-camera-settled", "true", { timeout: 10_000 });
   return map;

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Right-click "how do I get there?". Provider calls stubbed by EXACT
@@ -68,9 +69,8 @@ async function setup(page: Page) {
   return { map, reachCalls };
 }
 
-async function search(page: Page, map: ReturnType<Page["getByTestId"]>) {
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+async function searchAndWait(page: Page, map: ReturnType<Page["getByTestId"]>) {
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "2");
 }
 
@@ -91,7 +91,7 @@ test("right-click with no selection shows the hint", async ({ page }) => {
 
 test("Escape closes the directions even after focus has left the panel", async ({ page }) => {
   const { map } = await setup(page);
-  await search(page, map);
+  await searchAndWait(page, map);
   await rightClickCentre(page); // any-mode right-click → transit directions
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   // Move focus off the panel to the map container (tabIndex=-1) — a panel-scoped
@@ -104,7 +104,7 @@ test("Escape closes the directions even after focus has left the panel", async (
 
 test("walk mode: right-click auto-switches to Public transport and plans the trip", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
-  await search(page, map); // walk mode
+  await searchAndWait(page, map); // walk mode
   await rightClickCentre(page);
   // No more walk-band answer — right-click always means "get me there by PT".
   await expect(map).toHaveAttribute("data-mode", "transit");
@@ -117,8 +117,8 @@ test("walk mode: right-click auto-switches to Public transport and plans the tri
 
 test("public-transport mode: right-click shows the planned trip with a specific line", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
-  await search(page, map);
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await searchAndWait(page, map);
+  await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
 
   await rightClickCentre(page);
@@ -137,8 +137,8 @@ test("public-transport mode: right-click shows the planned trip with a specific 
 
 test("directions DOCK in the result sheet — selection/filters block hidden, no reach popup, Back restores it", async ({ page }) => {
   const { map } = await setup(page);
-  await search(page, map);
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await searchAndWait(page, map);
+  await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
   const sheet = page.getByTestId("result-sheet");
   // Before the right-click: the selection card + its filters/controls are shown.
@@ -180,8 +180,8 @@ test("public-transport mode: a point outside the drawn rings STILL plans the tri
   await page.goto("/");
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await search(page, map);
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await searchAndWait(page, map);
+  await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
 
   // Right-click ALWAYS shows the PT way. With no ring to fall
@@ -210,8 +210,8 @@ test("public-transport mode: no route found is reported", async ({ page }) => {
   await page.goto("/");
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await search(page, map);
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await searchAndWait(page, map);
+  await pickMode(page, "transit");
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-state", "none");
   await expect(page.getByTestId("reach-panel")).toContainText("No public-transport route");
@@ -235,14 +235,13 @@ test("a failed mode recompute clears the reach legend — no '~N min' claim over
   await page.goto("/");
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
   // Walk resolved → a reach is drawn → the legend pill shows.
   await expect(map).toHaveAttribute("data-preset-contours", "10");
   await expect(page.getByTestId("legend-pill")).toBeVisible();
 
   // Toggle to Public transport → its recompute 502s → error, reach cleared.
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await pickMode(page, "transit");
   await expect(page.getByText(/Could not compute/i)).toBeVisible();
   await expect(map).not.toHaveAttribute("data-preset-contours", /.*/);
   await expect(page.getByTestId("legend-pill")).toHaveCount(0);

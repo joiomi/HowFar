@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { pickMode, pickPreset, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 /**
@@ -64,21 +65,6 @@ async function waitForMap(page: Page) {
   return map;
 }
 
-async function selectAddress(page: Page) {
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
-}
-
-// On the phone viewport the shell collapses the command dock to a one-line state
-// pill once a selection resolves, hiding the mode+preset bar. Re-expand it so the
-// chip/mode controls are interactable; a no-op on a viewport where the dock stays
-// open (or before the first selection).
-async function openControls(page: Page) {
-  const pill = page.getByTestId("state-pill");
-  if (await pill.isVisible().catch(() => false)) await pill.click();
-  await expect(page.getByTestId("mode-preset-bar")).toBeVisible();
-}
-
 test("walk preset: default chip 10 draws only the 10-min contour, the 20 chip adds the calibrated 10-min interior line — no refetch", async ({
   page,
 }) => {
@@ -101,7 +87,7 @@ test("walk preset: default chip 10 draws only the 10-min contour, the 20 chip ad
   });
 
   const map = await waitForMap(page);
-  await selectAddress(page);
+  await search(page, "Piata Unirii");
 
   // Default is Walk · 10: the outer contour is 10, no interior line.
   await expect(map).toHaveAttribute("data-mode", "walk");
@@ -112,8 +98,7 @@ test("walk preset: default chip 10 draws only the 10-min contour, the 20 chip ad
 
   // Select the 20-min chip: the outer contour becomes 20 and the calibrated
   // 10-min interior line appears — the render-midpoint honesty.
-  await openControls(page);
-  await page.getByTestId("preset-chip-20").click();
+  await pickPreset(page, 20);
   await expect(map).toHaveAttribute("data-selected-preset", "20");
   await expect(map).toHaveAttribute("data-preset-contours", "10,20");
   await expect(map).toHaveAttribute("data-interior-lines", "10");
@@ -138,11 +123,10 @@ test("transit preset: default 20, the 40 chip adds the calibrated 20-min interio
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
 
   const map = await waitForMap(page);
-  await selectAddress(page);
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-mode", "walk");
 
-  await openControls(page);
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
   await expect(map).toHaveAttribute("data-selected-preset", "20");
   await expect(map).toHaveAttribute("data-preset-contours", "20");
@@ -151,7 +135,7 @@ test("transit preset: default 20, the 40 chip adds the calibrated 20-min interio
   // Transitous provider credit is present on the transit state (phone-first design).
   await expect(page.getByRole("link", { name: "Transitous" })).toBeVisible();
 
-  await page.getByTestId("preset-chip-40").click();
+  await pickPreset(page, 40);
   await expect(map).toHaveAttribute("data-selected-preset", "40");
   await expect(map).toHaveAttribute("data-preset-contours", "20,40");
   await expect(map).toHaveAttribute("data-interior-lines", "20");
@@ -167,15 +151,14 @@ test("car preset: 10/25 contours, and NO Transitous credit on a non-transit stat
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
 
   const map = await waitForMap(page);
-  await selectAddress(page);
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-mode", "walk");
-  await openControls(page);
-  await page.getByRole("button", { name: "Car", exact: true }).click();
+  await pickMode(page, "car");
   await expect(map).toHaveAttribute("data-mode", "car");
   await expect(map).toHaveAttribute("data-selected-preset", "10");
   await expect(map).toHaveAttribute("data-preset-contours", "10");
 
-  await page.getByTestId("preset-chip-25").click();
+  await pickPreset(page, 25);
   await expect(map).toHaveAttribute("data-preset-contours", "10,25");
   await expect(map).toHaveAttribute("data-interior-lines", "10");
 
@@ -215,7 +198,7 @@ test("degraded reach: a failed isochrone shows the error inline and keeps the ma
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
 
   const map = await waitForMap(page);
-  await selectAddress(page);
+  await search(page, "Piata Unirii");
 
   // The failure surfaces as an inline message; the map container stays present
   // and loaded (the reach failed, the app did not).
@@ -235,15 +218,14 @@ test("a FAILED recompute hides the reach legend + hint — no reach claim over a
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
 
   const map = await waitForMap(page);
-  await selectAddress(page);
+  await search(page, "Piata Unirii");
   // Walk resolved: a reach is drawn, so the legend is shown.
   await expect(map).toHaveAttribute("data-preset-contours", "10");
   await expect(page.getByTestId("legend-pill")).toBeVisible();
 
   // Toggle to Public transport, whose recompute fails. On failure the render is
   // cleared (status="error"), so the preset/mode stamps are UNSET — not "transit".
-  await openControls(page);
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await pickMode(page, "transit");
 
   // The failure surfaces, the reach is cleared, and NO honesty surface lingers over
   // the blank map — the legend and the mobile hint are both gone in the error state.

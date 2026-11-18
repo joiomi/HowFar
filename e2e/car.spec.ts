@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { pickMode, pickPreset, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Car travel mode on the phone-first preset client.
@@ -59,11 +60,10 @@ async function setup(page: Page, carBody: unknown = CAR) {
 }
 
 async function selectCar(page: Page, map: ReturnType<Page["getByTestId"]>) {
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
   // Walk preset renders first — two calibrated contours [10, 20].
   await expect(map).toHaveAttribute("data-isochrone-rings", "2");
-  await page.getByRole("button", { name: "Car", exact: true }).click();
+  await pickMode(page, "car");
   await expect(map).toHaveAttribute("data-mode", "car");
   // Car preset renders its two calibrated contours [10, 25].
   await expect(map).toHaveAttribute("data-isochrone-rings", "2");
@@ -89,7 +89,7 @@ test("Car mode fetches /api/car with the preset model + time context, NO pace, a
   await expect(map).toHaveAttribute("data-selected-preset", "10");
   await expect(map).toHaveAttribute("data-preset-contours", "10");
   const carCallsBefore = carCalls.length;
-  await page.getByTestId("preset-chip-25").click();
+  await pickPreset(page, 25);
   await expect(map).toHaveAttribute("data-preset-contours", "10,25");
   await expect(map).toHaveAttribute("data-interior-lines", "10");
   expect(carCalls.length).toBe(carCallsBefore); // chip change is pure visibility, no refetch

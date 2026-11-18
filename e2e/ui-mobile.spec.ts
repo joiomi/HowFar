@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { pickMode, pickPreset, sampleMapClearPercent, search } from "./shell";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
 function ring(minutes: number, distance: number) {
@@ -335,13 +336,13 @@ test("mobile: long-press transit directions show a compact card and draw the jou
   await page.goto("/");
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   // The resolved selection collapsed the dock to the state pill —
-  // reopening it IS the mode-change path now.
-  await page.getByTestId("state-pill").tap();
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  // reopening it IS the mode-change path now (pickMode taps the pill first, but
+  // only if it is already showing, so wait for the collapse).
+  await expect(page.getByTestId("state-pill")).toBeVisible();
+  await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
 
   const canvas = page.locator(".maplibregl-canvas");
@@ -407,8 +408,7 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   await page.goto("/");
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   await expect(map).toHaveAttribute("data-mode", "walk"); // start in WALK — do NOT switch manually
 
@@ -518,25 +518,7 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   expect(strip / viewport.height).toBeGreaterThanOrEqual(0.55);
   // Point-sample the same 20px grid the live inspection used (CHECKPOINT-B
   // method): unobstructed map ≥ 60%.
-  const sampled = await page.evaluate(() => {
-    const vw = innerWidth;
-    const vh = innerHeight;
-    const mapEl = document.querySelector(".maplibregl-map");
-    let hits = 0;
-    let total = 0;
-    for (let x = 5; x < vw; x += 20)
-      for (let y = 5; y < vh; y += 20) {
-        total++;
-        const el = document.elementFromPoint(x, y);
-        if (
-          el &&
-          el.closest(".maplibregl-map") === mapEl &&
-          !el.closest("[class*=panel],[class*=sheet],[class*=card],[class*=dock],[class*=pill],aside,header,nav,form")
-        )
-          hits++;
-      }
-    return Math.round((hits / total) * 100);
-  });
+  const sampled = await sampleMapClearPercent(page);
   expect(sampled).toBeGreaterThanOrEqual(60);
 
   // The always-on basemap attribution sits at the strip's bottom edge — never
@@ -568,7 +550,7 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   // Change the reach preset (the larger 20-min chip), hand the map back with the
   // collapse control, and the pill reflects the new state WITHOUT another resolution
   // (the chip is pure client-side visibility — the route already returned both contours).
-  await page.getByTestId("preset-chip-20").tap();
+  await pickPreset(page, 20);
   await page.getByTestId("dock-collapse").tap();
   await expect(pill).toContainText("20 min");
 

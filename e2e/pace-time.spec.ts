@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Pace + time-context selectors on the phone-first preset client. Providers are
@@ -61,8 +62,7 @@ async function loadAndSearch(page: Page) {
   await page.goto("/");
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   return map;
 }
@@ -110,7 +110,7 @@ test("pace control is Walk-only; switching to Public transport hides it and requ
   await expect.poll(() => cap.iso.some((u) => /pace=slow/.test(u))).toBe(true);
 
   // Switch to Public transport: the pace control is GONE (pace is walk-only)…
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await pickMode(page, "transit");
   await expect(page.getByRole("group", { name: "Walking pace" })).toHaveCount(0);
   // …and the transit reach used Normal, not the remembered Slow — the regression
   // guard for effective pace (not sel.pace): every transit request is pace=normal.
@@ -125,7 +125,7 @@ test("time control: two options (Crowded default, Not crowded), no Custom editor
   // Walk mode: no time control.
   await expect(page.getByRole("group", { name: "Public transport departure time" })).toHaveCount(0);
   // Switch to transit.
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await pickMode(page, "transit");
   const timeGroup = page.getByRole("group", { name: "Public transport departure time" });
   await expect(timeGroup).toBeVisible();
   // Exactly two options, no Custom editor (removed for a least-necessary UI).

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Visual right-click journey on the phone-first preset client: a right-click
@@ -154,14 +155,13 @@ async function setup(page: Page) {
   return { map, reachCalls };
 }
 
-async function search(page: Page, map: ReturnType<Page["getByTestId"]>) {
-  await page.getByRole("combobox").fill("Piata Unirii");
-  await page.getByRole("button", { name: "Go" }).click();
+async function searchAndWait(page: Page, map: ReturnType<Page["getByTestId"]>) {
+  await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "2");
 }
 
 async function toTransit(page: Page, map: ReturnType<Page["getByTestId"]>) {
-  await page.getByRole("button", { name: "Public transport", exact: true }).click();
+  await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
 }
 
@@ -182,7 +182,7 @@ async function rightClickAt(page: Page, fx: number, fy: number) {
 
 test("transit right-click DRAWS the journey", async ({ page }) => {
   const { map } = await setup(page);
-  await search(page, map);
+  await searchAndWait(page, map);
   await toTransit(page, map);
   await rightClickCentre(page);
 
@@ -213,7 +213,7 @@ test("transit right-click DRAWS the journey", async ({ page }) => {
 
 test("supersede: a second right-click draws ONLY the latest plan", async ({ page }) => {
   const { map } = await setup(page);
-  await search(page, map);
+  await searchAndWait(page, map);
   await toTransit(page, map);
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
@@ -230,14 +230,13 @@ test("supersede: a second right-click draws ONLY the latest plan", async ({ page
 
 test("starting a new selection mid-journey clears the draw", async ({ page }) => {
   const { map } = await setup(page);
-  await search(page, map);
+  await searchAndWait(page, map);
   await toTransit(page, map);
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
 
   // A new address selection is a fresh selection → teardownReach via closeStopPopup.
-  await page.getByRole("combobox").fill("Another place");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Another place");
   await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).not.toHaveAttribute("data-reach-journey", /.*/);
   await expect.poll(() => reachRenderedCounts(page)).toEqual({ lines: 0, stops: 0 });
@@ -245,7 +244,7 @@ test("starting a new selection mid-journey clears the draw", async ({ page }) =>
 
 test("hovering a popup step highlights its leg on the map", async ({ page }) => {
   const { map } = await setup(page);
-  await search(page, map);
+  await searchAndWait(page, map);
   await toTransit(page, map);
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
@@ -261,7 +260,7 @@ test("hovering a popup step highlights its leg on the map", async ({ page }) => 
 
 test("closing the popup clears the drawn journey", async ({ page }) => {
   const { map } = await setup(page);
-  await search(page, map);
+  await searchAndWait(page, map);
   await toTransit(page, map);
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
@@ -274,19 +273,19 @@ test("closing the popup clears the drawn journey", async ({ page }) => {
 
 test("switching mode mid-journey clears the draw", async ({ page }) => {
   const { map } = await setup(page);
-  await search(page, map);
+  await searchAndWait(page, map);
   await toTransit(page, map);
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
 
-  await page.getByRole("button", { name: "Walk", exact: true }).click();
+  await pickMode(page, "walk");
   await expect(map).toHaveAttribute("data-mode", "walk");
   await expect(map).not.toHaveAttribute("data-reach-journey", /.*/);
 });
 
 test("walk-mode right-click AUTO-SWITCHES to Public transport and draws the journey", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
-  await search(page, map); // still in walk mode
+  await searchAndWait(page, map); // still in walk mode
   await rightClickCentre(page);
   // The single unified action: flip to Public transport + draw the trip.
   await expect(map).toHaveAttribute("data-mode", "transit");
@@ -304,8 +303,8 @@ test("walk-mode right-click AUTO-SWITCHES to Public transport and draws the jour
 
 test("car-mode right-click AUTO-SWITCHES to Public transport and draws the journey", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
-  await search(page, map);
-  await page.getByRole("button", { name: "Car", exact: true }).click();
+  await searchAndWait(page, map);
+  await pickMode(page, "car");
   await expect(map).toHaveAttribute("data-mode", "car");
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-mode", "transit");
@@ -327,7 +326,7 @@ test("camera race: a transit recompute that lands AFTER the plan does not clip t
     await new Promise((r) => setTimeout(r, 900));
     await route.fulfill({ json: TRANSIT });
   });
-  await search(page, map); // walk
+  await searchAndWait(page, map); // walk
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
   // Now let the delayed transit recompute land + settle its camera, THEN assert
@@ -341,7 +340,7 @@ test("a walk-only plan → 'No public-transport route' (no walk-band answer), no
   const { map } = await setup(page);
   // Override /api/reach to return a direct walk-only plan for this test.
   await page.route("**/api/reach**", (route) => route.fulfill({ json: WALK_ONLY_PLAN }));
-  await search(page, map);
+  await searchAndWait(page, map);
   await toTransit(page, map);
   await rightClickCentre(page);
 
@@ -355,7 +354,7 @@ test("a walk-only plan → 'No public-transport route' (no walk-band answer), no
 // amenity browser returns in the planned amenity pass.
 test.skip("amenity Browse text filter SURVIVES opening + closing directions", async ({ page }) => {
   const { map } = await setup(page);
-  await search(page, map);
+  await searchAndWait(page, map);
   await toTransit(page, map);
   // Open the amenity browser and set a text filter.
   await page.getByTestId("amenity-browser-trigger").click();
