@@ -1,12 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import { pickMode, search } from "./shell";
+import { pickMode, search, toggleDeparture, toggleSlowPace } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
-// Pace + time-context selectors on the phone-first preset client. Providers are
-// stubbed by EXACT path. The mock cannot prove
+// The mode pill's pace turtle (walk) and departure clock (transit/car) on the
+// phone-first preset client. Providers are stubbed by EXACT path. The mock cannot prove
 // the server ring→count coupling (that lives in unit + integration tests + the live
-// calibration); what e2e proves is that the controls SEND the right params
-// and the UI shows the honesty copy. The preset client suppresses amenity markers
+// calibration); what e2e proves is that the toggles SEND the right params, show
+// their state, and that the transit result keeps its honesty copy. The preset client suppresses amenity markers
 // (deferred to the planned amenity pass), so the pace/time re-render is proven by the REQUEST it
 // drives (a new reach flight carrying the changed param), not by an amenity count.
 // Waits are on data-* stamps + captured URLs, never sleeps.
@@ -67,51 +67,46 @@ async function loadAndSearch(page: Page) {
   return map;
 }
 
-test("defaults: exactly two paces (Slow, Normal), Normal active, BOTH meanings visible; walk request is pace=normal with NO leaked time params", async ({ page }) => {
+test("defaults: the walk turtle is unpressed (Normal pace); walk request is pace=normal with NO leaked time params", async ({ page }) => {
   const cap = await stubBase(page);
   await loadAndSearch(page);
-  // Exactly two pace buttons — Slow + Normal, no Brisk.
-  const paceGroup = page.getByRole("group", { name: "Walking pace" });
-  await expect(paceGroup.getByRole("button")).toHaveCount(2);
-  await expect(page.getByRole("button", { name: /Normal/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: /Brisk/ })).toHaveCount(0);
-  // Each option shows its short meaning WITHOUT being selected.
-  // The SPEEDS are pinned on both options (3 and 5 km/h). Normal had
-  // no km/h assertion before, so a wrong Normal speed rendered green.
-  await expect(page.getByTestId("pace-blurb-slow")).toContainText("3 km/h");
-  await expect(page.getByTestId("pace-blurb-normal")).toContainText("average adult");
-  await expect(page.getByTestId("pace-blurb-normal")).toContainText("5 km/h");
-  // Normal is the honest baseline → no "estimated reach" qualifier.
-  await expect(page.getByTestId("pace-hint")).not.toContainText("estimated reach");
+  // One two-state toggle: unpressed = Normal, pressed = Slow (there is no third pace).
+  const turtle = page.getByTestId("pace-toggle");
+  await expect(turtle).toBeVisible();
+  await expect(turtle).toHaveAccessibleName("Mers încet");
+  await expect(turtle).toHaveAttribute("aria-pressed", "false");
+  // Walk has no departure clock.
+  await expect(page.getByTestId("time-toggle")).toHaveCount(0);
   expect(cap.iso.some((u) => /pace=normal/.test(u))).toBe(true);
   // Walk mode must never carry transit-only departure params (regression guard).
   expect(cap.iso.every((u) => !/[?&](preset|weekday|time)=/.test(u))).toBe(true);
 });
 
-test("changing pace to Slow sends &pace=slow (a new reach flight) and shows the estimate qualifier", async ({ page }) => {
+test("the turtle switches to Slow: a fresh reach flight carries pace=slow and the turtle reads pressed", async ({ page }) => {
   const cap = await stubBase(page);
   await loadAndSearch(page);
   const isoBefore = cap.iso.length;
-  await page.getByRole("button", { name: /Slow/ }).click();
-  await expect(page.getByTestId("pace-hint")).toContainText("estimated reach"); // non-normal honesty cue (walk too)
+  await toggleSlowPace(page);
+  await expect(page.getByTestId("pace-toggle")).toHaveAttribute("aria-pressed", "true");
   // The pace change drives a fresh reach flight carrying pace=slow — the re-render
   // proof now that amenity markers (the old count proof) are deferred to the planned amenity pass.
   await expect.poll(() => cap.iso.length).toBeGreaterThan(isoBefore);
   expect(cap.iso.some((u) => /pace=slow/.test(u))).toBe(true);
 });
 
-test("pace control is Walk-only; switching to Public transport hides it and requests Normal even after Slow", async ({ page }) => {
+test("the turtle is Walk-only; Public transport shows the clock instead and requests Normal even after Slow", async ({ page }) => {
   const cap = await stubBase(page);
   await loadAndSearch(page);
-  // Walk: the pace control is present.
-  await expect(page.getByRole("group", { name: "Walking pace" })).toBeVisible();
-  // Pick Slow in Walk → a fresh reach flight carries pace=slow.
-  await page.getByRole("button", { name: /Slow/ }).click();
+  // Walk: the turtle is present. Slow → a fresh reach flight carries pace=slow.
+  await expect(page.getByTestId("pace-toggle")).toBeVisible();
+  await toggleSlowPace(page);
   await expect.poll(() => cap.iso.some((u) => /pace=slow/.test(u))).toBe(true);
 
-  // Switch to Public transport: the pace control is GONE (pace is walk-only)…
+  // Switch to Public transport: the turtle is GONE (pace is walk-only) and the
+  // departure clock takes its place…
   await pickMode(page, "transit");
-  await expect(page.getByRole("group", { name: "Walking pace" })).toHaveCount(0);
+  await expect(page.getByTestId("pace-toggle")).toHaveCount(0);
+  await expect(page.getByTestId("time-toggle")).toBeVisible();
   // …and the transit reach used Normal, not the remembered Slow — the regression
   // guard for effective pace (not sel.pace): every transit request is pace=normal.
   await expect.poll(() => cap.transit.length).toBeGreaterThan(0);
@@ -119,35 +114,45 @@ test("pace control is Walk-only; switching to Public transport hides it and requ
   expect(cap.transit.some((u) => /pace=slow/.test(u))).toBe(false);
 });
 
-test("time control: two options (Crowded default, Not crowded), no Custom editor; picking Not crowded sends &preset=quiet", async ({ page }) => {
+test("the clock: departs at 8:30 rush by default (preset=crowded); a tap switches to 12:30 (preset=quiet) and back", async ({ page }) => {
   const cap = await stubBase(page);
   await loadAndSearch(page);
-  // Walk mode: no time control.
-  await expect(page.getByRole("group", { name: "Public transport departure time" })).toHaveCount(0);
-  // Switch to transit.
+  // Walk mode: no departure clock.
+  await expect(page.getByTestId("time-toggle")).toHaveCount(0);
   await pickMode(page, "transit");
-  const timeGroup = page.getByRole("group", { name: "Public transport departure time" });
-  await expect(timeGroup).toBeVisible();
-  // Exactly two options, no Custom editor (removed for a least-necessary UI).
-  await expect(timeGroup.getByRole("button")).toHaveCount(2);
+  const clock = page.getByTestId("time-toggle");
+  await expect(clock).toBeVisible();
+  await expect(clock).toHaveAccessibleName("Plecare la 8:30 (ora de vârf)");
+  await expect(clock).toHaveText("8:30");
+  await expect.poll(() => cap.transit.some((u) => /preset=crowded/.test(u))).toBe(true);
+  // No Custom editor (removed for a least-necessary UI).
   await expect(page.getByRole("button", { name: "Custom…" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Crowded", exact: true })).toHaveAttribute("aria-pressed", "true");
   // Peak-honesty copy: metro is road-traffic-immune, surface times are timetable-nominal.
   await expect(page.getByTestId("transit-departure-note")).toContainText("affected by road traffic");
 
-  await page.getByRole("button", { name: "Not crowded", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Not crowded", exact: true })).toHaveAttribute("aria-pressed", "true");
-  expect(cap.transit.some((u) => /preset=quiet/.test(u))).toBe(true);
+  const before = cap.transit.length;
+  await toggleDeparture(page);
+  await expect(clock).toHaveAccessibleName("Plecare la 12:30");
+  await expect(clock).toHaveText("12:30");
+  await expect.poll(() => cap.transit.length).toBeGreaterThan(before);
+  expect(cap.transit[cap.transit.length - 1]).toMatch(/preset=quiet/);
+
+  // A second tap flips back to the 8:30 rush departure.
+  const beforeBack = cap.transit.length;
+  await toggleDeparture(page);
+  await expect(clock).toHaveAccessibleName("Plecare la 8:30 (ora de vârf)");
+  await expect.poll(() => cap.transit.length).toBeGreaterThan(beforeBack);
+  expect(cap.transit[cap.transit.length - 1]).toMatch(/preset=crowded/);
 });
 
-test("keyboard: pace is reachable and operable with the keyboard", async ({ page }) => {
+test("keyboard: the turtle is reachable and operable with the keyboard", async ({ page }) => {
   const cap = await stubBase(page);
   await loadAndSearch(page);
-  const slow = page.getByRole("button", { name: /Slow/ });
-  await slow.focus();
-  await expect(slow).toBeFocused();
+  const turtle = page.getByTestId("pace-toggle");
+  await turtle.focus();
+  await expect(turtle).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(slow).toHaveAttribute("aria-pressed", "true");
+  await expect(turtle).toHaveAttribute("aria-pressed", "true");
   // Operable ⇒ it drove a fresh reach flight carrying pace=slow.
   await expect.poll(() => cap.iso.some((u) => /pace=slow/.test(u))).toBe(true);
 });

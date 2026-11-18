@@ -318,8 +318,8 @@ and the UI labels it typical congestion, **not live traffic**.
 | **PM peak** | 16–20 | **×2.20** | | | |
 | evening | 20–23 | ×1.25 | | | |
 
-The two time presets map through `departureFields`: **Crowded** (Wednesday 08:30) → AM peak ×2.10;
-**Not crowded** (Wednesday 12:30) → midday ×1.50. The table resolves any instant, but only those two
+The two time presets map through `departureFields`: `crowded` (Wednesday 08:30) → AM peak ×2.10;
+`quiet` (Wednesday 12:30) → midday ×1.50. The table resolves any instant, but only those two
 presets are exposed. Factors clamp to [1.0, 4.0]; scaled ranges are guaranteed strictly ascending,
 distinct and ≥60 s.
 

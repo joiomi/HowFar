@@ -1,10 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { pickMode, pickPreset, search } from "./shell";
+import { pickMode, pickPreset, search, toggleDeparture } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Car travel mode on the phone-first preset client.
 // The client sends `&model=preset`, so /api/car answers the CALIBRATED car preset
-// [10, 25]. Car has NO pace and NO per-minute ring-filter; its time-of-day control (Crowded / Not crowded) still
+// [10, 25]. Car has NO pace and NO per-minute ring-filter; its departure clock (8:30 rush / 12:30) still
 // reshapes the reach for traffic realism. Providers are stubbed by EXACT path so
 // the real self-hosted basemap tiles still load. The reach is drawn as the preset
 // shells + contour lines (`preset-reach-fill`/`-line` sources), and the read-back
@@ -81,7 +81,7 @@ test("Car mode fetches /api/car with the preset model + time context, NO pace, a
   expect(carUrl).toContain("model=preset");
   expect(carUrl).toMatch(/lat=.*&lng=/);
   expect(carUrl).not.toMatch(/pace/);
-  expect(carUrl).toContain("preset=crowded"); // default time context (Crowded)
+  expect(carUrl).toContain("preset=crowded"); // default time context (8:30 rush)
 
   // The reach draws the calibrated car preset: default chip is the SMALLER (10-min)
   // contour; selecting the 25 chip adds the 10-min interior line (render-midpoint
@@ -95,29 +95,19 @@ test("Car mode fetches /api/car with the preset model + time context, NO pace, a
   expect(carCalls.length).toBe(carCallsBefore); // chip change is pure visibility, no refetch
 });
 
-test("Car mode shows NO walking-pace control, but DOES show a driving-time control", async ({ page }) => {
+test("Car mode shows NO walking-pace turtle, but DOES show the departure clock", async ({ page }) => {
   const { map } = await setup(page);
   await selectCar(page, map);
-  await openRefine(page);
   // Pace is a walk concept — NOT PRESENT (count 0), not merely CSS-hidden (a
-  // rendered-then-hidden control would still be a regression: the two controls are gated
-  // independently, never one merged wrapper).
-  await expect(page.getByRole("group", { name: "Walking pace" })).toHaveCount(0);
-  // Car reach IS time-aware now: a driving-time selector is present, under its
-  // OWN label (never the transit one — so pace can't resurrect in car).
-  await expect(page.getByRole("group", { name: "Driving time" })).toBeVisible();
-  await expect(page.getByRole("group", { name: "Public transport departure time" })).toHaveCount(0);
+  // rendered-then-hidden turtle would still be a regression: the pill renders
+  // exactly one toggle per mode).
+  await expect(page.getByTestId("pace-toggle")).toHaveCount(0);
+  // Car reach IS time-aware: the departure clock is present, at the 8:30 rush default.
+  const clock = page.getByTestId("time-toggle");
+  await expect(clock).toBeVisible();
+  await expect(clock).toHaveAccessibleName("Plecare la 8:30 (ora de vârf)");
+  await expect(clock).toHaveText("8:30");
 });
-
-// The phone-first shell collapses refinements (pace / driving-time / departure)
-// into the result sheet's "refine" block, reached from the peek "refine" chip.
-// Open it before asserting on those controls; a no-op if already expanded.
-async function openRefine(page: Page) {
-  const pill = page.getByTestId("state-pill");
-  if (await pill.isVisible().catch(() => false)) await pill.click();
-  const refineChip = page.getByTestId("peek-chip-refine");
-  if (await refineChip.isVisible().catch(() => false)) await refineChip.click();
-}
 
 // Rendered lng/lat span of the DRAWN preset reach — NOT viewport-clipped
 // (querySourceFeatures), so it measures the actual drawn contour size regardless
@@ -138,9 +128,9 @@ async function presetReachSpan(page: Page): Promise<number> {
   });
 }
 
-test("Car time-of-day actually changes reach: Crowded rings are strictly smaller than Not crowded", async ({ page }) => {
-  // Distinct geometry per traffic slot — small at am-peak (Crowded), large at
-  // midday (Not crowded) — so this proves the RENDERED reach shrinks at peak, not
+test("Car time-of-day actually changes reach: 8:30 rush rings are strictly smaller than 12:30", async ({ page }) => {
+  // Distinct geometry per traffic slot — small at am-peak (8:30), large at
+  // midday (12:30) — so this proves the RENDERED reach shrinks at peak, not
   // just that a request fired. A regression
   // that ignored time and painted one fixed size would fail the span comparison.
   const carCalls: string[] = [];
@@ -160,20 +150,20 @@ test("Car time-of-day actually changes reach: Crowded rings are strictly smaller
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await selectCar(page, map);
 
-  // Default Crowded → small (am-peak) rings + slot label in the note.
+  // Default 8:30 rush → small (am-peak) rings + slot label in the note.
   await expect(page.getByTestId("car-estimate-note")).toContainText("weekday morning rush");
   const peakSpan = await presetReachSpan(page);
   expect(peakSpan).toBeGreaterThan(0);
 
-  // Switch to Not crowded → larger rings + the note now names midday traffic.
-  await openRefine(page);
+  // Switch the clock to 12:30 → larger rings + the note now names midday traffic.
   const before = carCalls.length;
-  await page.getByRole("button", { name: "Not crowded", exact: true }).click();
+  await toggleDeparture(page);
+  await expect(page.getByTestId("time-toggle")).toHaveAccessibleName("Plecare la 12:30");
   await expect.poll(() => carCalls.length).toBeGreaterThan(before);
   expect(carCalls[carCalls.length - 1]!).toContain("preset=quiet");
   await expect(page.getByTestId("car-estimate-note")).toContainText("weekday midday");
   await expect(map).toHaveAttribute("data-isochrone-rings", "2");
-  // The rendered reach GREW going Crowded → Not crowded (i.e. peak reach is smaller).
+  // The rendered reach GREW going 8:30 → 12:30 (i.e. peak reach is smaller).
   await expect.poll(() => presetReachSpan(page)).toBeGreaterThan(peakSpan * 2);
 });
 

@@ -299,22 +299,3 @@ export function presetReachCaveat(mode: Mode): string | null {
       return null;
   }
 }
-
-/** The legend ramp stops + contour-line colour + the calibrated minutes for a mode
- * + selected preset. The ramp itself is DECORATIVE (labeled qualitatively); the
- * minutes belong to the contour LINES (`line` colour), the honest claims — so the
- * legend can never disagree with the painted contours. */
-export function presetLegendRamp(
-  mode: Mode,
-  selectedMin: number,
-): { origin: string; mid: string; edge: string; line: string; midMinutes: number[]; edgeMinutes: number } {
-  const s = PRESET_GRADIENT_STOPS[mode];
-  return {
-    origin: s.origin,
-    mid: s.mid,
-    edge: s.edge,
-    line: s.line,
-    midMinutes: presetInteriorLineMinutes(mode, selectedMin),
-    edgeMinutes: selectedMin,
-  };
-}

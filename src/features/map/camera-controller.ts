@@ -6,19 +6,19 @@ import type { EdgeInsets } from "@/features/map/route-framing";
 
 /**
  * Owns the map's permanent edge padding: the insets that keep a
- * selection centred in the map area the docks don't cover. Split out of `AppMap`
+ * selection centred in the map area the shell's surfaces don't cover. Split out of `AppMap`
  * as the first leaf controller — it depends only on the map and its container.
  * `cameraPadding` (the pure size→inset math) stays unit-tested in `camera.ts`;
  * this glue commits it to MapLibre and stamps the read-back attributes the e2e
  * suite asserts. No timers/listeners, so `dispose` is a no-op (kept for the
  * uniform factory contract).
  *
- * `shell` reports the live mobile dock/sheet state. It is a getter,
- * not a value: AppMap mirrors the derived shell into a ref during render, and
- * the selection flow updates state synchronously before `renderSelection` runs,
- * so the padding committed immediately before the selection flyTo already
- * reflects the dock that is ABOUT to collapse — the required ordering
- * (framing must never run against stale expanded-dock insets).
+ * `shell` reports the live mobile sheet state. It is a getter, not a value:
+ * AppMap derives it from refs that the selection flow updates synchronously
+ * before `renderSelection` runs, so the padding committed immediately before
+ * the selection flyTo already reflects the sheet that is ABOUT to return to
+ * peek — the required ordering (framing must never run against stale
+ * expanded-sheet insets).
  */
 export function createCameraController({
   map,
@@ -48,7 +48,7 @@ export function createCameraController({
     return applied;
   }
 
-  // A user shell flip (pill tap, sheet peek/expand) can land mid-flyTo, and
+  // A user shell flip (sheet peek/expand) can land mid-flyTo, and
   // `map.setPadding` internally runs `jumpTo`, which unconditionally `stop()`s
   // whatever camera animation is in flight (the documented trap that
   // once killed every search's zoom). Selection framing applies its padding

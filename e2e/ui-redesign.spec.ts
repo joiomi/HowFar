@@ -158,17 +158,15 @@ async function cameraSubjectPixel(page: Page) {
 async function expectSubjectClearOfUi(page: Page) {
   const point = await cameraSubjectPixel(page);
   const viewport = page.viewportSize();
-  // Below md a resolved selection collapses the dock to the state
-  // pill — whichever top surface is present is the chrome the subject clears.
-  const command = (await page.getByTestId("command-surface").count())
-    ? await page.getByTestId("command-surface").boundingBox()
-    : await page.getByTestId("state-pill").boundingBox();
+  // The address bar is the top surface on a phone and heads the left column on
+  // desktop — the chrome the framed subject must clear.
+  const topBar = await page.getByTestId("top-bar").boundingBox();
   const results = await page.getByTestId("result-sheet").boundingBox();
-  if (!viewport || !command || !results) throw new Error("responsive shell has no measurable boxes");
+  if (!viewport || !topBar || !results) throw new Error("responsive shell has no measurable boxes");
   if (viewport.width >= 768) {
-    expect(point.x).toBeGreaterThan(command.x + command.width + 16);
+    expect(point.x).toBeGreaterThan(topBar.x + topBar.width + 16);
   } else {
-    expect(point.y).toBeGreaterThan(command.y + command.height + 16);
+    expect(point.y).toBeGreaterThan(topBar.y + topBar.height + 16);
     expect(point.y).toBeLessThan(results.y - 16);
   }
 }
@@ -253,7 +251,7 @@ test.skip("staged ring reveal changes the live MapLibre paint before settling", 
   expect(trace).toMatch(/settled:0\.2,0\.2,0\.2$/);
 });
 
-test("mobile shell keeps the selected subject between command surface and result sheet", async ({ page }) => {
+test("mobile shell keeps the selected subject between the address bar and the result sheet", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await loadPopulatedState(page);
   await expectSubjectClearOfUi(page);
@@ -263,7 +261,7 @@ test("mobile shell keeps the selected subject between command surface and result
   expect(overflow.scroll).toBeLessThanOrEqual(overflow.client);
   // The amenity category tiles are deferred to the planned amenity pass; in preset mode the sheet
   // carries the reach result. The canonical proof that the subject survives the
-  // command-surface → result-sheet handoff is the `data-selection` stamp (the sheet
+  // address bar → result-sheet handoff is the `data-selection` stamp (the sheet
   // header + SelectionCard read the same label); the sheet-in-viewport check above
   // proves the handoff surface is present.
   await expect(page.getByTestId("app-map")).toHaveAttribute("data-selection", "Piața Unirii, București");
@@ -278,14 +276,14 @@ test("camera reframes an existing result across desktop and mobile breakpoints",
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(map).toHaveAttribute("data-camera-pad-left", "12");
-  // Crossing into mobile with a resolved selection lands in the
-  // collapsed-dock + peek-sheet shell, so the insets are the compact pair.
-  await expect(map).toHaveAttribute("data-camera-pad-top", "140");
+  // Crossing into mobile with a resolved selection lands in the peek-sheet shell,
+  // so the insets are the address bar on top and the peek bar below.
+  await expect(map).toHaveAttribute("data-camera-pad-top", "76");
   await expect(map).toHaveAttribute("data-camera-pad-bottom", "124");
   await expectResultFramedAfterResize(page);
 
   await page.setViewportSize({ width: 1280, height: 720 });
-  await expect(map).toHaveAttribute("data-camera-pad-left", "420");
+  await expect(map).toHaveAttribute("data-camera-pad-left", "432");
   await expectResultFramedAfterResize(page);
 });
 

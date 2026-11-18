@@ -21,9 +21,11 @@ Photon and OpenRouteService engines; see `docs/SELFHOST.md`). Two rules shape ev
 The UI is phone-first and **preset-only**. Each mode offers two calibrated presets: walk 10/20,
 transit 20/40 and car 10/25 minutes (`features/isochrones/preset-reach.ts`). The client always
 requests the reach routes with `?model=preset` (`isochroneUrl` in `features/map/selection-flow.ts`).
-Each response carries both contours of the mode, so switching between the two preset chips
-repaints without a refetch. Walk also takes a pace (Slow 3 km/h, Normal 5 km/h); transit and car
-take a departure context (Crowded = weekday rush, Not crowded = weekday midday).
+Each response carries both contours of the mode, so switching between the two presets
+repaints without a refetch. Walk also takes a pace (Slow 3 km/h, Normal 5 km/h; the mode pill's
+turtle toggle, pressed = Slow); transit and car take a departure context (`crowded` = weekday
+rush, shown as 8:30, the default; `quiet` = weekday midday, shown as 12:30; the mode pill's clock
+toggle flips between them).
 
 When `?model` is absent, the same routes serve the older fixed-band model (walk/transit 15/30/45,
 car 10/20/30). The UI never requests it; it stays only because the amenity clip depends on it, and
@@ -76,13 +78,13 @@ Rows marked **(parked)** are kept but not live; see [Parked code](#parked-code).
 | `src/app/api/tiles/route.ts` | Serves the self-hosted PMTiles basemap with HTTP Range semantics |
 | `src/features/map/AppMap.tsx` | Client shell: holds render state, creates the controllers below in dependency order, wires the map event handlers, renders the shell. No business logic of its own. Still constructs and wires the parked amenity controllers |
 | `src/features/map/{camera,hover,popup,route-path,select-flow,clear-address,reach-directions,reach-journey}-controller.ts`, `selection-render.ts` | Single-responsibility controllers, each `create*(...) → { …methods, dispose }`. One shared `load-state.ts` cell carries style-load readiness and the pre-`load` replay buffers; teardown disposes them in reverse create order, then removes the map last (`teardown.ts`). `selection-render` paints the preset reach and the origin marker. `reach-directions-controller` owns the right-click state machine and the `/api/reach` fetch (generation, abort, deadline), drives `reach-journey-controller` (trip and destination pin in one `reach-path` source), and renders into the result-sheet dock (`ReachPanel`), replacing the selection card while active. The directions and the map popup are mutually exclusive surfaces; each closes the other through injected callbacks. `clear-address-controller` is the address bar's ✕ (back to first open, keeping mode, pace and time) plus the origin tracker that tells a new place from a recompute; pure over injected callbacks and unit-tested |
-| `src/features/map/{ring-reveal,amenities,amenity-cluster,amenity-spider}-controller.ts`, `AmenityPanel.tsx`, `ModeToggle.tsx`, `RingSelector.tsx` | **(parked)** Legacy ring reveal and the amenity UI. `ModeToggle.tsx` still exports the mode icon/label constants used by `ModePresetBar` and `StatePill` |
+| `src/features/map/{ring-reveal,amenities,amenity-cluster,amenity-spider}-controller.ts`, `AmenityPanel.tsx`, `ModeToggle.tsx`, `RingSelector.tsx` | **(parked)** Legacy ring reveal and the amenity UI, plus the old mode toggle and ring selector (nothing in the live shell imports `ModeToggle.tsx` or `RingSelector.tsx`) |
 | `src/features/map/{route-framing,long-press,marker-pick,query-features,cluster-expand,shell-state,camera}.ts` | Pure or near-pure helpers pulled out of the controllers: route-fit corridor math, the touch long-press recognizer (iOS never fires `contextmenu`), marker hit targets, a guarded `queryRenderedFeatures`, cluster expansion, the mobile shell state, the shared camera padding (unit-tested) |
 | `src/features/map/map-runtime.ts` | Holder for the dynamically imported `maplibre-gl` module. MapLibre and pmtiles load after the `hf:interactive` mark, so the controllers use `import type` plus this accessor |
 | `src/features/map/selection-flow.ts` | Selection state machine (token staleness, mode snapshot, failure mapping) and the reach request URL (`isochroneUrl`); owns the `Mode`/`Ring`/`Origin` types |
 | `src/features/map/map-setup.ts` | Pure basemap style plus source/layer specs (unit-tested) |
 | `src/features/map/reach.ts` | Pure right-click helpers: point-in-ring banding and MOTIS trip → display steps |
-| `src/features/map/{TopBar,SuggestList,ModePresetBar,PresetChips,LegendPill,SelectionCard,PaceControl,TimeContextControl,ReachPanel,StatePill,RingHint,EmptyState,MapPlaceholder,AttributionBadge}.tsx`, `icons.tsx`, `copy.ts` | Presentation leaves of the phone-first shell. `TopBar` is the address bar (search combobox, suggestions, clear); `icons.tsx` is the shared 24px stroke icon set; `copy.ts` holds Romanian strings used in more than one place |
+| `src/features/map/{TopBar,SuggestList,ModePill,SelectionCard,ReachPanel,EmptyState,MapPlaceholder,TransitousCredit}.tsx`, `icons.tsx`, `copy.ts`, `credits.ts` | Presentation leaves of the phone-first shell. `TopBar` is the address bar (search combobox, suggestions, clear); `ModePill` is the floating mode pill (three modes, the mode's two presets, and the turtle pace toggle or the departure clock); `TransitousCredit` is the "© Transitous" link shown on transit states; `icons.tsx` is the shared 24px stroke icon set; `copy.ts` holds Romanian strings used in more than one place |
 | `src/features/search/combobox.ts`, `search-suggest-controller.ts` | Autocomplete state machine (generation staleness, keyboard nav); debounce plus fetch/abort glue |
 | `src/features/search/server/{nominatim,photon}.ts` | Geocode/reverse and type-ahead provider clients |
 | `src/features/isochrones/preset-reach.ts` | Calibrated preset minutes, the pure range generator, and the strict `?model` parser |
@@ -235,8 +237,8 @@ upstream payloads. The response body stays generic.
   (`iso:foot:v4`, `iso:car:v2`, `transit:v5` vs `iso:foot:preset:v1`, `iso:car:preset:v1`,
   `transit:preset:v1`), so reach built under an older calibration, speed or factor revision is
   never served.
-- Transit/car time context is a two-option choice, **Crowded** (weekday rush, the default) or
-  **Not crowded** (weekday midday), pinned to a representative upcoming instant so reach is
+- Transit/car time context is a two-option choice, `crowded` (weekday rush at 8:30, the default)
+  or `quiet` (weekday midday at 12:30), pinned to a representative upcoming instant so reach is
   comparable and cacheable (`representativeDeparture`). The response's `departure` field carries
   that instant so the UI can qualify the claim. `weekday`/`time` params are rejected with a 400.
 - Negative geocode results are cached under a sentinel, so repeat misses cost zero upstream calls.
@@ -259,9 +261,9 @@ decision on accounts. Do not build on it, and do not remove it piecemeal outside
   through `walkingIsochrone`/`drivingIsochrone`, the perf API harness (`scripts/perf`) requests
   the routes without `?model`, and so does the self-host parity check
   (`docker/selfhost/parity-check.mjs`, `/api/isochrone` and `/api/car`).
-- **Legacy client pieces.** `ModeToggle` (the component; its icon/label constants are live),
+- **Legacy client pieces.** `ModeToggle` (the component and its icon/label constants),
   `RingSelector`, `ring-reveal-controller` (still constructed by `AppMap`, but drives band layers
-  that stay empty), and the three-band ramp in `isochrone-view.ts`. Replaced by the preset bar and
+  that stay empty), and the three-band ramp in `isochrone-view.ts`. Replaced by the mode pill and
   the preset render; kept for the amenity pass.
 - **The amenity UI.** `AmenityPanel` and the cluster, spider and amenities controllers, with their
   wiring in `AppMap`. The controllers are constructed but dormant: the preset UI runs no amenity

@@ -208,30 +208,29 @@ test("degraded reach: a failed isochrone shows the error inline and keeps the ma
   await expect(map).not.toHaveAttribute("data-selected-preset", /.*/);
 });
 
-test("a FAILED recompute hides the reach legend + hint — no reach claim over a blank map", async ({ page }) => {
+test("a FAILED recompute clears the reach and flags the mode as unavailable — no reach claim over a blank map", async ({ page }) => {
   await baseStubs(page);
   await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK_PRESET }));
   // Transit recompute fails: status becomes "error" (not "loading"), lastSelection is
-  // retained and the drawn reach is cleared. The LegendPill/RingHint honesty surfaces
-  // must NOT keep claiming "~N min" over the now-blank map.
+  // retained and the drawn reach is cleared — nothing may keep claiming "~N min"
+  // over the now-blank map, and the failed mode says it is unavailable.
   await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
 
   const map = await waitForMap(page);
   await search(page, "Piata Unirii");
-  // Walk resolved: a reach is drawn, so the legend is shown.
+  // Walk resolved: a reach is drawn.
   await expect(map).toHaveAttribute("data-preset-contours", "10");
-  await expect(page.getByTestId("legend-pill")).toBeVisible();
 
   // Toggle to Public transport, whose recompute fails. On failure the render is
   // cleared (status="error"), so the preset/mode stamps are UNSET — not "transit".
   await pickMode(page, "transit");
 
-  // The failure surfaces, the reach is cleared, and NO honesty surface lingers over
-  // the blank map — the legend and the mobile hint are both gone in the error state.
+  // The failure surfaces, the reach is cleared, and the failed mode is flagged on
+  // its own button in the mode pill (a degraded state, never a takeover).
   await expect(page.getByText(/Could not compute/i)).toBeVisible();
   await expect(map).not.toHaveAttribute("data-preset-contours", /.*/);
   await expect(map).not.toHaveAttribute("data-mode", /.*/);
-  await expect(page.getByTestId("legend-pill")).toHaveCount(0);
-  await expect(page.getByTestId("ring-hint")).toHaveCount(0);
+  await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
+  await expect(page.getByTestId("mode-icon-walk")).toHaveAccessibleName("Pe jos");
 });

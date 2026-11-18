@@ -88,29 +88,6 @@ describe("PACE_MODEL", () => {
       }
     }
   });
-
-  it("carries UI copy (label/emoji/blurb/hint) for the control", () => {
-    for (const p of PACES) {
-      expect(PACE_MODEL[p].label.length).toBeGreaterThan(0);
-      expect(PACE_MODEL[p].emoji.length).toBeGreaterThan(0);
-      // Per-option meaning shown under BOTH buttons.
-      expect(PACE_MODEL[p].blurb.length).toBeGreaterThan(0);
-      expect(PACE_MODEL[p].hint.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("the copy states the SPEEDS WE ACTUALLY WALK — no stale km/h can survive", () => {
-    // The user-visible promise must track the model; these assertions tie the
-    // words to the constants so wrong copy cannot ship silently.
-    expect(PACE_MODEL.slow.blurb).toContain("3 km/h");
-    expect(PACE_MODEL.normal.blurb).toContain("5 km/h");
-    expect(PACE_MODEL.normal.hint).toContain("5 km/h");
-    for (const p of PACES) {
-      const copy = `${PACE_MODEL[p].blurb} ${PACE_MODEL[p].hint}`;
-      expect(copy).not.toContain("4.8");
-      expect(copy).not.toContain("4 km/h");
-    }
-  });
 });
 
 describe("parsePaceStrict (the single fail-loud parser used by every route)", () => {

@@ -1,15 +1,18 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-// Shared helpers for driving the search box, the mode buttons and the preset chips.
-// Specs call these instead of repeating role/test-id selectors, so a change to the
-// controls' markup is edited here once.
+// Shared helpers for driving the search box and the mode pill (mode buttons, preset
+// chips, the walking-pace turtle and the departure clock). Specs call these instead of
+// repeating role/test-id selectors, so a change to the controls' markup is edited here
+// once.
 
 export type ShellMode = "walk" | "transit" | "car";
 
+// The mode buttons' accessible names, spelled out here rather than imported: the
+// specs check the shipped strings, not whatever the app code currently says.
 const MODE_NAME: Record<ShellMode, string> = {
-  walk: "Walk",
-  transit: "Public transport",
-  car: "Car",
+  walk: "Pe jos",
+  transit: "Transport public",
+  car: "Mașina",
 };
 
 // Type the query into the address bar's combobox and submit it with Enter.
@@ -24,22 +27,24 @@ export function modeButton(page: Page, mode: ShellMode): Locator {
   return page.getByRole("button", { name: MODE_NAME[mode], exact: true });
 }
 
-// Once a selection resolves, the phone dock collapses to a one-line state pill and
-// hides the mode + preset bar. Tap the pill to re-expand it; a no-op where the dock
-// stays open (or before the first selection).
-async function revealControls(page: Page): Promise<void> {
-  const pill = page.getByTestId("state-pill");
-  if (await pill.isVisible().catch(() => false)) await pill.click();
-}
-
+// The mode pill floats over the map in every state, so its controls are always one
+// click away.
 export async function pickMode(page: Page, mode: ShellMode): Promise<void> {
-  await revealControls(page);
   await modeButton(page, mode).click();
 }
 
 export async function pickPreset(page: Page, minutes: number): Promise<void> {
-  await revealControls(page);
   await page.getByTestId(`preset-chip-${minutes}`).click();
+}
+
+// Walk only: the turtle toggles between Normal and Slow pace.
+export async function toggleSlowPace(page: Page): Promise<void> {
+  await page.getByTestId("pace-toggle").click();
+}
+
+// Transit and car only: the clock toggles the departure between 8:30 and 12:30.
+export async function toggleDeparture(page: Page): Promise<void> {
+  await page.getByTestId("time-toggle").click();
 }
 
 // The shell root mirrors the selection status in `data-sel-status`: "loading" while a

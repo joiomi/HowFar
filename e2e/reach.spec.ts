@@ -217,12 +217,12 @@ test("public-transport mode: no route found is reported", async ({ page }) => {
   await expect(page.getByTestId("reach-panel")).toContainText("No public-transport route");
 });
 
-test("a failed mode recompute clears the reach legend — no '~N min' claim over a blank map", async ({ page }) => {
-  // Desktop path (chromium project): the legend pill is shown whenever a reach is
-  // drawn. A mode toggle whose recompute FAILS sets status="error" (not "loading"),
-  // retains lastSelection, and clears the drawn reach — the legend must not keep
-  // claiming "~N min" over the now-blank map. On mobile the sheet
-  // expands on error and hides the legend anyway; this is the desktop guard.
+test("a failed mode recompute clears the drawn reach and flags the mode — no '~N min' claim over a blank map", async ({ page }) => {
+  // Desktop path (chromium project). A mode toggle whose recompute FAILS sets
+  // status="error" (not "loading"), retains lastSelection, and clears the drawn
+  // reach — nothing may keep claiming "~N min" over the now-blank map, and the
+  // failed mode is flagged on its button. The phone path is covered in
+  // preset-render.spec.ts.
   await page.route("**/api/amenities**", (route) =>
     route.fulfill({ json: emptyAmenities({ lat: 44.4268, lng: 26.1025 }) }),
   );
@@ -236,13 +236,12 @@ test("a failed mode recompute clears the reach legend — no '~N min' claim over
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piata Unirii");
-  // Walk resolved → a reach is drawn → the legend pill shows.
+  // Walk resolved → a reach is drawn.
   await expect(map).toHaveAttribute("data-preset-contours", "10");
-  await expect(page.getByTestId("legend-pill")).toBeVisible();
 
   // Toggle to Public transport → its recompute 502s → error, reach cleared.
   await pickMode(page, "transit");
   await expect(page.getByText(/Could not compute/i)).toBeVisible();
   await expect(map).not.toHaveAttribute("data-preset-contours", /.*/);
-  await expect(page.getByTestId("legend-pill")).toHaveCount(0);
+  await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
 });

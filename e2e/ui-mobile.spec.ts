@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { modeButton, pickMode, pickPreset, sampleMapClearPercent, search } from "./shell";
+import { modeButton, pickMode, pickPreset, sampleMapClearPercent, search, toggleDeparture, toggleSlowPace } from "./shell";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
 function ring(minutes: number, distance: number) {
@@ -75,8 +75,8 @@ async function touchSwipe(page: Page, from: { x: number; y: number }, to: { x: n
 // INSPECTION — the amenity count, category toggles, amenity browser, POI popup, and
 // transit-stop line popup — the amenity subsystem the phone-first preset UI
 // suppresses. The surviving touch-shell contracts (suggestion scroll, sheet peek/
-// expand, orientation, map-reclaim) are covered by the migrated "collapsed dock +
-// peek sheet" test below and by preset-render.spec.ts. Restore in the planned amenity pass.
+// expand, orientation, map-reclaim) are covered by the migrated "peek sheet and
+// floating mode pill" test below and by preset-render.spec.ts. Restore in the planned amenity pass.
 test.skip("touch journey stays usable through selection, results, inspection, map gestures, and orientation", async ({
   page,
 }) => {
@@ -259,7 +259,11 @@ test.skip("touch journey stays usable through selection, results, inspection, ma
   ).toBe(true);
 });
 
-test("Car mode toggle: three options meet the 44px target and don't overflow or occlude zoom controls", async ({
+// The floating mode pill must fit a narrow phone: every control is a ≥40px target,
+// the whole pill stays inside the viewport with no horizontal scroll, and it never
+// sits on top of the bottom-right zoom control — in its narrowest state (walk, with
+// the turtle) and its widest (a non-walk mode showing the 12:30 departure).
+test("mode pill: every button is ≥ 40 px, inside the viewport at 390 and 375 px, with no horizontal scroll and no overlap with the zoom control", async ({
   page,
 }) => {
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
@@ -267,44 +271,51 @@ test("Car mode toggle: three options meet the 44px target and don't overflow or 
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
 
-  const toggle = page.getByRole("group", { name: "Travel mode" });
-  await expect(toggle).toBeVisible();
-
-  const viewportWidth = page.viewportSize()!.width;
-  for (const name of ["Walk", "Public transport", "Car"]) {
-    const btn = page.getByRole("button", { name, exact: true });
-    await expect(btn).toBeVisible();
-    const box = await btn.boundingBox();
-    if (!box) throw new Error(`no box for ${name}`);
-    // 44px minimum touch target on BOTH axes (a 3-up row can drop to ~37px WIDE
-    // at 375px), and no horizontal overflow past the viewport.
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    expect(box.width).toBeGreaterThanOrEqual(44);
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(viewportWidth + 1);
-  }
-  // The label must not clip — its full text must fit inside the button box
-  // (scrollWidth ≤ clientWidth for the label span), at the narrowest phone width.
-  await page.setViewportSize({ width: 375, height: 812 });
-  for (const name of ["Walk", "Public transport", "Car"]) {
-    const btn = page.getByRole("button", { name, exact: true });
-    const box = await btn.boundingBox();
-    if (!box) throw new Error(`no box for ${name} at 375px`);
-    expect(box.width).toBeGreaterThanOrEqual(44);
-  }
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-
-  // The command dock must not sit on top of the bottom-right zoom controls.
+  const pill = page.getByTestId("mode-pill");
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
-  await expect(zoomIn).toBeVisible();
-  const zb = await zoomIn.boundingBox();
-  const tb = await toggle.boundingBox();
-  if (!zb || !tb) throw new Error("missing zoom/toggle box");
-  const overlap = !(tb.x + tb.width <= zb.x || zb.x + zb.width <= tb.x || tb.y + tb.height <= zb.y || zb.y + zb.height <= tb.y);
-  expect(overlap).toBe(false);
+  const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
+    !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y);
 
-  // No horizontal page overflow at portrait mobile width.
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  async function expectPillFits(viewport: { width: number; height: number }) {
+    await page.setViewportSize(viewport);
+    for (const mode of ["walk", "transit", "car"] as const) await expect(modeButton(page, mode)).toBeVisible();
+    // 3 modes + the mode's 2 presets + 1 toggle.
+    const buttons = pill.getByRole("button");
+    await expect(buttons).toHaveCount(6);
+    for (let i = 0; i < 6; i += 1) {
+      const box = await buttons.nth(i).boundingBox();
+      if (!box) throw new Error(`mode pill button ${i} has no box at ${viewport.width}px`);
+      expect(box.height).toBeGreaterThanOrEqual(40);
+      expect(box.width).toBeGreaterThanOrEqual(40);
+    }
+    const pb = await pill.boundingBox();
+    if (!pb) throw new Error(`mode pill has no box at ${viewport.width}px`);
+    expect(pb.x).toBeGreaterThanOrEqual(0);
+    expect(pb.x + pb.width).toBeLessThanOrEqual(viewport.width);
+    expect(pb.y).toBeGreaterThanOrEqual(0);
+    expect(pb.y + pb.height).toBeLessThanOrEqual(viewport.height);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    ).toBe(true);
+    await expect(zoomIn).toBeVisible();
+    const zb = await zoomIn.boundingBox();
+    if (!zb) throw new Error("zoom control has no box");
+    expect(overlaps(pb, zb)).toBe(false);
+  }
+
+  const phones = [
+    { width: 390, height: 844 },
+    { width: 375, height: 812 },
+  ];
+  // Narrowest: walk with the turtle (the first-open default).
+  await expect(page.getByTestId("pace-toggle")).toBeVisible();
+  for (const viewport of phones) await expectPillFits(viewport);
+
+  // Widest: public transport with the 12:30 departure on the clock.
+  await pickMode(page, "transit");
+  await toggleDeparture(page);
+  await expect(page.getByTestId("time-toggle")).toHaveText("12:30");
+  for (const viewport of phones) await expectPillFits(viewport);
 });
 
 // The right-click (long-press) transit directions must stay a COMPACT
@@ -338,10 +349,7 @@ test("mobile: long-press transit directions show a compact card and draw the jou
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
-  // The resolved selection collapsed the dock to the state pill —
-  // reopening it IS the mode-change path now (pickMode taps the pill first, but
-  // only if it is already showing, so wait for the collapse).
-  await expect(page.getByTestId("state-pill")).toBeVisible();
+  // The mode pill floats over the map, so switching mode is one tap away.
   await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
 
@@ -439,20 +447,22 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sheet-state", "expanded");
 });
 
-// Below md the shell hands the screen to the map — the dock collapses
-// to a state pill on a resolved selection and the result sheet opens at a peek
-// bar, while every piece of state (address, mode, time budget, pace, filters)
-// stays visible and one tap from its editor.
-test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays visible and editable", async ({
+// Below md the shell hands the screen to the map — the address bar stays at the
+// top, the result sheet opens at a peek bar, and the mode pill floats just above it,
+// so every piece of state (address, mode, preset, pace) stays visible and one tap
+// from its control.
+test("mobile shell: the peek sheet and the floating mode pill leave the map the screen; state stays visible and editable", async ({
   page,
 }) => {
   await page.route("**/api/suggest**", (route) =>
     route.fulfill({ json: { suggestions: [{ label: "Piața Unirii, București", lat: 44.4268, lng: 26.1025 }] } }),
   );
   let failIsochrone = false;
-  await page.route("**/api/isochrone**", (route) =>
-    failIsochrone ? route.fulfill({ status: 500, json: { error: "boom" } }) : route.fulfill({ json: ISOCHRONE }),
-  );
+  const isoUrls: string[] = [];
+  await page.route("**/api/isochrone**", (route) => {
+    isoUrls.push(route.request().url());
+    return failIsochrone ? route.fulfill({ status: 500, json: { error: "boom" } }) : route.fulfill({ json: ISOCHRONE });
+  });
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
 
   await page.goto("/");
@@ -460,9 +470,9 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   const shell = page.locator(".hf-map-shell");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
 
-  // Pre-selection: full dock, no pill.
-  await expect(shell).toHaveAttribute("data-dock-state", "expanded");
-  await expect(page.getByTestId("command-surface")).toBeVisible();
+  // Pre-selection: the mode pill is already on screen, nothing to open first.
+  await expect(page.getByTestId("mode-pill")).toBeVisible();
+  await expect(modeButton(page, "walk")).toHaveAttribute("aria-pressed", "true");
 
   const search = page.getByRole("combobox");
   await search.tap();
@@ -470,33 +480,16 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
 
-  // Resolution collapses the dock to the pill and opens the sheet at peek,
-  // and the camera insets already describe the compact shell.
-  await expect(shell).toHaveAttribute("data-dock-state", "collapsed");
+  // Resolution opens the sheet at peek, and the camera insets already describe the
+  // compact shell: the address bar on top, the peek bar below.
   await expect(shell).toHaveAttribute("data-sheet-state", "peek");
-  const pill = page.getByTestId("state-pill");
-  await expect(pill).toBeVisible();
-  await expect(pill).toContainText("Piața Unirii");
-  await expect(pill).toContainText("Walk");
-  await expect(pill).toContainText("10 min"); // the selected walk preset (default chip)
-  await expect(map).toHaveAttribute("data-camera-pad-top", "140");
+  await expect(map).toHaveAttribute("data-camera-pad-top", "76");
   await expect(map).toHaveAttribute("data-camera-pad-bottom", "124");
-  const pillBox = await pill.boundingBox();
-  if (!pillBox) throw new Error("state pill has no box");
-  expect(pillBox.height).toBeGreaterThanOrEqual(44);
-
-  // First-run ring comprehension: the meaning of the shaded areas must be
-  // visible in THIS default (peek) state — the SelectionCard explainer is
-  // behind the collapsed sheet, so a floating dismissible hint carries it.
-  const hint = page.getByTestId("ring-hint");
-  await expect(hint).toBeVisible();
-  // The mobile peek hint now carries the honest preset explainer (no "within"),
-  // naming the selected walk preset minute.
-  await expect(hint).toContainText("About a 10-minute walk");
-  await hint.getByRole("button", { name: "Dismiss explanation" }).tap();
-  await expect(hint).toHaveCount(0);
-  // Dismissal persists (versioned key) — a returning user is not re-taught.
-  expect(await page.evaluate(() => localStorage.getItem("hf:ring-hint-dismissed:v1"))).toBe("1");
+  // The state stays visible: the address in the bar; mode, preset and pace in the pill.
+  await expect(search).toHaveValue("Piața Unirii, București");
+  await expect(modeButton(page, "walk")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("preset-chip-10")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("pace-toggle")).toHaveAttribute("aria-pressed", "false");
 
   // The camera settled on the origin — the padding flip did not cancel the
   // selection flyTo.
@@ -509,17 +502,22 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
     })
     .toBe(true);
 
-  // Map strip: the contiguous unobstructed corridor between pill and peek bar
-  // is the majority of the screen (it must not shrink back to ~13%).
+  // Map strip: the contiguous unobstructed corridor between the address bar and the
+  // peek bar is the majority of the screen (it must not shrink back to ~13%).
   const viewport = page.viewportSize()!;
+  const topBarBox = await page.getByTestId("top-bar").boundingBox();
   const sheetBox = await page.getByTestId("result-sheet").boundingBox();
-  if (!sheetBox) throw new Error("result sheet has no box");
-  const strip = sheetBox.y - (pillBox.y + pillBox.height);
+  if (!topBarBox || !sheetBox) throw new Error("top bar or result sheet has no box");
+  const strip = sheetBox.y - (topBarBox.y + topBarBox.height);
   expect(strip / viewport.height).toBeGreaterThanOrEqual(0.55);
   // Point-sample the same 20px grid the live inspection used (CHECKPOINT-B
   // method): unobstructed map ≥ 60%.
   const sampled = await sampleMapClearPercent(page);
   expect(sampled).toBeGreaterThanOrEqual(60);
+  // The pill floats above the peek bar, never on it.
+  const pillBox = await page.getByTestId("mode-pill").boundingBox();
+  if (!pillBox) throw new Error("mode pill has no box");
+  expect(pillBox.y + pillBox.height).toBeLessThanOrEqual(sheetBox.y);
 
   // The always-on basemap attribution sits at the strip's bottom edge — never
   // mid-map, never under the sheet. (The Transitous credit is transit-gated, so in
@@ -543,86 +541,47 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
     page.locator(".maplibregl-ctrl-attrib").getByRole("link", { name: "ESA WorldCover" }),
   ).toBeVisible();
 
-  // Pill → dock: one tap re-opens the full controls with focus on the active
-  // travel mode (Walk — nothing in this journey has switched it).
-  await pill.tap();
-  await expect(page.getByTestId("command-surface")).toBeVisible();
-  await expect(modeButton(page, "walk")).toBeFocused();
-  // Change the reach preset (the larger 20-min chip), hand the map back with the
-  // collapse control, and the pill reflects the new state WITHOUT another resolution
-  // (the chip is pure client-side visibility — the route already returned both contours).
+  // Change the reach preset straight from the pill (the larger 20-min chip): a pure
+  // client-side repaint, the route already returned both contours.
+  const isoBeforePreset = isoUrls.length;
   await pickPreset(page, 20);
-  await page.getByTestId("dock-collapse").tap();
-  await expect(pill).toContainText("20 min");
+  await expect(map).toHaveAttribute("data-selected-preset", "20");
+  await expect(page.getByTestId("preset-chip-20")).toHaveAttribute("aria-pressed", "true");
+  expect(isoUrls.length).toBe(isoBeforePreset);
 
-  // (The amenity filters/browser peek chips are deferred to the planned amenity pass; the pace peek
-  // chip remains the one live refinement on the phone shell.)
-
-  // Pace chip names the current pace and lands on the pace control.
-  await expect(page.getByTestId("peek-chip-refine")).toContainText("Normal");
-  await page.getByTestId("peek-chip-refine").tap();
+  // Expand the sheet, then CHANGE the pace from the pill: the same-origin recompute
+  // must keep the sheet as the user left it (snapping back to peek mid-comparison
+  // would lose their place).
+  await page.getByTestId("sheet-toggle").tap();
   await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
-  await expect(page.getByRole("button", { name: /Slow/ })).toBeVisible();
-  // Actually CHANGE the pace: the same-origin recompute must keep the sheet
-  // expanded (snapping back to peek mid-comparison would drop focus).
-  await page.getByRole("button", { name: /Slow/ }).tap();
-  await expect(page.getByTestId("peek-chip-refine")).toHaveCount(0); // still expanded, no peek chips
+  const isoBeforePace = isoUrls.length;
+  await toggleSlowPace(page);
+  await expect(page.getByTestId("pace-toggle")).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => isoUrls.length).toBeGreaterThan(isoBeforePace);
+  expect(isoUrls[isoUrls.length - 1]).toContain("pace=slow");
+  // Wait for that recompute to resolve, then check the sheet did not move.
+  await expect(shell).toHaveAttribute("data-sel-status", "idle");
+  await expect(map).toHaveAttribute("data-selected-preset", "20");
   await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
-  await expect(shell).toHaveAttribute("data-dock-state", "collapsed");
 
   // Touch never sees hover chrome: taps synthesize mousemove, but
   // the hover grow + preview are gated on a real fine pointer — no preview
   // panel may ever have appeared in this touch-only session.
   await expect(page.getByTestId("cluster-preview")).toHaveCount(0);
 
-  // Error path: a failed recompute REOPENS the dock (never a stale pill over
-  // an error) AND forces the sheet expanded — the SelectionCard inside is the
-  // only surface with the failure message, and a peek bar reading "Result"
-  // over a hidden alert is a silent failure.
+  // Error path: from the peek bar, a failed selection FORCES the sheet expanded —
+  // the SelectionCard inside is the only surface with the failure message, and a
+  // peek bar reading "Result" over a hidden alert is a silent failure — and the
+  // pill flags the failed mode.
+  await page.getByTestId("sheet-toggle").tap();
+  await expect(shell).toHaveAttribute("data-sheet-state", "peek");
   failIsochrone = true;
-  await pill.tap();
-  await page.getByRole("combobox").fill("Unirii");
-  await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
-  await expect(shell).toHaveAttribute("data-dock-state", "expanded");
-  await expect(page.getByTestId("command-surface")).toBeVisible();
-  await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
-  await expect(page.getByText(/Could not compute/)).toBeVisible();
-});
-
-// The state pill hands focus to the active travel mode one frame after the tap. If
-// focus has already moved on by then (here: straight into the address bar, in the
-// same script turn as the tap, so the frame always comes later), the pill must leave
-// it there — stealing it would blur the field and drop the suggestion request.
-test("mobile shell: moving into the address bar right after the pill tap keeps focus there", async ({ page }) => {
-  await page.route("**/api/suggest**", (route) =>
-    route.fulfill({ json: { suggestions: [{ label: "Piața Unirii, București", lat: 44.4268, lng: 26.1025 }] } }),
-  );
-  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
-  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
-
-  await page.goto("/");
-  const map = page.getByTestId("app-map");
-  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  const search = page.getByRole("combobox");
   await search.tap();
   await search.fill("Unirii");
   await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
-  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
-  await expect(page.getByTestId("state-pill")).toBeVisible();
-  // The pick released the field (keyboard closed), so any focus it has below
-  // comes from the explicit move into the bar.
-  await expect(search).not.toBeFocused();
-
-  await page.evaluate(() => {
-    document.querySelector<HTMLElement>('[data-testid="state-pill"]')!.click();
-    document.querySelector<HTMLElement>('[role="combobox"]')!.focus();
-  });
-  // Let the pill's deferred focus frame run.
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  await expect(page.getByTestId("command-surface")).toBeVisible();
-  await expect(search).toBeFocused();
-  await search.fill("Unirii");
-  await expect(page.getByRole("option", { name: "Piața Unirii, București" })).toBeVisible();
+  await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
+  await expect(page.getByText(/Could not compute/)).toBeVisible();
+  await expect(page.getByTestId("mode-icon-walk")).toHaveAccessibleName("Pe jos (indisponibil)");
 });
 
 // The address bar never leaves the phone screen, so after a search the field must

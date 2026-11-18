@@ -7,7 +7,6 @@ import {
   PRESET_GRADIENT_STOPS,
   PRESET_SHELL_STEPS,
   presetInteriorLineMinutes,
-  presetLegendRamp,
   presetRampColor,
   presetReachCaveat,
   presetReachExplainer,
@@ -266,20 +265,5 @@ describe("presetReachCaveat — the barrier honesty rider", () => {
     // Walk names the physical barrier; transit names the city edges.
     expect(presetReachCaveat("walk")!.toLowerCase()).toMatch(/river|rail/);
     expect(presetReachCaveat("transit")!.toLowerCase()).toContain("edge");
-  });
-});
-
-describe("presetLegendRamp — labeled ramp for the legend pill", () => {
-  it("carries the origin→edge stops + the calibrated midpoint label, tied to the selection", () => {
-    const walk20 = presetLegendRamp("walk", 20);
-    expect(walk20).toMatchObject({
-      origin: PRESET_GRADIENT_STOPS.walk.origin,
-      edge: PRESET_GRADIENT_STOPS.walk.edge,
-      midMinutes: [10],
-      edgeMinutes: 20,
-    });
-    // The smaller preset has no interior midpoint label.
-    expect(presetLegendRamp("walk", 10).midMinutes).toEqual([]);
-    expect(presetLegendRamp("transit", 40)).toMatchObject({ midMinutes: [20], edgeMinutes: 40 });
   });
 });

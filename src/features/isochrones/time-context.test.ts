@@ -4,10 +4,10 @@ import {
   DEFAULT_TIME_CONTEXT,
   DEFAULT_TIME_PRESET,
   departureFields,
+  nextTimePreset,
   parseTimeContext,
   TIME_PRESET_IDS,
   TIME_PRESETS,
-  timeContextHint,
   timeContextSummary,
 } from "@/features/isochrones/time-context";
 
@@ -21,15 +21,17 @@ describe("TIME_PRESETS", () => {
     expect([c.weekday, c.hour, c.minute]).toEqual([3, 8, 30]);
   });
 
-  it("quiet is weekday midday (Wed 12:30); each preset has a hint, label and honesty phrase", () => {
+  it("each preset's clock text is its departure time and its label names it", () => {
     const q = TIME_PRESETS.quiet;
     expect([q.weekday, q.hour, q.minute]).toEqual([3, 12, 30]);
-    expect(q.label).toBe("Not crowded");
-    expect(TIME_PRESETS.crowded.label).toBe("Crowded");
     for (const id of TIME_PRESET_IDS) {
-      expect(TIME_PRESETS[id].hint.length).toBeGreaterThan(0);
-      expect(TIME_PRESETS[id].phrase.length).toBeGreaterThan(0);
+      const p = TIME_PRESETS[id];
+      expect(p.clock).toBe(`${p.hour}:${String(p.minute).padStart(2, "0")}`);
+      expect(p.ariaLabel).toContain(p.clock);
+      expect(p.phrase.length).toBeGreaterThan(0);
     }
+    expect(TIME_PRESETS.crowded.ariaLabel).toBe("Plecare la 8:30 (ora de vârf)");
+    expect(TIME_PRESETS.quiet.ariaLabel).toBe("Plecare la 12:30");
   });
 });
 
@@ -40,14 +42,14 @@ describe("departureFields", () => {
   });
 });
 
-describe("summary / hint", () => {
+describe("summary / toggle", () => {
   it("summarises a preset by its natural time-phrase (reads inside 'Scheduled … for {…}')", () => {
     expect(timeContextSummary({ kind: "preset", preset: "crowded" })).toBe("a weekday rush hour");
     expect(timeContextSummary({ kind: "preset", preset: "quiet" })).toBe("a quieter midday");
   });
-  it("gives a why-hint for each preset", () => {
-    expect(timeContextHint({ kind: "preset", preset: "crowded" })).toBe(TIME_PRESETS.crowded.hint);
-    expect(timeContextHint({ kind: "preset", preset: "quiet" })).toBe(TIME_PRESETS.quiet.hint);
+  it("nextTimePreset flips between the two presets", () => {
+    expect(nextTimePreset("crowded")).toBe("quiet");
+    expect(nextTimePreset("quiet")).toBe("crowded");
   });
 });
 

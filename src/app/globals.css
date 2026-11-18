@@ -386,8 +386,9 @@ button,
 
   /* ONE bottom-clearance source: how far above the viewport bottom
      the result sheet's top edge sits at its current state. The MapLibre bottom
-     controls (incl. the basemap attribution: OSM + ESA WorldCover + Natural Earth) AND the Transitous badge both consume
-     this variable, so neither can float mid-map or disagree with the sheet. */
+     controls (incl. the basemap attribution: OSM + ESA WorldCover + Natural Earth),
+     the mode pill and the Transitous credit all consume this variable, so none
+     of them can float mid-map or disagree with the sheet. */
   .hf-map-shell[data-has-results="true"] {
     --hf-sheet-clearance: calc(min(30dvh, 14.5rem) + 3.25rem);
   }
@@ -408,53 +409,6 @@ button,
 @media (max-height: 700px) {
   .hf-map-shell .maplibregl-ctrl-compass {
     display: none;
-  }
-}
-
-/* Phone/tablet landscape: preserve a useful map corridor by compacting the
-   command surface into two columns and bounding results along the bottom. */
-@media (min-width: 768px) and (max-height: 520px) {
-  /* Starts below the address bar (top 1rem + 52px tall). */
-  .hf-command-dock {
-    inset: 4.75rem 0.75rem auto;
-    width: auto;
-  }
-
-  .hf-command-surface {
-    display: grid;
-    grid-template-columns: minmax(280px, 0.9fr) minmax(390px, 1.1fr);
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.65rem;
-  }
-
-  .hf-command-intro {
-    display: none;
-  }
-
-  .hf-command-settings {
-    margin-top: 0;
-  }
-
-  .hf-result-sheet {
-    inset: auto 0.75rem 0.75rem;
-    width: auto;
-    max-height: 7.25rem;
-    padding: 0.6rem;
-  }
-
-  .hf-map-shell[data-has-results="true"] .maplibregl-ctrl-bottom-right,
-  .hf-map-shell[data-has-results="true"] .maplibregl-ctrl-bottom-left {
-    bottom: 8.5rem;
-  }
-
-  .hf-map-shell[data-has-results="true"] .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
-    transform: translateY(1rem);
-  }
-
-  .hf-map-shell[data-has-results="true"] .hf-transit-attribution {
-    bottom: 8.5rem;
-    padding-bottom: 0;
   }
 }
 

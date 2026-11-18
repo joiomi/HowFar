@@ -2,10 +2,11 @@
  * Walking-pace model — the single source of truth for how fast a pedestrian
  * walks, shared by the walk isochrone (`server/ors.ts`), the transit isochrone
  * (`server/transit.ts` MOTIS access + `server/transit-grid.ts` egress), the
- * amenity walk-ring clip (`amenities/server/catalogue.ts`), and the UI control.
+ * amenity walk-ring clip (`amenities/server/catalogue.ts`), and the mode pill's
+ * turtle toggle (pressed = Slow).
  *
- * PURE module — no server imports — so the client `PaceControl` can read
- * `label`/`emoji`/`hint` while the server reads the speed fields.
+ * PURE module — no server imports — so the client can read the pace ids while
+ * the server reads the speed fields.
  *
  * CONTRACT — ANCHOR + SCALE. Two numbers are deliberately different, and
  * conflating them is the trap this module exists to prevent:
@@ -29,10 +30,10 @@
  *
  * VALIDATED: the linear scale was bounded within ±10% at 66 m/min (−2.1%) and
  * re-audited at Slow (50 m/min) — see PROVIDERS.md
- * "Walking-speed audit at Slow". Slow is still labelled an "estimated reach" in the UI
- * because it is a scaled, not directly measured, pace. If a future audit fails,
- * ESCALATE — do not quietly substitute a measured triple, since that breaks the
- * "every pace is the anchor rescaled" property the tests pin.
+ * "Walking-speed audit at Slow". Slow remains a scaled, not directly measured,
+ * pace. If a future audit fails, ESCALATE — do not quietly substitute a measured
+ * triple, since that breaks the "every pace is the anchor rescaled" property the
+ * tests pin.
  */
 
 export type Pace = "slow" | "normal";
@@ -53,16 +54,6 @@ export const CALIBRATED_RANGES_S_AT_80: readonly [number, number, number] = [827
 
 export interface PaceModel {
   id: Pace;
-  /** Segment label. */
-  label: string;
-  /** Leading glyph for the control (client only reads this). */
-  emoji: string;
-  /** Short per-option description shown UNDER each button (both visible, so a
-   *  user can choose without selecting) — a short description of what
-   *  it means. */
-  blurb: string;
-  /** Adaptive one-line "when to use this" hint (client `aria-live`). */
-  hint: string;
   /** Pedestrian speed in metres/minute. */
   speedMPerMin: number;
   /** MOTIS `pedestrianSpeed` query value (m/s, 3-dp string derived from
@@ -107,14 +98,9 @@ function pedestrianSpeedMsOf(speedMPerMin: number): string {
 
 export const PACE_MODEL: Record<Pace, PaceModel> = {
   // 3 km/h — 37.5% below the calibration anchor — far enough that the linear
-  // rescale was re-checked with a distance-ruler audit here. Labelled an
-  // "estimated reach" (non-anchor) in the control.
+  // rescale was re-checked with a distance-ruler audit here.
   slow: {
     id: "slow",
-    label: "Slow",
-    emoji: "🚶",
-    blurb: "leisurely, ~3 km/h",
-    hint: "an easy stroll — with kids, a stroller, or in no hurry",
     speedMPerMin: SLOW_PACE_SPEED_M_PER_MIN,
     // 50/60 = 0.8333… m/s -> "0.833" (probed live).
     pedestrianSpeedMs: pedestrianSpeedMsOf(SLOW_PACE_SPEED_M_PER_MIN),
@@ -123,10 +109,6 @@ export const PACE_MODEL: Record<Pace, PaceModel> = {
   },
   normal: {
     id: "normal",
-    label: "Normal",
-    emoji: "🚶‍♂️",
-    blurb: "average adult, ~5 km/h",
-    hint: "average adult, about 5 km/h",
     speedMPerMin: NORMAL_PACE_SPEED_M_PER_MIN,
     // (5000/60)/60 = 1.3888… m/s -> "1.389" (probed live).
     pedestrianSpeedMs: pedestrianSpeedMsOf(NORMAL_PACE_SPEED_M_PER_MIN),

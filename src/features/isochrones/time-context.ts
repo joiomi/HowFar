@@ -1,17 +1,17 @@
 /**
  * Transit/car departure "time context" — the single source of truth for WHEN
- * reachability is computed, shared by the UI `TimeContextControl` (labels +
- * hints), the `/api/transit` `/api/car` `/api/reach` routes (param parsing), and
- * `server/transit.ts` (resolution to a pinned ISO instant).
+ * reachability is computed, shared by the mode pill's clock toggle (clock text +
+ * accessible name), the `/api/transit` `/api/car` `/api/reach` routes (param
+ * parsing), and `server/transit.ts` (resolution to a pinned ISO instant).
  *
- * PURE module — no server imports — so the client control and the server read
+ * PURE module — no server imports — so the client toggle and the server read
  * the same table.
  *
- * The least-necessary set: TWO options, **Crowded** (weekday rush) and **Not
- * crowded** (off-peak midday); there is no free-form day/time editor. `crowded` is
- * the default (upcoming Wednesday 08:30 Europe/Bucharest, strictly-future /
- * never-today), so a default request resolves to the same departure, the same
- * transit cache key and the same am-peak car slot.
+ * The least-necessary set: TWO options, `crowded` (weekday rush, shown as 8:30)
+ * and `quiet` (off-peak midday, shown as 12:30); there is no free-form day/time
+ * editor. `crowded` is the default (upcoming Wednesday 08:30 Europe/Bucharest,
+ * strictly-future / never-today), so a default request resolves to the same
+ * departure, the same transit cache key and the same am-peak car slot.
  *
  * No live users, so removed query params are NOT aliased — they are
  * rejected fail-loud (→ 400) rather than silently defaulting, and the intentional
@@ -23,10 +23,10 @@ export type TimePresetId = "crowded" | "quiet";
 
 export interface TimePreset {
   id: TimePresetId;
-  /** Segment label shown on the chip. */
-  label: string;
-  /** Adaptive "why" hint, mirroring the pace control. */
-  hint: string;
+  /** The departure time shown on the clock toggle ("8:30"). */
+  clock: string;
+  /** The clock toggle's accessible name: the departure time, and why it was chosen. */
+  ariaLabel: string;
   /** Natural time-phrase for the SelectionCard honesty sentence
    *  ("Scheduled public transport for {phrase}"). */
   phrase: string;
@@ -40,8 +40,8 @@ export const TIME_PRESETS: Record<TimePresetId, TimePreset> = {
   // weekday-morning car slot (am-peak ×2.1).
   crowded: {
     id: "crowded",
-    label: "Crowded",
-    hint: "rush hour — busiest service and heaviest traffic",
+    clock: "8:30",
+    ariaLabel: "Plecare la 8:30 (ora de vârf)",
     phrase: "a weekday rush hour",
     weekday: 3,
     hour: 8,
@@ -49,12 +49,12 @@ export const TIME_PRESETS: Record<TimePresetId, TimePreset> = {
   },
   quiet: {
     id: "quiet",
-    // Label "Not crowded". Mapped to weekday MIDDAY (Wed 12:30): the honest
-    // "not crowded" for BOTH engines — full daytime transit service + light-but-
-    // real traffic (car midday ×1.5). Night/weekend would misread as a thin
-    // timetable (worse reach), which is not what "quieter" should imply.
-    label: "Not crowded",
-    hint: "off-peak midday — quieter service and lighter traffic",
+    // Weekday MIDDAY (Wed 12:30): the honest "not crowded" for BOTH engines —
+    // full daytime transit service + light-but-real traffic (car midday ×1.5).
+    // Night/weekend would misread as a thin timetable (worse reach), which is
+    // not what "quieter" should imply.
+    clock: "12:30",
+    ariaLabel: "Plecare la 12:30",
     phrase: "a quieter midday",
     weekday: 3,
     hour: 12,
@@ -64,6 +64,11 @@ export const TIME_PRESETS: Record<TimePresetId, TimePreset> = {
 
 export const TIME_PRESET_IDS = Object.keys(TIME_PRESETS) as TimePresetId[];
 export const DEFAULT_TIME_PRESET: TimePresetId = "crowded";
+
+/** The other preset: the clock toggle flips between the two. */
+export function nextTimePreset(id: TimePresetId): TimePresetId {
+  return id === "crowded" ? "quiet" : "crowded";
+}
 
 /** Preset-only; kept as a discriminated shape so `tc.kind`/`tc.preset`
  *  consumers stay unchanged. */
@@ -85,22 +90,16 @@ export function departureFields(tc: TimeContext): DepartureFields {
 }
 
 /** Natural time-phrase for the UI honesty copy — reads correctly inside
- * "Scheduled public transport for {…}" (never the raw label, which would render
- * "…for Crowded"). */
+ * "Scheduled public transport for {…}" (never a preset id or clock text). */
 export function timeContextSummary(tc: TimeContext): string {
   return TIME_PRESETS[tc.preset].phrase;
-}
-
-/** Adaptive hint for the active context (mirrors pace's `hint`). */
-export function timeContextHint(tc: TimeContext): string {
-  return TIME_PRESETS[tc.preset].hint;
 }
 
 /**
  * Parse untrusted query params into a `TimeContext`. Preset-only.
  * Returns `DEFAULT_TIME_CONTEXT` when nothing relevant is supplied, `null` on
  * anything invalid (route → 400). Fail-loud on the RETIRED custom params: any
- * `weekday` or `time` present is rejected (never silently defaulted to Crowded),
+ * `weekday` or `time` present is rejected (never silently defaulted to `crowded`),
  * and an unknown/removed preset id is rejected.
  */
 export function parseTimeContext(params: {
@@ -113,7 +112,7 @@ export function parseTimeContext(params: {
   const time = params.time ?? "";
 
   // Retired custom mode: reject rather than ignore, so a stale client fails
-  // loudly instead of getting a silent Crowded default.
+  // loudly instead of getting a silent `crowded` default.
   if (weekday !== "" || time !== "") return null;
 
   if (preset !== "") {

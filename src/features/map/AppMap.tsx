@@ -24,7 +24,6 @@ import {
 } from "@/features/isochrones/preset-reach";
 import { selectPresetRings } from "@/features/isochrones/preset-view";
 import { clusterMarkerSizePx, DONUT_HOVER_SCALE, MAP_MAX_ZOOM } from "@/features/amenities/amenity-cluster";
-import AttributionBadge from "@/features/map/AttributionBadge";
 import {
   createAmenityClusterController,
   type AmenityClusterController,
@@ -50,10 +49,9 @@ import { createAmenitySpiderController } from "@/features/map/amenity-spider-con
 import { createAmenitiesController, type AmenityUi } from "@/features/map/amenities-controller";
 import { createCameraController, type CameraController } from "@/features/map/camera-controller";
 import { createClearAddressController, createOriginTracker } from "@/features/map/clear-address-controller";
-import { DOCK_BREAKPOINT_PX } from "@/features/map/camera";
+import { DESKTOP_BREAKPOINT_PX } from "@/features/map/camera";
 import { createHoverController } from "@/features/map/hover-controller";
 import { deriveShell, type ShellState } from "@/features/map/shell-state";
-import StatePill from "@/features/map/StatePill";
 import { createLoadState } from "@/features/map/load-state";
 import { setMapGl, type MapGl } from "@/features/map/map-runtime";
 import { createPopupController } from "@/features/map/popup-controller";
@@ -71,14 +69,11 @@ import { createSelectionRender } from "@/features/map/selection-render";
 import { createLongPress } from "@/features/map/long-press";
 import { reachBand } from "@/features/map/reach";
 import { teardownInOrder } from "@/features/map/teardown";
-import ModePresetBar from "@/features/map/ModePresetBar";
-import PaceControl from "@/features/map/PaceControl";
-import LegendPill from "@/features/map/LegendPill";
 import MapPlaceholder from "@/features/map/MapPlaceholder";
-import RingHint from "@/features/map/RingHint";
+import ModePill from "@/features/map/ModePill";
 import SelectionCard from "@/features/map/SelectionCard";
-import TimeContextControl from "@/features/map/TimeContextControl";
 import TopBar from "@/features/map/TopBar";
+import TransitousCredit from "@/features/map/TransitousCredit";
 import {
   comboboxReducer,
   initialComboboxState,
@@ -103,16 +98,16 @@ import {
   type SelectionState,
 } from "@/features/map/selection-flow";
 import { type Pace } from "@/features/isochrones/pace";
-import { TIME_PRESETS, type TimeContext } from "@/features/isochrones/time-context";
+import { nextTimePreset, type TimeContext } from "@/features/isochrones/time-context";
 
 // Piața Unirii — the classic Bucharest reference point.
 const BUCHAREST_CENTER: [number, number] = [26.1025, 44.4268];
 const SUGGEST_DEBOUNCE_MS = 250;
 
-// Mobile shell breakpoint: the stacked dock/sheet layout below `md`.
-// Shares `DOCK_BREAKPOINT_PX` with the camera-padding math so "which layout is
+// Mobile shell breakpoint: the phone layout (top bar + bottom sheet) below `md`.
+// Shares `DESKTOP_BREAKPOINT_PX` with the camera-padding math so "which layout is
 // on screen" and "which insets frame the map" can never disagree.
-const MOBILE_SHELL_QUERY = `(max-width: ${DOCK_BREAKPOINT_PX - 0.02}px)`;
+const MOBILE_SHELL_QUERY = `(max-width: ${DESKTOP_BREAKPOINT_PX - 0.02}px)`;
 function subscribeToMobileShell(onChange: () => void): () => void {
   const mql = window.matchMedia(MOBILE_SHELL_QUERY);
   mql.addEventListener("change", onChange);
@@ -141,7 +136,7 @@ interface ClusterHoverPreview {
 /** Shared result-surface predicate for the React shell and camera resize path.
  * The reach directions panel occupies the SAME result-sheet slot, so
  * an active reach view is a result surface too — otherwise a pre-selection hint
- * or a reach view after an error-cleared selection would have no dock and the
+ * or a reach view after an error-cleared selection would have no sheet and the
  * resize padding would drop it. */
 function hasResultSurface(
   sel: Pick<SelectionState, "status" | "label" | "message">,
@@ -178,7 +173,7 @@ export default function AppMap() {
   // Mirrored so the resize handler (empty-deps effect) reads the latest active
   // flag without re-binding. Set SYNCHRONOUSLY in the controller's subscribe
   // callback (below) — NOT in a [reachView] effect, which would lag a rotate/
-  // resize by one tick and drop the dock padding.
+  // resize by one tick and drop the sheet padding.
   const reachActiveRef = useRef(false);
   // The address bar's ✕ (clear-address-controller). Set by the map effect once
   // the map exists; the ✕ only shows for a resolved place, so it is always set then.
@@ -231,8 +226,8 @@ export default function AppMap() {
 
   // Phone-first PRESET chip (phone-first): which of the two calibrated presets is the
   // OUTER reach edge (index 0 = smaller/default — walk 10 / transit 20 / car 10;
-  // index 1 = larger). State drives the chip row + legend; the ref-mirrored
-  // repaint redraws the stashed served rings at the new index — NO refetch (the
+  // index 1 = larger). State drives the mode pill's presets and the result card; the
+  // ref-mirrored repaint redraws the stashed served rings at the new index — NO refetch (the
   // route returned BOTH contours), so the chip is pure client-side visibility.
   const [presetIndex, setPresetIndex] = useState<PresetIndex>(DEFAULT_PRESET_INDEX);
   const presetIndexRef = useRef<PresetIndex>(DEFAULT_PRESET_INDEX);
@@ -252,20 +247,14 @@ export default function AppMap() {
     reselectPresetRef.current?.();
   }
 
-  // --- Mobile shell state: dock pill + sheet peek. The user flags
-  // are mirrored in refs (same pattern as selRef) so the camera controller's
-  // shell getter — called synchronously inside the selection flow, before the
-  // flyTo — always reads the value the upcoming render will show.
+  // --- Mobile shell state: sheet peek/expand. The user flag is mirrored in a
+  // ref (same pattern as selRef) so the camera controller's shell getter —
+  // called synchronously inside the selection flow, before the flyTo — always
+  // reads the value the upcoming render will show.
   const isMobileShell = useSyncExternalStore(subscribeToMobileShell, readMobileShell, () => false);
-  const [userDockOpen, setUserDockOpen] = useState(false);
   const [userSheetExpanded, setUserSheetExpanded] = useState(false);
-  const userDockOpenRef = useRef(false);
   const userSheetExpandedRef = useRef(false);
   const cameraRef = useRef<CameraController | null>(null);
-  function setDockOpen(open: boolean) {
-    userDockOpenRef.current = open;
-    setUserDockOpen(open);
-  }
   function setSheetExpanded(expanded: boolean) {
     userSheetExpandedRef.current = expanded;
     setUserSheetExpanded(expanded);
@@ -273,19 +262,6 @@ export default function AppMap() {
   // Cluster hover preview: set only on key change, rendered
   // pointer-events-none, closed by mouseout/movestart/click/hover-loss.
   const [clusterPreview, setClusterPreview] = useState<ClusterHoverPreview | null>(null);
-
-  // Deep-links from the peek chips: expand the sheet, then land on the control
-  // the chip summarizes (the state must show "where to change and how").
-  const refineBlockRef = useRef<HTMLDivElement | null>(null);
-  const amenityBlockRef = useRef<HTMLDivElement | null>(null);
-  function expandSheetTo(target: "refine" | "amenities") {
-    setSheetExpanded(true);
-    requestAnimationFrame(() => {
-      const block = target === "refine" ? refineBlockRef.current : amenityBlockRef.current;
-      block?.scrollIntoView({ block: "nearest" });
-      block?.querySelector<HTMLElement>("button, input")?.focus();
-    });
-  }
 
   function dispatchSel(action: SelectionAction): SelectionState {
     const next = selectionReducer(selRef.current, action);
@@ -429,14 +405,12 @@ export default function AppMap() {
       map,
       el,
       // Fresh shell from the synchronously-updated refs: padding committed just
-      // before a selection flyTo already reflects the dock that is about to
-      // collapse (ordering contract — see renderSelectionStash).
+      // before a selection flyTo already reflects the sheet that is about to
+      // return to peek (ordering contract — see renderSelectionStash).
       shell: () =>
         deriveShell({
           isMobile: readMobileShell(),
           selStatus: selRef.current.status,
-          hasSelection: selRef.current.lastSelection !== null,
-          userDockOpen: userDockOpenRef.current,
           userSheetExpanded: userSheetExpandedRef.current,
           reachActive: reachActiveRef.current,
         }),
@@ -490,7 +464,7 @@ export default function AppMap() {
     reachControllerRef.current = reachDirections;
     // Mirror the active flag SYNCHRONOUSLY — the resize handler
     // reads reachActiveRef, and a rotate/resize before React's effect ran would
-    // otherwise drop the dock's camera padding for a reach-only (hint) surface.
+    // otherwise drop the sheet's camera padding for a reach-only (hint) surface.
     reachDirections.subscribe((v) => {
       reachActiveRef.current = v !== null;
       // Directions and a fan are mutually-exclusive map surfaces: both declutter the
@@ -614,7 +588,7 @@ export default function AppMap() {
     // clear them whenever the selection is dropped, so a right-click never reads
     // stale geometry.
     // Origin of the last RESOLVED selection — a recompute at the same origin
-    // keeps the user's dock/sheet state (see renderSelectionStash).
+    // keeps the user's sheet state (see renderSelectionStash).
     const origins = createOriginTracker();
     const renderSelectionStash = (origin: Origin, label: string, rings: Ring[], mode: Mode) => {
       // `dispatchSel({type:"resolved",…,car})` runs synchronously BEFORE this in
@@ -622,21 +596,17 @@ export default function AppMap() {
       // resolution (null for walk/transit) — snapshot it into the atomic reach
       // stash so a right-click car band names the traffic it was computed for.
       reachRef.current = { rings, mode, origin, car: selRef.current.car };
-      // A NEW-origin resolution re-collapses the mobile dock and resets the
-      // sheet to peek. A same-origin recompute (pace/time/mode
-      // change) keeps the user's surfaces exactly as they are — resetting on
-      // every resolution snapped the sheet shut mid-comparison (tap "Slow"
-      // from the expanded sheet → sheet collapsed, focus dropped to body) and
-      // re-collapsed a deliberately reopened dock. Refs
-      // FIRST, then state: renderSelection commits its padding via the camera
-      // controller's shell getter on the next line, so the insets the flyTo
-      // frames against already describe the collapsed shell — flipping this
-      // after the flyTo would either frame against stale expanded-dock insets
-      // or cancel the animation (setPadding→jumpTo→stop).
+      // A NEW-origin resolution resets the mobile sheet to peek. A same-origin
+      // recompute (pace/time/mode change) keeps the sheet exactly as it is —
+      // resetting on every resolution snapped the sheet shut mid-comparison
+      // (expand the sheet, toggle Slow → sheet collapsed). Ref FIRST, then
+      // state: renderSelection commits its padding via the camera controller's
+      // shell getter on the next line, so the insets the flyTo frames against
+      // already describe the peek sheet — flipping this after the flyTo would
+      // either frame against stale expanded-sheet insets or cancel the
+      // animation (setPadding→jumpTo→stop).
       if (origins.note(origin)) {
-        userDockOpenRef.current = false;
         userSheetExpandedRef.current = false;
-        setUserDockOpen(false);
         setUserSheetExpanded(false);
         // The address bar shows the place that was resolved, whichever way it
         // was chosen (typed search, picked suggestion, map tap).
@@ -749,8 +719,8 @@ export default function AppMap() {
       }
       reachJourney.flushPending(); // replay a right-click journey that raced `load`
       // A journey replayed from a pre-load right-click was buffered without a
-      // camera fit — reframe it now so the path isn't left off-screen with the
-      // dock open. No-op when nothing was drawn.
+      // camera fit — reframe it now so the path isn't left off-screen behind the
+      // sheet. No-op when nothing was drawn.
       reachDirections.reframe();
       el.dataset.mapLoaded = "true";
       setMapReady(true); // cover + hide the first-paint placeholder
@@ -1194,8 +1164,8 @@ export default function AppMap() {
   const sel = selState;
   const combo = comboState;
   // The selected preset minute for the active mode (walk 10/20, transit 20/40,
-  // car 10/25) — the reach edge every label/legend/copy derives from, so they can
-  // never disagree with the painted contour.
+  // car 10/25) — the reach edge the result card's legend and copy derive from, so
+  // they can never disagree with the painted contour.
   const selectedMin = presetMinFor(sel.mode, presetIndex);
   const reachActive = reachView !== null;
   // The reach directions dock counts as a result surface: the sheet
@@ -1208,8 +1178,6 @@ export default function AppMap() {
   const shell: ShellState = deriveShell({
     isMobile: isMobileShell,
     selStatus: sel.status,
-    hasSelection: sel.lastSelection !== null,
-    userDockOpen,
     userSheetExpanded,
     reachActive,
   });
@@ -1222,7 +1190,7 @@ export default function AppMap() {
   };
 
   // Re-commit padding when the shell changes shape WITHOUT its own camera move
-  // (pill tap, sheet peek/expand, reach open/close, breakpoint cross). The safe
+  // (sheet peek/expand, reach open/close, breakpoint cross). The safe
   // variant defers to `moveend` when an animation is in flight — `setPadding`
   // runs `jumpTo`, which `stop()`s whatever is animating.
   // Selection resolutions don't need this: their padding is committed inside
@@ -1231,7 +1199,7 @@ export default function AppMap() {
     cameraRef.current?.applyCameraPaddingSafe(
       hasResultSurface(selRef.current, amenityRef.current.status, reachActiveRef.current),
     );
-  }, [shell.dock, shell.sheet]);
+  }, [shell.sheet]);
 
   return (
     <div
@@ -1242,7 +1210,6 @@ export default function AppMap() {
       // during MapLibre load.
       className="hf-map-shell absolute inset-0 isolate"
       data-has-results={hasResults ? "true" : "false"}
-      data-dock-state={shell.dock}
       data-sheet-state={shell.sheet}
       data-sel-status={sel.status}
     >
@@ -1264,109 +1231,26 @@ export default function AppMap() {
           onHover={(index) => dispatchCombo({ type: "hover", index })}
           onClear={() => clearAddressRef.current?.()}
         />
-        {/* Mobile ring-meaning hint: the SelectionCard explainer is hidden by
-            the default peek sheet, so first-time mobile users get this
-            dismissible floating one-liner instead (see RingHint). */}
-        <RingHint
+        {/* The travel mode, its two presets, and the pace or departure toggle:
+            above the result sheet on a phone, under the address bar from md. A
+            mode whose reach failed is flagged on its button (never a takeover). */}
+        <ModePill
           mode={sel.mode}
-          selectedMin={selectedMin}
-          // Gated on !loading AND !error so neither a mode toggle mid-fetch nor a
-          // FAILED recompute shows a reach claim over a cleared/blank map: a toggle
-          // flips sel.mode + selectedMin immediately then recomputes (loading), and a
-          // failed recompute leaves status="error" with lastSelection retained and the
-          // reach cleared — the copy must appear only over a successfully drawn reach
-          // (the honesty rider must never float over an empty map).
-          active={isMobileShell && sheetPeek && !reachActive && sel.lastSelection !== null && sel.status !== "loading" && sel.status !== "error"}
+          presetIndex={presetIndex}
+          pace={sel.pace}
+          timePreset={sel.timeContext.preset}
+          failedMode={sel.status === "error" ? sel.mode : null}
+          onSwitchMode={switchMode}
+          onSelectPreset={selectPreset}
+          onTogglePace={() => setPace(sel.pace === "slow" ? "normal" : "slow")}
+          onToggleTime={() => setTimeContext({ kind: "preset", preset: nextTimePreset(sel.timeContext.preset) })}
         />
-        <div className="hf-command-dock absolute inset-x-3 top-[4.7rem] z-30 sm:inset-x-4 sm:top-[5.25rem] md:bottom-auto md:left-4 md:right-auto md:top-[5.15rem] md:w-[388px]">
-          {shell.dock === "collapsed" && sel.lastSelection ? (
-            <StatePill
-              label={sel.lastSelection.label}
-              mode={sel.mode}
-              selectedMin={selectedMin}
-              loading={sel.status === "loading"}
-              onExpand={() => {
-                setDockOpen(true);
-                // Disclosure pattern: focus lands in the expanded controls, on
-                // the active travel mode — unless focus already moved on since the
-                // tap (e.g. into the address bar): taking it back would blur the
-                // field and cancel its suggestion request.
-                requestAnimationFrame(() => {
-                  const active = document.activeElement;
-                  if (active && active !== document.body) return;
-                  document
-                    .querySelector<HTMLButtonElement>('[data-testid="mode-preset-bar"] [aria-pressed="true"]')
-                    ?.focus();
-                });
-              }}
-            />
-          ) : (
-          <section
-            data-testid="command-surface"
-            aria-label="Explore a location"
-            className="hf-command-surface pointer-events-auto relative overflow-visible rounded-[1.5rem] border border-white/[.11] bg-[#0d110e]/92 p-3 shadow-[0_24px_70px_rgba(0,0,0,.38)] backdrop-blur-2xl sm:p-3.5 md:p-4"
-          >
-            <div className="hf-command-intro mb-2.5 flex items-center justify-between gap-3 px-1 md:mb-3">
-              <div>
-                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[#c7f36b]">Explore your reach</p>
-                <p className="mt-1 hidden text-xs text-[#78857b] md:block">Start from any address in Bucharest</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="rounded-full border border-white/[.09] bg-white/[.045] px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-[#9ca9a0]">
-                  Bucharest
-                </span>
-                {/* Mobile-only: hand the screen back to the map without waiting
-                    for a recompute. Rendered only when the derivation WOULD
-                    collapse (a resolved, non-error selection exists). */}
-                {isMobileShell && sel.lastSelection && sel.status !== "error" ? (
-                  <button
-                    type="button"
-                    data-testid="dock-collapse"
-                    aria-label="Collapse search panel and show the map"
-                    onClick={() => setDockOpen(false)}
-                    className="flex size-11 items-center justify-center rounded-full text-[#9ca9a0] transition-colors hover:bg-white/[.055] hover:text-[#edf2ed] md:hidden"
-                  >
-                    <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="m6 12 4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            {/* One compact ~48px bar (phone-first design): three mode icons +
-                the active mode's two calibrated presets, inline. Replaces the
-                stacked ModeToggle + 4-option RingSelector — the phone-first client
-                is preset-only, so the reach is a single selected time. A mode
-                whose reach failed is flagged on its icon (the degraded state — never a
-                takeover). */}
-            <div className="hf-command-settings mt-3">
-              <ModePresetBar
-                mode={sel.mode}
-                presetIndex={presetIndex}
-                onSwitchMode={switchMode}
-                onSelectPreset={selectPreset}
-                failedMode={sel.status === "error" ? sel.mode : null}
-              />
-            </div>
-          </section>
-          )}
-        </div>
-
-        {/* Slim legend pill (phone-first design): a map-corner pill that expands to
-            the labeled ramp and auto-collapses — never a permanent map cover. Shown
-            once a reach is drawn and the map is mostly free (desktop, or the mobile
-            peek sheet); hidden while directions occupy the sheet. */}
-        {sel.lastSelection && !reachActive && sel.status !== "loading" && sel.status !== "error" && (!isMobileShell || sheetPeek) ? (
-          <div className="absolute left-3 z-20 bottom-[max(3.7rem,calc(env(safe-area-inset-bottom)+3.2rem))] sm:left-4 md:bottom-6 md:left-auto md:right-4">
-            <LegendPill mode={sel.mode} selectedMin={selectedMin} />
-          </div>
-        ) : null}
 
         {hasResults ? (
           <section
             data-testid="result-sheet"
             aria-label={reachActive ? "Directions" : "Location result"}
-            className="hf-result-sheet pointer-events-auto absolute inset-x-3 bottom-[max(2.8rem,calc(env(safe-area-inset-bottom)+2.3rem))] z-20 max-h-[min(30dvh,14.5rem)] overflow-y-auto overscroll-contain rounded-[1.5rem] border border-white/[.11] bg-[#0d110e]/94 p-2.5 shadow-[0_24px_70px_rgba(0,0,0,.4)] backdrop-blur-2xl sm:inset-x-4 md:bottom-auto md:left-4 md:right-auto md:top-[21.3rem] md:max-h-[calc(100dvh-22.3rem)] md:w-[388px] md:p-3"
+            className="hf-result-sheet pointer-events-auto absolute inset-x-3 bottom-[max(2.8rem,calc(env(safe-area-inset-bottom)+2.3rem))] z-20 max-h-[min(30dvh,14.5rem)] overflow-y-auto overscroll-contain rounded-[1.5rem] border border-white/[.11] bg-[#0d110e]/94 p-2.5 shadow-[0_24px_70px_rgba(0,0,0,.4)] backdrop-blur-2xl sm:inset-x-4 md:bottom-auto md:left-4 md:right-auto md:top-[9rem] md:max-h-[calc(100dvh-10rem)] md:w-[388px] md:p-3"
           >
             {/* Right-click directions REPLACE the selection card + filters while
                 active. The selection block stays MOUNTED
@@ -1374,8 +1258,7 @@ export default function AppMap() {
                 open Browse list / text filter — unmounting it would wipe that and
                 "restore" would feel broken. */}
             {/* Peek/expand handle (mobile only): the sheet opens as a
-                one-line bar so the map keeps the screen; the bar names the
-                place and its chips deep-link to the control they summarize.
+                one-line bar that names the place, so the map keeps the screen.
                 Directions force the sheet expanded (shell-state), so the bar
                 then only offers collapse-back. */}
             {isMobileShell ? (
@@ -1406,27 +1289,6 @@ export default function AppMap() {
                   </svg>
                 )}
               </button>
-              {/* The refine chip summarises the one live control (walk pace /
-                  transit-car departure) and deep-links to it. The amenity-filters
-                  peek chip is gone in preset mode — amenities are deferred to
-                  a later amenity pass. */}
-              {sheetPeek && !reachActive ? (
-                <button
-                  type="button"
-                  data-testid="peek-chip-refine"
-                  aria-label={`${
-                    sel.mode === "walk"
-                      ? `Walking pace: ${sel.pace === "normal" ? "Normal" : "Slow"}`
-                      : `Time: ${TIME_PRESETS[sel.timeContext.preset].label}`
-                  }. Open settings`}
-                  onClick={() => expandSheetTo("refine")}
-                  className="min-h-11 shrink-0 rounded-full border border-white/[.09] bg-white/[.045] px-3 text-[0.66rem] font-semibold text-[#9ca9a0] transition-colors hover:bg-white/[.08] hover:text-[#edf2ed]"
-                >
-                  {sel.mode === "walk"
-                    ? (sel.pace === "normal" ? "Normal" : "Slow")
-                    : TIME_PRESETS[sel.timeContext.preset].label}
-                </button>
-              ) : null}
             </div>
             ) : null}
             {reachActive ? (
@@ -1442,25 +1304,10 @@ export default function AppMap() {
                 departure={sel.departure}
                 car={sel.car}
               />
-              {/* Reach refinements live WITH the result they adjust. The two
-                  controls are gated INDEPENDENTLY: PaceControl
-                  is strictly Walk (pace is a walking concept);
-                  TimeContextControl is transit OR car (car reach is
-                  time-aware for traffic realism). They are never merged into one
-                  non-walk wrapper (that would resurrect pace in car). Exactly one
-                  control renders per mode, so the bordered cluster is never empty.
-                  Amenities are deferred to a later amenity pass, so this refine cluster is the
-                  whole expanded sheet body in preset mode. */}
-              <div ref={refineBlockRef} className="mt-2.5 grid gap-2.5 border-t border-white/[.07] pt-2.5">
-                {sel.mode === "walk" ? <PaceControl pace={sel.pace} onSelect={setPace} /> : null}
-                {sel.mode === "transit" || sel.mode === "car" ? (
-                  <TimeContextControl value={sel.timeContext} onSelect={setTimeContext} mode={sel.mode} />
-                ) : null}
-              </div>
             </div>
           </section>
         ) : showFirstRun ? (
-          <div className="absolute inset-x-3 bottom-[max(3.6rem,calc(env(safe-area-inset-bottom)+3rem))] z-10 sm:inset-x-4 md:bottom-auto md:left-4 md:right-auto md:top-[21.3rem] md:w-[388px]">
+          <div className="absolute inset-x-3 bottom-[max(3.6rem,calc(env(safe-area-inset-bottom)+3rem))] z-10 sm:inset-x-4 md:bottom-auto md:left-4 md:right-auto md:top-[9rem] md:w-[388px]">
             <EmptyState />
           </div>
         ) : null}
@@ -1472,7 +1319,8 @@ export default function AppMap() {
           camera moves or the mark disappears. Names stay one click away in
           the list popup (deliberate scope line). z-30: a transient
           pointer-anchored tooltip floats ABOVE the shell chrome — at z-10 it
-          rendered invisibly BEHIND the dock/sheet for marks hovered near them. */}
+          rendered invisibly BEHIND the floating controls and the sheet for marks
+          hovered near them. */}
       {clusterPreview ? (
         <div
           data-testid="cluster-preview"
@@ -1552,11 +1400,17 @@ export default function AppMap() {
 
       {/* Basemap attribution (OSM · ESA WorldCover · Natural Earth) is present in
           EVERY state via the always-on MapLibre AttributionControl (map init).
-          The Transitous provider credit is the ADDITIONAL transit obligation
-          (phone-first design) — shown whenever transit data is displayed: a transit
-          reach, or a right-click journey (MOTIS/Transitous). Not on walk/car
-          states, where showing it would imply transit data that isn't there. */}
-      {sel.mode === "transit" || reachActive ? <AttributionBadge elevated={hasResults} /> : null}
+          The Transitous credit is the ADDITIONAL transit obligation — shown
+          whenever transit data is displayed: a transit reach, or a right-click
+          journey (MOTIS/Transitous). Not on walk/car states, where showing it
+          would imply transit data that isn't there. On a phone it floats on the
+          right above the mode pill's row, tracking the sheet; from md it sits at
+          the bottom right, beside the zoom control. */}
+      {sel.mode === "transit" || reachActive ? (
+        <div className="absolute bottom-[calc(var(--hf-sheet-clearance,0px)+4.25rem)] right-3 z-20 md:bottom-3 md:right-14">
+          <TransitousCredit />
+        </div>
+      ) : null}
     </div>
   );
 }

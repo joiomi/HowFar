@@ -90,9 +90,10 @@ test("toggling Walk→Transit re-renders transit rings for the same origin witho
   expect(counts.geocode).toBe(1);
   expect(counts.reverse).toBe(0);
 
-  // Attribution: a visible link to the Transitous sources page.
-  const attribution = page.getByRole("link", { name: "Transitous" });
+  // Attribution: a visible "© Transitous" link to the Transitous sources page.
+  const attribution = page.getByTestId("transitous-credit");
   await expect(attribution).toBeVisible();
+  await expect(attribution).toHaveText("© Transitous");
   await expect(attribution).toHaveAttribute("href", "https://transitous.org/sources/");
 
   expect(errors).toEqual([]);

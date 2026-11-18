@@ -61,13 +61,6 @@ export default defineConfig({
         "src/features/map/ModeToggle.tsx",
         "src/features/map/SelectionCard.tsx",
         "src/features/map/AmenityPanel.tsx",
-        "src/features/map/AttributionBadge.tsx",
-        // pace + time controls — presentation only; their logic lives
-        // in the tested pace.ts / time-context.ts / selection-flow reducer, and
-        // their interaction (commit-once custom picker, absent-in-walk, keyboard)
-        // is covered by e2e/pace-time.spec.ts.
-        "src/features/map/PaceControl.tsx",
-        "src/features/map/TimeContextControl.tsx",
         // right-click directions panel — presentation only over the
         // decided ReachView; its state machine + fetch live in the MEASURED
         // reach-directions-controller.ts (NOT excluded), and its dock swap /

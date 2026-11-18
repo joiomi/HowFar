@@ -145,7 +145,7 @@ docker compose -f docker/selfhost/docker-compose.yml logs -f ors      # healthy 
 ```
 
 Smoke test with the app's exact preset payloads (walk at Normal pace: 3 intervals for
-10/20/40 min; car under Crowded traffic: 10/25 min ÷ 2.1). The config raises
+10/20/40 min; car under 8:30 rush traffic (`crowded`): 10/25 min ÷ 2.1). The config raises
 `maximum_intervals`, so multi-range requests do not 502:
 
 ```bash
