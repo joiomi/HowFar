@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { pickMode, search } from "./shell";
+import { expectBannerClear, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Right-click "how do I get there?". Provider calls stubbed by EXACT
@@ -239,9 +239,11 @@ test("a failed mode recompute clears the drawn reach and flags the mode — no '
   // Walk resolved → a reach is drawn.
   await expect(map).toHaveAttribute("data-preset-contours", "10");
 
-  // Toggle to Public transport → its recompute 502s → error, reach cleared.
+  // Toggle to Public transport → its recompute 502s → error banner, reach cleared.
   await pickMode(page, "transit");
-  await expect(page.getByText(/Could not compute/i)).toBeVisible();
+  await expect(page.getByTestId("error-banner")).toContainText("Nu am putut calcula zona cu transportul public.");
   await expect(map).not.toHaveAttribute("data-preset-contours", /.*/);
   await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
+  await expectBannerClear(page);
 });

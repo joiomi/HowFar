@@ -71,6 +71,7 @@ import { reachBand } from "@/features/map/reach";
 import { teardownInOrder } from "@/features/map/teardown";
 import InfoControl from "@/features/map/InfoControl";
 import { createInfoController, type InfoController } from "@/features/map/info-controller";
+import ErrorBanner from "@/features/map/ErrorBanner";
 import MapPlaceholder from "@/features/map/MapPlaceholder";
 import ModePill from "@/features/map/ModePill";
 import SelectionCard from "@/features/map/SelectionCard";
@@ -89,6 +90,7 @@ import {
 } from "@/features/search/search-suggest-controller";
 import {
   initialSelectionState,
+  modeSwitchInput,
   sameTimeContext,
   selectionReducer,
   type CarMeta,
@@ -138,14 +140,15 @@ interface ClusterHoverPreview {
 /** Shared result-surface predicate for the React shell and camera resize path.
  * The reach directions panel occupies the SAME result-sheet slot, so
  * an active reach view is a result surface too — otherwise a pre-selection hint
- * or a reach view after an error-cleared selection would have no sheet and the
- * resize padding would drop it. */
+ * or a reach view after a failed selection would have no sheet and the
+ * resize padding would drop it. A failure alone is not a result surface: the
+ * error banner over the map carries it, and the map keeps the screen. */
 function hasResultSurface(
-  sel: Pick<SelectionState, "status" | "label" | "message">,
+  sel: Pick<SelectionState, "status" | "label">,
   amenityStatus: AmenityUi["status"],
   reachActive: boolean,
 ): boolean {
-  return reachActive || sel.status === "loading" || Boolean(sel.label || sel.message) || amenityStatus !== "idle";
+  return reachActive || sel.status === "loading" || Boolean(sel.label) || amenityStatus !== "idle";
 }
 
 export default function AppMap() {
@@ -434,7 +437,6 @@ export default function AppMap() {
       shell: () =>
         deriveShell({
           isMobile: readMobileShell(),
-          selStatus: selRef.current.status,
           userSheetExpanded: userSheetExpandedRef.current,
           reachActive: reachActiveRef.current,
         }),
@@ -642,8 +644,8 @@ export default function AppMap() {
       // origin — which could clip an already-drawn right-click journey if the
       // isochrone resolves AFTER the MOTIS plan. Re-fit the journey so its frame
       // stays authoritative. No-op when nothing is drawn. (If that transit
-      // recompute instead FAILS, the drawn journey stays and Back reveals the
-      // standard error card — accepted low-likelihood degradation.)
+      // recompute instead FAILS, the drawn journey stays and the error banner
+      // shows above the sheet — accepted low-likelihood degradation.)
       reachDirections.reframe();
     };
     const clearSelectionReach = () => {
@@ -1111,15 +1113,16 @@ export default function AppMap() {
 
   function switchMode(next: Mode) {
     if (next === selRef.current.mode) return;
+    // Read what to recompute before the toggle, which settles a switch with no
+    // resolved place at idle: the current point (no geocode/reverse), or a first
+    // search that failed, run again in the new mode.
+    const rerun = modeSwitchInput(selRef.current, pendingInputRef.current);
     // Invalidate any in-flight select so a walk response can't land under a
     // transit toggle (or vice-versa); the reducer bumps the token to match.
     abortRef.current?.abort();
     dispatchSel({ type: "toggle", next });
-    // Recompute the current point in the new mode — no geocode/reverse. With no
-    // resolved selection the reducer already reset status to idle.
-    const last = selRef.current.lastSelection;
-    if (last) {
-      selectRef.current?.({ kind: "point", lat: last.lat, lng: last.lng, label: last.label }, { recompute: true });
+    if (rerun) {
+      selectRef.current?.(rerun, { recompute: true });
     } else {
       // Toggling away from a still-loading first selection cancels it — drop its
       // in-flight amenities too, so a late response can't paint orphan markers.
@@ -1134,7 +1137,9 @@ export default function AppMap() {
   // mode's reach area at that departure context, so crowded↔quiet changes which places
   // are in range — `amenityFetchKey` includes the preset). With no resolved selection yet, a
   // still-loading first request is re-issued from its pending input so the
-  // change is not lost (finding G); otherwise there's nothing to recompute.
+  // change is not lost (finding G); otherwise there's nothing to recompute. The
+  // error banner's ↻ runs it too: the failed place again, or the failed first
+  // search from its pending input.
   function recomputeCurrent() {
     const last = selRef.current.lastSelection;
     if (last) {
@@ -1199,18 +1204,23 @@ export default function AppMap() {
   // they can never disagree with the painted contour.
   const selectedMin = presetMinFor(sel.mode, presetIndex);
   const reachActive = reachView !== null;
-  // Transitous data is on screen: a transit reach, or open directions.
-  const transitState = sel.mode === "transit" || reachActive;
+  // Transitous data is on screen: open directions, or a transit reach that is
+  // drawn or being recomputed for a place. Not before a place is chosen, and not
+  // when the transit reach failed (nothing from Transitous is shown then).
+  const transitState =
+    reachActive || (sel.mode === "transit" && sel.status !== "error" && sel.lastSelection !== null);
+  // A failed selection, shown as the banner over the map.
+  const errorMessage = sel.status === "error" ? sel.message : null;
   // The reach directions dock counts as a result surface: the sheet
   // renders — and camera padding holds — whenever there's a selection OR reach.
   const hasResults = hasResultSurface(sel, amenity.status, reachActive);
-  const showFirstRun = !hasResults && sel.lastSelection === null;
+  // Not under a failed first search: the banner says what happened there.
+  const showFirstRun = !hasResults && sel.lastSelection === null && sel.status !== "error";
   // Mobile shell: same derivation the camera's shell getter uses,
   // fed from render state instead of the ref mirrors — the two can only differ
   // within a single commit, in the direction the next paint will show.
   const shell: ShellState = deriveShell({
     isMobile: isMobileShell,
-    selStatus: sel.status,
     userSheetExpanded,
     reachActive,
   });
@@ -1286,7 +1296,7 @@ export default function AppMap() {
           presetIndex={presetIndex}
           pace={sel.pace}
           timePreset={sel.timeContext.preset}
-          failedMode={sel.status === "error" ? sel.mode : null}
+          failedMode={sel.failedMode}
           onSwitchMode={switchMode}
           onSelectPreset={selectPreset}
           onTogglePace={() => setPace(sel.pace === "slow" ? "normal" : "slow")}
@@ -1344,7 +1354,6 @@ export default function AppMap() {
             <div hidden={reachActive || sheetPeek} inert={reachActive || sheetPeek}>
               <SelectionCard
                 label={sel.label}
-                message={sel.message}
                 mode={sel.mode}
                 selectedMin={selectedMin}
                 loading={sel.status === "loading"}
@@ -1362,16 +1371,32 @@ export default function AppMap() {
             transit obligation: besides its line in the popover it stays visible here
             whenever transit data is displayed: a transit reach, or a right-click
             journey (MOTIS/Transitous). Not on walk/car states, where showing it
-            would imply transit data that isn't there. On a phone it floats on the
-            right above the mode pill's row, tracking the sheet; from md it sits at
-            the bottom right, beside the zoom control. It lives in this plane, last
-            in keyboard order, so the open ⓘ popover (z-50) paints over it where the
-            two meet on a short phone; the popover credits Transitous too. */}
-        {transitState ? (
-          <div className="pointer-events-auto absolute bottom-[calc(var(--hf-sheet-clearance,0px)+4.25rem)] right-3 z-20 md:bottom-3 md:right-14">
-            <TransitousCredit />
-          </div>
-        ) : null}
+            would imply transit data that isn't there.
+            A failed selection shows as the error banner: ↻ retries, and a failed
+            transit or car reach also offers walking. The map stays live around it.
+            On a phone the two share one column above the mode pill's row, tracking
+            the sheet: the credit on the right, the banner full width beneath it, so
+            the banner can never cover the credit. From md the column dissolves
+            (`md:contents`): the credit sits at the bottom right beside the zoom
+            control, the banner at the bottom centre. The open ⓘ popover (z-50)
+            paints over both where they meet on a short phone; it credits
+            Transitous too. */}
+        <div className="pointer-events-none absolute inset-x-3 bottom-[calc(var(--hf-sheet-clearance,0px)+4.25rem)] z-20 flex flex-col items-end gap-2 md:contents">
+          {transitState ? (
+            <div className="pointer-events-auto md:absolute md:bottom-3 md:right-14 md:z-20">
+              <TransitousCredit />
+            </div>
+          ) : null}
+          {errorMessage ? (
+            <div className="pointer-events-auto w-full md:absolute md:bottom-6 md:left-1/2 md:z-30 md:w-[420px] md:-translate-x-1/2">
+              <ErrorBanner
+                message={errorMessage}
+                onRetry={recomputeCurrent}
+                onSwitchToWalk={sel.mode !== "walk" ? () => switchMode("walk") : undefined}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Cluster hover preview: what's inside the hovered donut,
@@ -1446,15 +1471,15 @@ export default function AppMap() {
           data-testid="map-load-error"
           className="pointer-events-auto absolute inset-x-0 bottom-24 z-30 mx-auto flex w-fit max-w-[90%] items-center gap-3 rounded-xl border border-white/10 bg-[#111614]/95 px-4 py-3 text-sm text-[#f4f7f2] shadow-lg"
         >
-          <span>The map couldn’t load. Reload to try again.</span>
+          <span>Harta nu s-a încărcat.</span>
           <button
             type="button"
-            className="shrink-0 rounded-lg border border-[#d8ff87]/25 bg-[#c7f36b] px-3 py-1.5 font-medium text-[#172008]"
+            className="min-h-11 shrink-0 rounded-lg border border-[#d8ff87]/25 bg-[#c7f36b] px-3 py-1.5 font-medium text-[#172008]"
             onClick={() => {
               if (typeof window !== "undefined") window.location.reload();
             }}
           >
-            Reload
+            Reîncarcă
           </button>
         </div>
       )}

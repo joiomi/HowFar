@@ -72,6 +72,10 @@ export interface SelectionState {
   status: SelectionStatus;
   label: string | null;
   message: string | null;
+  /** The mode whose reach computation failed (flagged on its button), else null. A
+   * missing address, a lookup failure or a place outside Bucharest is not the
+   * mode's fault, so those leave it null. */
+  failedMode: Mode | null;
   /** The resolved transit departure instant (ISO), so a right-click plans its trip for the same departure. */
   departure: { iso: string } | null;
   /** The resolved car-reach basis + traffic slot — car-only, else null. */
@@ -88,6 +92,7 @@ export const initialSelectionState: SelectionState = {
   status: "idle",
   label: null,
   message: null,
+  failedMode: null,
   departure: null,
   car: null,
   lastSelection: null,
@@ -103,20 +108,20 @@ export type SelectionAction =
   | { type: "setTimeContext"; timeContext: TimeContext }
   | { type: "clear" };
 
-export const GENERIC_ERROR = "Something went wrong. Try again.";
-const OUT_OF_AREA = "That spot is outside Bucharest.";
+export const GENERIC_ERROR = "Ceva nu a mers.";
+const OUT_OF_AREA = "Locul e în afara Bucureștiului.";
 
-/** Human word for the active travel mode, used in copy. Exhaustive switch: a
- * new Mode without a case here is a compile error (the `never` assignment), so
- * car can never silently borrow walk's word. */
-export function modeWord(mode: Mode): string {
+/** How the active travel mode reads after "zona" in Romanian copy. Exhaustive
+ * switch: a new Mode without a case here is a compile error (the `never`
+ * assignment), so car can never silently borrow walk's phrase. */
+export function modePhrase(mode: Mode): string {
   switch (mode) {
     case "walk":
-      return "walking";
+      return "pe jos";
     case "transit":
-      return "transit";
+      return "cu transportul public";
     case "car":
-      return "driving";
+      return "cu mașina";
     default: {
       const _exhaustive: never = mode;
       return _exhaustive;
@@ -192,9 +197,31 @@ export function reverseIsFatal(httpStatus: number): boolean {
 /** User-facing copy for a fatal selection failure. Only called for fatal stages. */
 export function failureMessage(stage: Stage, httpStatus: number, mode: Mode): string {
   if (httpStatus === 422) return OUT_OF_AREA;
-  if (stage === "geocode" && httpStatus === 404) return "No place found there.";
-  if (stage === "isochrone") return `Could not compute ${modeWord(mode)} reach. Try again.`;
-  return "Could not look that up. Try again.";
+  if (stage === "geocode" && httpStatus === 404) return "Nu am găsit adresa.";
+  if (stage === "isochrone") return `Nu am putut calcula zona ${modePhrase(mode)}.`;
+  return "Nu am putut căuta adresa.";
+}
+
+/** The reach computation itself failed (not a place outside Bucharest): the only
+ * failure that marks the mode unavailable. */
+function isReachFailure(stage: Stage, httpStatus: number): boolean {
+  return stage === "isochrone" && httpStatus !== 422;
+}
+
+/**
+ * What a mode switch recomputes: the resolved place, or, when a first search
+ * failed, that search again, so switching to walking after a failed transit
+ * search shows the walking reach of the same address. Null when there is
+ * nothing to run: no place yet, or a first search still loading (the switch
+ * cancels it). Read it BEFORE dispatching the toggle, which settles a switch
+ * with no resolved place at idle.
+ */
+export function modeSwitchInput(
+  state: Pick<SelectionState, "status" | "lastSelection">,
+  pending: SelectInput | null,
+): SelectInput | null {
+  if (state.lastSelection) return { kind: "point", ...state.lastSelection };
+  return state.status === "error" ? pending : null;
 }
 
 export function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
@@ -212,6 +239,7 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
         status: "loading",
         label: null,
         message: null,
+        failedMode: null,
         // Clear the previously-resolved departure the moment a (re)compute
         // starts: a right-click DURING the recompute must not plan against a
         // stale ISO (e.g. Crowded→Not-crowded then right-click before the new
@@ -230,6 +258,7 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
         // Clear any error banner locally so success is self-contained, not
         // dependent on `start` having run first.
         message: null,
+        failedMode: null,
         // The resolved transit departure (walk/car selections pass null → cleared).
         departure: action.departure ?? null,
         // The resolved car basis + slot (walk/transit selections pass null → cleared).
@@ -241,19 +270,25 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       if (action.token !== state.token) return state; // superseded — ignore
       // mode is read from state, which token-staleness guarantees is the mode
       // this request started with.
-      return { ...state, status: "error", message: failureMessage(action.stage, action.httpStatus, state.mode) };
+      return {
+        ...state,
+        status: "error",
+        message: failureMessage(action.stage, action.httpStatus, state.mode),
+        failedMode: isReachFailure(action.stage, action.httpStatus) ? state.mode : null,
+      };
     case "crash":
       // An unexpected (non-HTTP) error — network drop, bad JSON. Distinct from a
       // stage failure, so it gets the generic copy rather than a stage message.
+      // Which request broke is unknown, so the mode is not flagged.
       if (action.token !== state.token) return state;
-      return { ...state, status: "error", message: GENERIC_ERROR };
+      return { ...state, status: "error", message: GENERIC_ERROR, failedMode: null };
     case "toggle": {
       if (action.next === state.mode) return state; // no-op
       const token = state.token + 1; // invalidate any in-flight request
       if (state.lastSelection === null) {
         // Nothing to recompute (e.g. toggled while the first search was still
         // loading) — don't strand the UI in "loading".
-        return { ...state, mode: action.next, token, status: "idle", message: null };
+        return { ...state, mode: action.next, token, status: "idle", message: null, failedMode: null };
       }
       return { ...state, mode: action.next, token };
     }
@@ -287,6 +322,7 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
         status: "idle",
         label: null,
         message: null,
+        failedMode: null,
         departure: null,
         car: null,
         lastSelection: null,

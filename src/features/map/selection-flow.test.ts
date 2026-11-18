@@ -8,7 +8,8 @@ import {
   initialSelectionState,
   isochronePath,
   isochroneUrl,
-  modeWord,
+  modePhrase,
+  modeSwitchInput,
   reverseIsFatal,
   sameTimeContext,
   selectionReducer,
@@ -101,7 +102,8 @@ describe("selectionReducer — mode snapshot & toggle", () => {
       transit,
     );
     const failed = selectionReducer(transit, { type: "failed", token: 2, stage: "isochrone", httpStatus: 502 });
-    expect(failed.message).toBe("Could not compute transit reach. Try again.");
+    expect(failed.message).toBe("Nu am putut calcula zona cu transportul public.");
+    expect(failed.failedMode).toBe("transit");
   });
 
   it("toggling with no prior selection resets to idle (does not strand loading)", () => {
@@ -122,7 +124,7 @@ describe("selectionReducer — mode snapshot & toggle", () => {
   it("a failed selection followed by a new resolve clears the stale error message", () => {
     const failed = selectionReducer(start(), { type: "failed", token: 1, stage: "geocode", httpStatus: 404 });
     expect(failed.status).toBe("error");
-    expect(failed.message).toBe("No place found there.");
+    expect(failed.message).toBe("Nu am găsit adresa.");
     const restart = selectionReducer(failed, { type: "start", mode: "walk" }); // token 2
     expect(restart.message).toBeNull();
     const ok = selectionReducer(restart, { type: "resolved", token: 2, origin: ORIGIN, label: "B" });
@@ -180,6 +182,80 @@ describe("selectionReducer — mode snapshot & toggle", () => {
   });
 });
 
+describe("selectionReducer — the failed mode", () => {
+  const fail = (mode: "walk" | "transit" | "car", stage: "geocode" | "reverse" | "isochrone", httpStatus: number) =>
+    selectionReducer(start(mode), { type: "failed", token: 1, stage, httpStatus });
+
+  it("flags the mode only when its reach computation failed", () => {
+    expect(initialSelectionState.failedMode).toBeNull();
+    expect(fail("transit", "isochrone", 502).failedMode).toBe("transit");
+    expect(fail("walk", "isochrone", 500).failedMode).toBe("walk");
+    expect(fail("car", "isochrone", 404).failedMode).toBe("car");
+  });
+
+  it("never flags the mode for a missing address, a lookup failure or a place outside Bucharest", () => {
+    for (const [stage, httpStatus] of [
+      ["geocode", 404],
+      ["geocode", 422],
+      ["geocode", 500],
+      ["reverse", 422],
+      ["isochrone", 422],
+    ] as const) {
+      const failed = fail("transit", stage, httpStatus);
+      expect(failed.status).toBe("error");
+      expect(failed.failedMode).toBeNull();
+    }
+  });
+
+  it("an unexpected crash does not flag the mode, and a new run or a clear drops the flag", () => {
+    const flagged = fail("transit", "isochrone", 502);
+    expect(selectionReducer(flagged, { type: "crash", token: 1 }).failedMode).toBeNull();
+    expect(selectionReducer(flagged, { type: "start", mode: "transit" }).failedMode).toBeNull();
+    expect(selectionReducer(flagged, { type: "clear" }).failedMode).toBeNull();
+    // Toggling with no place to recompute settles at idle, unflagged.
+    expect(selectionReducer(flagged, { type: "toggle", next: "walk" }).failedMode).toBeNull();
+    const resolved = selectionReducer(selectionReducer(flagged, { type: "start", mode: "walk" }), {
+      type: "resolved",
+      token: 2,
+      origin: ORIGIN,
+      label: "A",
+    });
+    expect(resolved.failedMode).toBeNull();
+  });
+});
+
+describe("modeSwitchInput — what a mode switch recomputes", () => {
+  const search = { kind: "search" as const, query: "Piata Unirii" };
+
+  it("recomputes the resolved place, whatever the status", () => {
+    const resolved = selectionReducer(start("walk"), { type: "resolved", token: 1, origin: ORIGIN, label: "A" });
+    const expected = { kind: "point", lat: ORIGIN.lat, lng: ORIGIN.lng, label: "A" };
+    expect(modeSwitchInput(resolved, search)).toEqual(expected);
+    const failedRecompute = selectionReducer(selectionReducer(resolved, { type: "start", mode: "transit", preserveLast: true }), {
+      type: "failed",
+      token: 2,
+      stage: "isochrone",
+      httpStatus: 502,
+    });
+    expect(modeSwitchInput(failedRecompute, null)).toEqual(expected);
+  });
+
+  it("re-runs a first search that failed, so the new mode answers for the same address", () => {
+    const failed = selectionReducer(start("transit"), { type: "failed", token: 1, stage: "isochrone", httpStatus: 502 });
+    expect(modeSwitchInput(failed, search)).toBe(search);
+    const crashed = selectionReducer(start("transit"), { type: "crash", token: 1 });
+    expect(modeSwitchInput(crashed, search)).toBe(search);
+  });
+
+  it("runs nothing with no place yet or while the first search is still loading (the switch cancels it)", () => {
+    expect(modeSwitchInput(initialSelectionState, null)).toBeNull();
+    expect(modeSwitchInput(initialSelectionState, search)).toBeNull();
+    expect(modeSwitchInput(start("walk"), search)).toBeNull();
+    const failedNoInput = selectionReducer(start("transit"), { type: "failed", token: 1, stage: "isochrone", httpStatus: 502 });
+    expect(modeSwitchInput(failedNoInput, null)).toBeNull();
+  });
+});
+
 describe("selectionReducer — token monotonicity (property)", () => {
   it("the token never decreases and every accepted resolve carries the current token", () => {
     const actionArb: fc.Arbitrary<SelectionAction> = fc.oneof(
@@ -227,6 +303,7 @@ describe("selectionReducer — clear", () => {
         status: "error",
         label: "X",
         message: "m",
+        failedMode: "transit",
         lastSelection: { lat: 1, lng: 2, label: "X" },
       },
       { type: "clear" },
@@ -238,6 +315,7 @@ describe("selectionReducer — clear", () => {
       status: "idle",
       label: null,
       message: null,
+      failedMode: null,
       lastSelection: null,
       departure: null,
       car: null,
@@ -257,24 +335,25 @@ describe("selectionReducer — clear", () => {
 });
 
 describe("failureMessage", () => {
-  it("maps every fatal stage/status to the current copy", () => {
-    expect(failureMessage("geocode", 404, "walk")).toBe("No place found there.");
-    expect(failureMessage("geocode", 422, "walk")).toBe("That spot is outside Bucharest.");
-    expect(failureMessage("geocode", 500, "walk")).toBe("Could not look that up. Try again.");
-    expect(failureMessage("reverse", 422, "walk")).toBe("That spot is outside Bucharest.");
-    expect(failureMessage("isochrone", 422, "transit")).toBe("That spot is outside Bucharest.");
-    expect(failureMessage("isochrone", 502, "walk")).toBe("Could not compute walking reach. Try again.");
-    expect(failureMessage("isochrone", 502, "transit")).toBe("Could not compute transit reach. Try again.");
+  it("maps every fatal stage/status to a short Romanian sentence", () => {
+    expect(failureMessage("geocode", 404, "walk")).toBe("Nu am găsit adresa.");
+    expect(failureMessage("geocode", 422, "walk")).toBe("Locul e în afara Bucureștiului.");
+    expect(failureMessage("reverse", 422, "walk")).toBe("Locul e în afara Bucureștiului.");
+    expect(failureMessage("geocode", 500, "walk")).toBe("Nu am putut căuta adresa.");
+    expect(failureMessage("isochrone", 422, "transit")).toBe("Locul e în afara Bucureștiului.");
+    expect(failureMessage("isochrone", 502, "walk")).toBe("Nu am putut calcula zona pe jos.");
+    expect(failureMessage("isochrone", 502, "transit")).toBe("Nu am putut calcula zona cu transportul public.");
+    expect(failureMessage("isochrone", 502, "car")).toBe("Nu am putut calcula zona cu mașina.");
     // 404 on a non-geocode stage is not the "no place" copy.
-    expect(failureMessage("isochrone", 404, "walk")).toBe("Could not compute walking reach. Try again.");
+    expect(failureMessage("isochrone", 404, "walk")).toBe("Nu am putut calcula zona pe jos.");
   });
 });
 
 describe("pure helpers", () => {
-  it("modeWord / isochronePath key off the mode (incl. car)", () => {
-    expect(modeWord("walk")).toBe("walking");
-    expect(modeWord("transit")).toBe("transit");
-    expect(modeWord("car")).toBe("driving");
+  it("modePhrase / isochronePath key off the mode (incl. car)", () => {
+    expect(modePhrase("walk")).toBe("pe jos");
+    expect(modePhrase("transit")).toBe("cu transportul public");
+    expect(modePhrase("car")).toBe("cu mașina");
     expect(isochronePath("walk")).toBe("/api/isochrone");
     expect(isochronePath("transit")).toBe("/api/transit");
     // Car must route to its own endpoint — NOT silently fall through to the
@@ -290,7 +369,7 @@ describe("pure helpers", () => {
   });
 
   it("exposes the generic catch-all copy", () => {
-    expect(GENERIC_ERROR).toBe("Something went wrong. Try again.");
+    expect(GENERIC_ERROR).toBe("Ceva nu a mers.");
   });
 });
 

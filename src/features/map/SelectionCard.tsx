@@ -4,8 +4,9 @@ import type { Mode } from "@/features/map/selection-flow";
 
 /**
  * Selected-address card: the resolved label + the phone-first PRESET reach legend
- * and explainer, or the failure message. Pure presentation of the selection
- * machine's state. The legend + explainer derive from the SELECTED preset minute
+ * and explainer, or the loading state. A failure is not shown here: the error
+ * banner over the map carries it. Pure presentation of the selection machine's
+ * state. The legend + explainer derive from the SELECTED preset minute
  * (walk 10/20, transit 20/40, car 10/25), so they can never claim a reach the map
  * isn't drawing (phone-first). The mode's caveat and the transit note live in
  * the info popover (InfoControl), which every map state shows.
@@ -13,15 +14,14 @@ import type { Mode } from "@/features/map/selection-flow";
 
 interface SelectionCardProps {
   label: string | null;
-  message: string | null;
   mode: Mode;
   /** The selected preset minute (the reach edge). */
   selectedMin: number;
   loading: boolean;
 }
 
-export default function SelectionCard({ label, message, mode, selectedMin, loading }: SelectionCardProps) {
-  if (!label && !message && !loading) return null;
+export default function SelectionCard({ label, mode, selectedMin, loading }: SelectionCardProps) {
+  if (!label && !loading) return null;
   const modeColor = MODE_ACCENT[mode];
   const stops = PRESET_GRADIENT_STOPS[mode];
   return (
@@ -36,16 +36,6 @@ export default function SelectionCard({ label, message, mode, selectedMin, loadi
           <div>
             <p className="text-sm font-semibold text-[#f4f7f2]">Mapping your everyday reach…</p>
             <p className="mt-1 text-xs text-[#78857b]">Calculating routes across the city</p>
-          </div>
-        </div>
-      ) : message ? (
-        <div role="alert" className="flex min-h-14 items-start gap-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#f6c86b]/10 text-[#f6c86b] ring-1 ring-[#f6c86b]/20" aria-hidden="true">
-            !
-          </span>
-          <div>
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#f6c86b]">Couldn’t finish</p>
-            <p className="mt-1 text-sm leading-5 text-[#eadfc7]">{message}</p>
           </div>
         </div>
       ) : (

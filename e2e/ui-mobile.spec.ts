@@ -6,6 +6,7 @@ import {
   openInfo,
   pickMode,
   pickPreset,
+  expectBannerClear,
   sampleMapClearPercent,
   search,
   toggleDeparture,
@@ -458,6 +459,65 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sheet-state", "expanded");
 });
 
+// A long-press from Walk switches to public transport and plans the trip. When that
+// transit reach fails, the trip is still on screen (Transitous data), so its credit
+// stays, and the error banner shares the column above the mode pill with it: the
+// banner sits beneath the credit and never covers it.
+test("mobile: a failed transit reach under open directions keeps the Transitous credit clear of the banner", async ({ page }) => {
+  const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+  await page.route("**/api/geocode**", (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }));
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings } }));
+  await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+  await page.route("**/api/reach**", (route) =>
+    route.fulfill({
+      json: {
+        reachable: true,
+        totalMinutes: 20,
+        transfers: 0,
+        legs: [
+          { mode: "WALK", fromName: "START", toName: "Board", minutes: 4, from: { lat: 44.4268, lng: 26.1025 }, to: { lat: 44.435, lng: 26.105 }, path: [[26.1025, 44.4268], [26.105, 44.435]] },
+          { mode: "TRAM", line: "1", headsign: "Nord", fromName: "Board", toName: "Alight", minutes: 16, from: { lat: 44.435, lng: 26.105 }, to: { lat: 44.45, lng: 26.07 }, path: [[26.105, 44.435], [26.07, 44.45]] },
+        ],
+      },
+    }),
+  );
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-mode", "walk");
+
+  const canvas = page.locator(".maplibregl-canvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("no canvas");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const session = await page.context().newCDPSession(page);
+  const pt = (x: number, y: number) => [{ x, y, radiusX: 3, radiusY: 3, force: 1, id: 1 }];
+  // Retry the long-press until the directions register (robust to a dropped gesture).
+  await expect(async () => {
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pt(cx, cy) });
+    await page.waitForTimeout(650); // > long-press hold threshold, no move
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect(map).toHaveAttribute("data-reach-state", "transit", { timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(map).toHaveAttribute("data-reach-journey", "2", { timeout: 5000 });
+
+  const banner = page.getByTestId("error-banner");
+  const credit = page.getByTestId("transitous-credit");
+  await expect(banner).toContainText("Nu am putut calcula zona cu transportul public.");
+  await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
+  await expectNotCovered(credit);
+  await expectBannerClear(page);
+  const [creditBox, bannerBox] = await Promise.all([credit.boundingBox(), banner.boundingBox()]);
+  if (!creditBox || !bannerBox) throw new Error("the credit or the error banner has no box");
+  expect(creditBox.y + creditBox.height).toBeLessThanOrEqual(bannerBox.y);
+});
+
 // Below md the shell hands the screen to the map — the address bar stays at the
 // top, the result sheet opens at a peek bar, and the mode pill floats just above it,
 // so every piece of state (address, mode, preset, pace) stays visible and one tap
@@ -566,19 +626,26 @@ test("mobile shell: the peek sheet and the floating mode pill leave the map the 
   // panel may ever have appeared in this touch-only session.
   await expect(page.getByTestId("cluster-preview")).toHaveCount(0);
 
-  // Error path: from the peek bar, a failed selection FORCES the sheet expanded —
-  // the SelectionCard inside is the only surface with the failure message, and a
-  // peek bar reading "Result" over a hidden alert is a silent failure — and the
-  // pill flags the failed mode.
+  // Error path: from the peek bar, a failed selection is a compact banner above the
+  // mode pill, never a takeover — no sheet is forced open, the map keeps the screen —
+  // and the pill flags the failed mode.
   await page.getByTestId("sheet-toggle").tap();
   await expect(shell).toHaveAttribute("data-sheet-state", "peek");
   failIsochrone = true;
   await search.tap();
   await search.fill("Unirii");
   await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
-  await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
-  await expect(page.getByText(/Could not compute/)).toBeVisible();
+  const banner = page.getByTestId("error-banner");
+  await expect(banner).toContainText("Nu am putut calcula zona pe jos.");
+  await expect(shell).toHaveAttribute("data-sheet-state", "peek");
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
   await expect(page.getByTestId("mode-icon-walk")).toHaveAccessibleName("Pe jos (indisponibil)");
+  await expectBannerClear(page);
+  // Directly above the pill, which stays at the bottom of the screen.
+  const [bannerBox, errorPillBox] = await Promise.all([banner.boundingBox(), page.getByTestId("mode-pill").boundingBox()]);
+  if (!bannerBox || !errorPillBox) throw new Error("the error banner or the mode pill has no box");
+  expect(bannerBox.y + bannerBox.height).toBeLessThanOrEqual(errorPillBox.y);
+  expect(errorPillBox.y - (bannerBox.y + bannerBox.height)).toBeLessThan(24);
 });
 
 // The ⓘ popover opens by itself when the map first loads, so the data credits are on

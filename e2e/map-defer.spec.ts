@@ -78,11 +78,12 @@ test("engine chunk load failure surfaces an honest, reload-able error, and the s
   await expect(page.getByRole("combobox")).toBeVisible();
   // The recoverable error surfaces (after the one auto-retry) rather than an indefinite blank canvas.
   await expect(page.getByTestId("map-load-error")).toBeVisible({ timeout: 30_000 });
-  // The copy is HONEST: it points at a reload, and does NOT promise "your search still works"
-  // (a submit is buffered until the engine loads, so search is genuinely unavailable while down).
-  await expect(page.getByTestId("map-load-error")).toContainText("Reload to try again");
-  await expect(page.getByTestId("map-load-error")).not.toContainText(/search still works/i);
-  await expect(page.getByRole("button", { name: "Reload" })).toBeVisible();
+  // The copy is HONEST: it says the map did not load and offers a reload, and promises
+  // nothing about the search (a submit is buffered until the engine loads, so search is
+  // genuinely unavailable while down).
+  await expect(page.getByTestId("map-load-error")).toContainText("Harta nu s-a încărcat.");
+  await expect(page.getByTestId("map-load-error")).not.toContainText(/căutare/i);
+  await expect(page.getByRole("button", { name: "Reîncarcă" })).toBeVisible();
   // No unhandled pageerror (the rejection is caught).
   expect(errors).toEqual([]);
 });
@@ -109,7 +110,7 @@ test("the Reload button genuinely recovers a purged engine chunk (not a decorati
   await expect(errorBox).toBeVisible({ timeout: 30_000 });
   // Reload → full navigation → the chunk is now served → the map recovers.
   served = true;
-  await page.getByRole("button", { name: "Reload" }).click();
+  await page.getByRole("button", { name: "Reîncarcă" }).click();
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await expect(errorBox).toBeHidden();

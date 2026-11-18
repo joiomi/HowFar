@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectBasemapCredits, expectNotCovered, openInfo, pickMode, pickPreset, search } from "./shell";
+import { expectBannerClear, expectBasemapCredits, expectNotCovered, openInfo, pickMode, pickPreset, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 /**
@@ -212,22 +212,41 @@ test("first paint shows a realistic map placeholder, never a dark void", async (
   await expect(page.getByTestId("info-button")).toBeVisible();
 });
 
-test("degraded reach: a failed isochrone shows the error inline and keeps the map alive (no takeover, no void)", async ({
+test("degraded reach: a failed isochrone shows a compact banner over the live map (no takeover, no void), and ↻ retries it", async ({
   page,
 }) => {
   await baseStubs(page);
-  await page.route("**/api/isochrone**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
+  let walkFails = true;
+  await page.route("**/api/isochrone**", (route) =>
+    walkFails ? route.fulfill({ status: 502, json: { error: "upstream" } }) : route.fulfill({ json: WALK_PRESET }),
+  );
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
 
   const map = await waitForMap(page);
   await search(page, "Piata Unirii");
 
-  // The failure surfaces as an inline message; the map container stays present
-  // and loaded (the reach failed, the app did not).
-  await expect(page.getByText(/Could not compute walking reach/i)).toBeVisible();
+  // The failure is one compact alert row over the map: the walking sentence and a ↻,
+  // no walk switch (walking is what failed). No sheet or first-run card takes the
+  // screen; the map stays loaded (the reach failed, the app did not).
+  const banner = page.getByTestId("error-banner");
+  await expect(banner).toHaveAttribute("role", "alert");
+  await expect(banner).toContainText("Nu am putut calcula zona pe jos.");
+  await expect(page.getByTestId("banner-walk")).toHaveCount(0);
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
+  await expect(page.getByTestId("first-run")).toHaveCount(0);
   await expect(map).toHaveAttribute("data-map-loaded", "true");
+  await expectBannerClear(page);
   // No reach was drawn — the preset stamps stay unset.
   await expect(map).not.toHaveAttribute("data-selected-preset", /.*/);
+  await expect(page.getByTestId("mode-icon-walk")).toHaveAccessibleName("Pe jos (indisponibil)");
+
+  // ↻ runs the same search again; once the service answers, the reach is drawn.
+  walkFails = false;
+  await page.getByTestId("banner-retry").click();
+  await expect(map).toHaveAttribute("data-preset-contours", "10");
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await expect(banner).toHaveCount(0);
+  await expect(page.getByTestId("mode-icon-walk")).toHaveAccessibleName("Pe jos");
 });
 
 test("a FAILED recompute clears the reach and flags the mode as unavailable — no reach claim over a blank map", async ({ page }) => {
@@ -248,11 +267,57 @@ test("a FAILED recompute clears the reach and flags the mode as unavailable — 
   // cleared (status="error"), so the preset/mode stamps are UNSET — not "transit".
   await pickMode(page, "transit");
 
-  // The failure surfaces, the reach is cleared, and the failed mode is flagged on
-  // its own button in the mode pill (a degraded state, never a takeover).
-  await expect(page.getByText(/Could not compute/i)).toBeVisible();
+  // The failure surfaces as the banner, the reach is cleared, and the failed mode is
+  // flagged on its own button in the mode pill (a degraded state, never a takeover).
+  await expect(page.getByTestId("error-banner")).toContainText("Nu am putut calcula zona cu transportul public.");
   await expect(map).not.toHaveAttribute("data-preset-contours", /.*/);
   await expect(map).not.toHaveAttribute("data-mode", /.*/);
   await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
   await expect(page.getByTestId("mode-icon-walk")).toHaveAccessibleName("Pe jos");
+  // Nothing from Transitous is on screen, so no Transitous credit; the ⓘ stays readable.
+  await expect(page.getByTestId("transitous-credit")).toHaveCount(0);
+  await expectBannerClear(page);
+});
+
+test("a failed transit reach offers retry and a switch to walking", async ({ page }) => {
+  await baseStubs(page);
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK_PRESET }));
+  let transitFails = true;
+  await page.route("**/api/transit**", (route) =>
+    transitFails
+      ? route.fulfill({ status: 502, json: { error: "upstream" } })
+      : route.fulfill({ json: TRANSIT_PRESET }),
+  );
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
+
+  const map = await waitForMap(page);
+  // Public transport is chosen before the first search, so nothing is drawn yet when it fails.
+  await pickMode(page, "transit");
+  await search(page, "Piata Unirii");
+
+  const banner = page.getByTestId("error-banner");
+  await expect(banner).toContainText("Nu am putut calcula zona cu transportul public.");
+  await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
+  await expect(page.getByTestId("transitous-credit")).toHaveCount(0);
+  await expect(page.getByTestId("banner-walk")).toHaveAttribute("aria-label", "Treci la mersul pe jos");
+  await expectBannerClear(page);
+
+  // Switching to walking answers for the same address, and the flag goes.
+  await page.getByTestId("banner-walk").click();
+  await expect(map).toHaveAttribute("data-mode", "walk");
+  await expect(map).toHaveAttribute("data-preset-contours", "10");
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await expect(banner).toHaveCount(0);
+  await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public");
+
+  // Back to public transport while it still fails: the banner returns. Once the
+  // service is back, ↻ draws the transit reach and its credit.
+  await pickMode(page, "transit");
+  await expect(banner).toContainText("Nu am putut calcula zona cu transportul public.");
+  transitFails = false;
+  await page.getByTestId("banner-retry").click();
+  await expect(map).toHaveAttribute("data-mode", "transit");
+  await expect(map).toHaveAttribute("data-preset-contours", "20");
+  await expect(banner).toHaveCount(0);
+  await expectNotCovered(page.getByTestId("transitous-credit"));
 });

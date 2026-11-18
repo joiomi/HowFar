@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectNotCovered, search } from "./shell";
+import { expectBannerClear, expectNotCovered, search } from "./shell";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
 // After a responsive relayout, retry the REAL geometric predicate until it holds
@@ -641,9 +641,15 @@ test("selection failure remains understandable and composed", async ({ page }) =
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piața Romană");
-  const resultSheet = page.getByTestId("result-sheet");
-  await expect(resultSheet.getByRole("alert")).toBeVisible();
-  await expect(resultSheet).toBeInViewport();
+  // The failed lookup is announced as an alert: the error banner, on screen.
+  const alert = page.getByRole("alert").filter({ hasText: "Nu am putut căuta adresa." });
+  await expect(alert).toHaveAttribute("data-testid", "error-banner");
+  await expect(alert).toBeInViewport();
+  // A failed address lookup is not the travel mode's fault: walking stays unflagged,
+  // and no result sheet takes the screen.
+  await expect(page.getByTestId("mode-icon-walk")).toHaveAccessibleName("Pe jos");
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
+  await expectBannerClear(page);
   await captureRequested(page, "selection-error-desktop");
 });
 

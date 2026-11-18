@@ -24,6 +24,7 @@ export async function search(page: Page, query: string): Promise<void> {
   await combobox.press("Enter");
 }
 
+// Exact name, so a flagged mode ("Transport public (indisponibil)") is not found: use `mode-icon-<mode>`.
 export function modeButton(page: Page, mode: ShellMode): Locator {
   return page.getByRole("button", { name: MODE_NAME[mode], exact: true });
 }
@@ -104,6 +105,31 @@ export async function expectNotCovered(locator: Locator): Promise<void> {
       { message: `nothing may sit on top of ${locator} (covered points across its width)` },
     )
     .toBe("none");
+}
+
+// The error banner over the live map: wholly on screen, clear of the mode pill, each of
+// its buttons a 44 px target nothing sits on, and the ⓘ button (the basemap credits)
+// still readable beside it.
+export async function expectBannerClear(page: Page): Promise<void> {
+  const banner = page.getByTestId("error-banner");
+  await expect(banner).toBeInViewport({ ratio: 1 });
+  const [bannerBox, pillBox] = await Promise.all([banner.boundingBox(), page.getByTestId("mode-pill").boundingBox()]);
+  if (!bannerBox || !pillBox) throw new Error("the error banner or the mode pill has no box");
+  const overlap =
+    bannerBox.x < pillBox.x + pillBox.width &&
+    bannerBox.x + bannerBox.width > pillBox.x &&
+    bannerBox.y < pillBox.y + pillBox.height &&
+    bannerBox.y + bannerBox.height > pillBox.y;
+  expect(overlap, "the error banner overlaps the mode pill").toBe(false);
+  for (const id of ["banner-retry", "banner-walk"]) {
+    const button = banner.getByTestId(id);
+    if ((await button.count()) === 0) continue;
+    const box = await button.boundingBox();
+    if (!box) throw new Error(`${id} has no box`);
+    expect(Math.min(box.width, box.height), `${id} is a 44 px target`).toBeGreaterThanOrEqual(44);
+    await expectNotCovered(button);
+  }
+  await expectNotCovered(page.getByTestId("info-button"));
 }
 
 // Open the ⓘ popover with its button and return it. A popover that is already open may be

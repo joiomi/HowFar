@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectNotCovered, expectSearchBusy, expectSearchIdle, pickMode, search } from "./shell";
+import { expectBannerClear, expectNotCovered, expectSearchBusy, expectSearchIdle, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Transit slice: Walk/Transit toggle. Provider calls STUBBED by EXACT path
@@ -113,7 +113,10 @@ test("a transit provider error surfaces a friendly message, not a crash", async 
   await expect(map).toHaveAttribute("data-mode", "walk");
 
   await pickMode(page, "transit");
-  await expect(page.getByText(/could not compute transit reach/i)).toBeVisible();
+  await expect(page.getByTestId("error-banner")).toContainText("Nu am putut calcula zona cu transportul public.");
+  // A failed transit reach shows nothing from Transitous, so no Transitous credit.
+  await expect(page.getByTestId("transitous-credit")).toHaveCount(0);
+  await expectBannerClear(page);
 });
 
 test("toggling mode while the first search is still loading does not strand the UI", async ({ page }) => {
