@@ -50,25 +50,23 @@ export const LOADING_ANNOUNCEMENT = "Calculez zona…";
 /**
  * The screen-reader status line for the selection: "Calculez zona…" while it
  * loads, the place with the drawn preset's minutes and the mode once it resolves
- * ("Piața Unirii: circa 10 minute pe jos"), the error banner's sentence on a
- * failure, and nothing before a place is chosen. The minutes are the selected
- * preset, so the line never names a reach the map is not drawing.
+ * ("Piața Unirii: circa 10 minute pe jos"), and nothing otherwise. A failure says
+ * nothing here: the error banner is an alert and announces it, so repeating it
+ * would read it twice. The minutes are the selected preset, so the line never
+ * names a reach the map is not drawing.
  */
 export function selectionAnnouncement({
   status,
   label,
-  message,
   mode,
   selectedMin,
 }: {
   status: SelectionStatus;
   label: string | null;
-  message: string | null;
   mode: Mode;
   selectedMin: number;
 }): string {
   if (status === "loading") return LOADING_ANNOUNCEMENT;
-  if (status === "error") return message ?? "";
-  if (!label) return "";
+  if (status === "error" || !label) return "";
   return `${label}: circa ${minutesLabel(selectedMin)} ${modePhrase(mode)}`;
 }

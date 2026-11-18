@@ -62,8 +62,9 @@ export default defineConfig({
         "src/features/map/AmenityPanel.tsx",
         // right-click directions panel — presentation only over the
         // decided ReachView; its state machine + fetch live in the MEASURED
-        // reach-directions-controller.ts (NOT excluded), and its dock swap /
-        // focus / step-hover / close are covered by e2e (reach + reach-journey).
+        // reach-directions-controller.ts (NOT excluded), and its rendering in the
+        // result sheet / focus / step-hover / close are covered by e2e (reach +
+        // reach-journey).
         "src/features/map/ReachPanel.tsx",
         // Transaction/advisory-lock and PostGIS SQL orchestration is exercised
         // against the real extension by the required `npm run test:db` suite.

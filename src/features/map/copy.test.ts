@@ -66,7 +66,7 @@ describe("hold hint copy", () => {
 });
 
 describe("selection announcement (the screen-reader status line)", () => {
-  const base = { status: "idle", label: null, message: null, mode: "walk", selectedMin: 10 } as const;
+  const base = { status: "idle", label: null, mode: "walk", selectedMin: 10 } as const;
 
   it("is silent before anything is chosen", () => {
     expect(selectionAnnouncement(base)).toBe("");
@@ -91,10 +91,10 @@ describe("selection announcement (the screen-reader status line)", () => {
     );
   });
 
-  it("repeats the error banner's sentence on a failure", () => {
-    expect(selectionAnnouncement({ ...base, status: "error", message: "Nu am găsit adresa." })).toBe(
-      "Nu am găsit adresa.",
-    );
-    expect(selectionAnnouncement({ ...base, status: "error", message: null })).toBe("");
+  it("is silent on a failure: the error banner is an alert and announces it", () => {
+    // The selection state carries the banner's sentence; the status line must not repeat it.
+    const failed = { ...base, status: "error" as const, message: "Nu am găsit adresa." };
+    expect(selectionAnnouncement(failed)).toBe("");
+    expect(selectionAnnouncement({ ...failed, label: "Piața Unirii" })).toBe("");
   });
 });

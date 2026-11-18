@@ -293,14 +293,34 @@ export default function AppMap() {
   // is then covered by the opaque MapLibre canvas and hidden.
   const [mapReady, setMapReady] = useState(false);
 
+  // The one-time hold hint. hold-hint-controller decides, at the first resolved
+  // place, whether it is due, holds it back while the ⓘ popover covers its spot,
+  // and owns its hide timer (so a re-render never restarts or drops it); this
+  // component renders `holdHintVisible`.
+  const [holdHintVisible, setHoldHintVisible] = useState(false);
+  const holdHintRef = useRef<HoldHintController | null>(null);
+  useEffect(() => {
+    const holdHint = createHoldHintController({ setVisible: setHoldHintVisible });
+    holdHintRef.current = holdHint;
+    return () => {
+      holdHint.dispose();
+      holdHintRef.current = null;
+    };
+  }, []);
+
   // The ⓘ popover. info-controller.ts decides when it opens and closes (the
   // first-load opening, its timed close, and the closes on the address field, a
   // map tap and a pan); this component only feeds it events and renders `infoOpen`.
+  // The open popover covers the hold hint's spot, so the hint hears of it in the
+  // same tick.
   const [infoOpen, setInfoOpen] = useState(false);
   const infoRef = useRef<InfoController | null>(null);
   useEffect(() => {
     const info = createInfoController({
-      setOpen: setInfoOpen,
+      setOpen: (open) => {
+        setInfoOpen(open);
+        holdHintRef.current?.setCovered(open);
+      },
       fieldHasFocus: () => {
         const active = document.activeElement;
         return active instanceof HTMLElement && active.matches('[data-testid="top-bar"] [role="combobox"]');
@@ -310,20 +330,6 @@ export default function AppMap() {
     return () => {
       info.dispose();
       infoRef.current = null;
-    };
-  }, []);
-
-  // The one-time hold hint. hold-hint-controller decides, at the first resolved
-  // place, whether it shows, and owns its hide timer (so a re-render never
-  // restarts or drops it); this component renders `holdHintVisible`.
-  const [holdHintVisible, setHoldHintVisible] = useState(false);
-  const holdHintRef = useRef<HoldHintController | null>(null);
-  useEffect(() => {
-    const holdHint = createHoldHintController({ setVisible: setHoldHintVisible });
-    holdHintRef.current = holdHint;
-    return () => {
-      holdHint.dispose();
-      holdHintRef.current = null;
     };
   }, []);
 
@@ -1195,7 +1201,6 @@ export default function AppMap() {
   const announcement = selectionAnnouncement({
     status: sel.status,
     label: sel.label,
-    message: sel.message,
     mode: sel.mode,
     selectedMin,
   });
@@ -1300,9 +1305,9 @@ export default function AppMap() {
         {firstOpen ? <FirstOpenPulse /> : null}
 
         {/* After the first resolved place, once per device: a long press on the
-            map plans a trip there. Not while the ⓘ popover is open: the popover
-            covers the same spot, and its clock keeps running. */}
-        {holdHintVisible && !infoOpen ? <HoldToast /> : null}
+            map plans a trip there. Held back while the ⓘ popover covers its spot
+            (hold-hint-controller). */}
+        {holdHintVisible ? <HoldToast /> : null}
 
         {/* The basemap credits (OSM · ESA WorldCover · Natural Earth) are in the ⓘ
             popover, present in every state. The Transitous credit is the ADDITIONAL
@@ -1337,8 +1342,8 @@ export default function AppMap() {
             </div>
           ) : null}
         </div>
-        {/* The one screen-reader status line: loading, the resolved reach, a
-            failure. */}
+        {/* The one screen-reader status line: loading and the resolved reach (the
+            error banner announces a failure itself). */}
         <StatusAnnouncer text={announcement} />
       </div>
 

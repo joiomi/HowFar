@@ -14,7 +14,7 @@ export const DESKTOP_CAMERA_PAD_LEFT_PX = 432;
 /** 12px gap + the 52px address bar + 12px breathing room. */
 export const MOBILE_CAMERA_PAD_TOP_PX = 76;
 
-/** 12px gap + the 46px mode pill + 12px breathing room. */
+/** 12px gap + the 48px mode pill + 10px breathing room. */
 export const MOBILE_CAMERA_PAD_BOTTOM_PX = 70;
 
 const SHORT_VIEWPORT_HEIGHT_PX = 700;

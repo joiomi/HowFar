@@ -86,9 +86,9 @@ async function touchSwipe(page: Page, from: { x: number; y: number }, to: { x: n
 // Skipped: this end-to-end touch journey pivots on amenity
 // INSPECTION — the amenity count, category toggles, amenity browser, POI popup, and
 // transit-stop line popup — the amenity subsystem the phone-first preset UI
-// suppresses. The surviving touch-shell contracts (suggestion scroll, sheet peek/
-// expand, orientation, map-reclaim) are covered by the migrated "peek sheet and
-// floating mode pill" test below and by preset-render.spec.ts. Restore in the planned amenity pass.
+// suppresses. The surviving touch-shell contracts (the map keeps the screen, state stays
+// visible and editable) are covered by the "mobile shell: the floating mode pill leaves
+// the map the screen" test below and by preset-render.spec.ts. Restore in the planned amenity pass.
 test.skip("touch journey stays usable through selection, results, inspection, map gestures, and orientation", async ({
   page,
 }) => {
@@ -381,9 +381,9 @@ test("mobile: long-press transit directions show a compact card and draw the jou
     await expect(map).toHaveAttribute("data-reach-state", "transit", { timeout: 2000 });
   }).toPass({ timeout: 20_000 });
 
-  // Docked directions: the panel lives in the result-sheet bottom
-  // sheet, capped at min(30dvh,14.5rem) — never a full-screen slab (Pixel 7 is
-  // 412px wide). The sheet scrolls; the panel is inside it.
+  // Directions open the result sheet at the bottom, capped at
+  // min(30dvh,14.5rem) — never a full-screen slab (Pixel 7 is 412px wide). The
+  // sheet scrolls; the panel is inside it.
   const panel = await page.getByTestId("reach-panel").boundingBox();
   expect(panel).not.toBeNull();
   const vh = await page.evaluate(() => window.innerHeight);
@@ -948,7 +948,8 @@ test("blocked storage still loads, selects and shows the hint once", async ({ pa
 
 // The ⓘ popover opens over the spot where the hint shows. When the first place
 // resolves with the popover open (here: a failed search, ⓘ opened, then ↻), the hint
-// is not drawn under it; closing the popover shows it.
+// waits: it is not drawn, not marked seen and its clock does not run, however long
+// the popover stays open. Closing the popover shows it, for its full time.
 test("the hold hint waits while the info popover is open", async ({ page }) => {
   let reachFails = true;
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
@@ -963,6 +964,7 @@ test("the hold hint waits while the info popover is open", async ({ page }) => {
   await page.goto("/");
   const map = page.getByTestId("app-map");
   const toast = page.getByTestId("hold-toast");
+  const seen = () => page.evaluate(() => window.localStorage.getItem("hf:hold-hint:v1"));
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piata Unirii");
   await expect(page.getByTestId("error-banner")).toContainText("Nu am putut calcula zona pe jos.");
@@ -971,13 +973,26 @@ test("the hold hint waits while the info popover is open", async ({ page }) => {
   reachFails = false;
   await page.getByTestId("banner-retry").click();
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  // The status line is set in the same render as the hint, so once it reads the
+  // resolved place, the hint has been decided.
+  await expect(page.getByTestId("status-announcer")).toHaveText("Piața Unirii, București: circa 10 minute pe jos");
   await expect(page.getByTestId("info-popover")).toBeVisible();
-  // Checked once, without retrying: the hint's own clock would hide it within seconds.
+  // Checked once each, without retrying.
   expect(await toast.count()).toBe(0);
+  expect(await seen()).toBeNull();
 
+  // Longer than the hint's own time (4 s): still waiting, still not marked seen.
+  await page.waitForTimeout(4_500);
+  await expect(page.getByTestId("info-popover")).toBeVisible();
+  expect(await toast.count()).toBe(0);
+  expect(await seen()).toBeNull();
+
+  // The popover closes: now the hint shows, is marked seen, and hides on its own clock.
   await page.getByTestId("info-button").click();
   await expect(page.getByTestId("info-popover")).toHaveCount(0);
   await expect(toast).toBeVisible();
+  expect(await seen()).toBe("1");
+  await expect(toast).toHaveCount(0, { timeout: 6_000 });
 });
 
 // While a reach loads, the origin pin is already on the map and pulses, with no text

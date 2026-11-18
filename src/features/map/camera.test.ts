@@ -11,7 +11,7 @@ import {
 describe("cameraPadding", () => {
   it("frames a phone between the address bar and the mode pill when no sheet is open", () => {
     expect(MOBILE_CAMERA_PAD_TOP_PX).toBe(76);
-    expect(MOBILE_CAMERA_PAD_BOTTOM_PX).toBe(70); // 12 + the 46 px pill + 12
+    expect(MOBILE_CAMERA_PAD_BOTTOM_PX).toBe(70); // 12 + the 48 px pill + 10
     expect(cameraPadding(390, 844, false)).toEqual({ top: 76, right: 12, bottom: 70, left: 12 });
     expect(cameraPadding(360, 780, false)).toEqual({ top: 76, right: 12, bottom: 70, left: 12 });
     // The same at a short height: nothing at the bottom grows with the viewport.

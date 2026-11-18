@@ -289,7 +289,7 @@ test("camera reframes an existing result across desktop and mobile breakpoints",
   await expectResultFramedAfterResize(page);
 });
 
-test("the info button stays on screen, uncovered and clear of the address bar, mode pill and results at every shell size", async ({ page }) => {
+test("the info button stays on screen, uncovered and clear of the address bar and mode pill at every shell size", async ({ page }) => {
   await loadPopulatedState(page);
   await expectInfoButtonClear(page);
   for (const viewport of [
@@ -729,17 +729,33 @@ test("reduced motion suppresses decorative surface, spinner and pulse animation"
   // preset contours rather than reveal stamps.
   await expect(map).toHaveAttribute("data-camera-motion", "instant");
   await expect(map).toHaveAttribute("data-preset-contours", "10");
+  // One probe per rule, so no class can switch another one's animation off for it.
   const motion = await page.evaluate(() => {
-    const probe = document.createElement("div");
-    probe.className = "hf-spinner hf-surface-in hf-pulse";
-    document.body.appendChild(probe);
-    const style = getComputedStyle(probe);
-    const result = { animationName: style.animationName, iterationCount: style.animationIterationCount };
-    probe.remove();
+    const read = (element: Element) => {
+      const style = getComputedStyle(element);
+      return `${style.animationName}/${style.animationIterationCount}`;
+    };
+    const surface = document.createElement("div");
+    surface.className = "hf-spinner hf-surface-in";
+    // The first-open target dot's ring.
+    const pulse = document.createElement("div");
+    pulse.className = "hf-pulse";
+    // The origin pin's aura in a shell whose reach is loading: the rule that animates
+    // it there outranks a bare `.hf-origin-marker__aura`.
+    const shell = document.createElement("div");
+    shell.className = "hf-map-shell";
+    shell.dataset.selStatus = "loading";
+    const aura = document.createElement("span");
+    aura.className = "hf-origin-marker__aura";
+    shell.append(aura);
+    document.body.append(surface, pulse, shell);
+    const result = { surface: read(surface), pulse: read(pulse), loadingAura: read(aura) };
+    surface.remove();
+    pulse.remove();
+    shell.remove();
     return result;
   });
-  expect(motion.animationName).toBe("none");
-  expect(motion.iterationCount).toBe("1");
+  expect(motion).toEqual({ surface: "none/1", pulse: "none/1", loadingAura: "none/1" });
 });
 
 // Skipped: opens the amenity POI popup (`poi-popup`) to
