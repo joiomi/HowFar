@@ -1,12 +1,11 @@
-import type { JSX, KeyboardEvent } from "react";
+import type { JSX, KeyboardEvent, MouseEvent, PointerEvent } from "react";
 
 import { INFO_LABEL, infoContent } from "@/features/map/copy";
 import { BASEMAP_CREDITS, TRANSITOUS_SOURCES_URL, type CreditLink } from "@/features/map/credits";
 import { Icon } from "@/features/map/icons";
 import type { Mode } from "@/features/map/selection-flow";
 
-/** How long the popover stays open on its own after the map first loads. */
-export const INFO_AUTO_OPEN_MS = 5000;
+export { INFO_AUTO_OPEN_MS } from "@/features/map/info-controller";
 
 interface InfoControlProps {
   open: boolean;
@@ -35,12 +34,28 @@ function Credit({ credit }: { credit: CreditLink }) {
  * credits: OpenStreetMap, ESA WorldCover with its licence and the "modificat"
  * indication, Daylight, Natural Earth, and Transitous on transit states. It is
  * the only place the basemap credits are shown, so the shell renders it in every
- * map state. Presentation only: AppMap owns `open` (the first-load auto-open and
- * the closes on a map tap, a pan or the address field). Escape inside the control
- * closes the popover and puts focus back on the button.
+ * map state. Presentation only: `open` comes from the shell (info-controller.ts
+ * decides the first-load opening and the closes on a map tap, a pan or the address
+ * field). Escape inside the control closes the popover and puts focus back on the
+ * button. The open popover sits above every other floating control (z-50), so
+ * nothing covers its credits.
+ *
+ * A press on the button means what it meant when it started: a press that begins
+ * while the popover is closed opens it. The press itself can open it in between
+ * (it blurs the address field, which may let the first-load opening run), and a
+ * plain toggle would then close it again on the click. A keyboard click has no
+ * press and toggles.
  */
 export default function InfoControl({ open, onOpenChange, mode, transitState }: InfoControlProps): JSX.Element {
   const { caveat, note, transitous } = infoContent(mode, transitState);
+  function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    event.currentTarget.dataset.intent = open ? "close" : "open";
+  }
+  function onClick(event: MouseEvent<HTMLButtonElement>) {
+    const intent = event.currentTarget.dataset.intent;
+    delete event.currentTarget.dataset.intent;
+    onOpenChange(intent ? intent === "open" : !open);
+  }
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Escape" || !open) return;
     onOpenChange(false);
@@ -54,7 +69,8 @@ export default function InfoControl({ open, onOpenChange, mode, transitState }: 
         aria-label={INFO_LABEL}
         aria-expanded={open}
         aria-controls="info-popover"
-        onClick={() => onOpenChange(!open)}
+        onPointerDown={onPointerDown}
+        onClick={onClick}
         className="hf-floating pointer-events-auto absolute right-2.5 top-[68px] z-30 grid size-11 place-items-center md:right-4 md:top-4"
       >
         <span className="grid size-8 place-items-center rounded-full border border-[var(--hf-border)] bg-[var(--hf-panel)] text-[var(--hf-muted)] shadow-[0_8px_20px_rgba(0,0,0,.3)] backdrop-blur-xl">
@@ -67,7 +83,7 @@ export default function InfoControl({ open, onOpenChange, mode, transitState }: 
           data-testid="info-popover"
           role="dialog"
           aria-label={INFO_LABEL}
-          className="pointer-events-auto absolute left-3 right-3 top-[7.25rem] z-30 rounded-[1.25rem] border border-[var(--hf-border)] bg-[var(--hf-panel-strong)] p-3.5 shadow-[var(--hf-shadow-float)] backdrop-blur-2xl md:left-auto md:right-4 md:top-[4.5rem] md:w-[360px]"
+          className="pointer-events-auto absolute left-3 right-3 top-[7.25rem] z-50 rounded-[1.25rem] border border-[var(--hf-border)] bg-[var(--hf-panel-strong)] p-3.5 shadow-[var(--hf-shadow-float)] backdrop-blur-2xl md:left-auto md:right-4 md:top-[4.5rem] md:w-[360px]"
         >
           <p className="flex gap-2 text-[0.84rem] leading-5 text-[var(--hf-text)]">
             <span aria-hidden="true" className="shrink-0 font-bold text-[var(--hf-accent)]">

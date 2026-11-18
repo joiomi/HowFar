@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  expectBasemapCredits,
   expectNotCovered,
   modeButton,
   openInfo,
@@ -614,38 +615,61 @@ test("the auto-opened info popover yields to the first tap", async ({ page }) =>
   await expect(map).toHaveAttribute("data-selection", "Punctul atins");
 });
 
-// Someone already typing an address when the map appears is not interrupted: while the
-// address field has focus the first-load popover stays closed, and the ⓘ button keeps the
-// credits one tap away.
-test("the info popover does not open by itself over an address being typed", async ({ page }) => {
+// Someone already typing an address when the map appears is not interrupted: the
+// first-load popover waits until the address field loses focus, then shows the credits
+// and closes itself as usual. A tap on ⓘ that is what takes focus from the field opens
+// the popover for good (the press must not open it and then close it again).
+test("the first-load info popover waits for the address field to lose focus", async ({ page }) => {
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
   // Hold the basemap archive back, so the field has focus before the map can load.
   let releaseTiles: () => void = () => {};
-  const tilesHeld = new Promise<void>((resolve) => {
-    releaseTiles = resolve;
-  });
+  let tilesHeld = Promise.resolve();
+  const holdTiles = () => {
+    tilesHeld = new Promise<void>((resolve) => {
+      releaseTiles = resolve;
+    });
+  };
   await page.route("**/api/tiles**", async (route) => {
     await tilesHeld;
     await route.continue();
   });
-
-  await page.goto("/");
   const map = page.getByTestId("app-map");
   const field = page.getByRole("combobox");
-  await field.tap();
-  await expect(field).toBeFocused();
-  await expect(map).not.toHaveAttribute("data-map-loaded", "true");
-  releaseTiles();
-  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await expect(page.getByTestId("map-placeholder")).toHaveAttribute("data-map-placeholder", "covered");
-  // The popover would open one frame after the load; wait well past that, then check
-  // once, without retrying: a retrying check would also pass once a wrongly opened
-  // popover closed itself 5 s later.
-  await page.waitForTimeout(500);
-  expect(await page.getByTestId("info-button").getAttribute("aria-expanded")).toBe("false");
-  expect(await page.getByTestId("info-popover").count()).toBe(0);
-  await expect(field).toBeFocused();
-  await expect(page.getByTestId("info-button")).toBeInViewport();
+  const button = page.getByTestId("info-button");
+  const popover = page.getByTestId("info-popover");
+
+  async function loadWithFieldFocused() {
+    holdTiles();
+    await page.goto("/");
+    await field.tap();
+    await expect(field).toBeFocused();
+    await expect(map).not.toHaveAttribute("data-map-loaded", "true");
+    releaseTiles();
+    await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+    await expect(page.getByTestId("map-placeholder")).toHaveAttribute("data-map-placeholder", "covered");
+    // The popover would open as the map loads; wait past that, then check once,
+    // without retrying: a retrying check would also pass once a wrongly opened
+    // popover closed itself 5 s later.
+    await page.waitForTimeout(500);
+    expect(await button.getAttribute("aria-expanded")).toBe("false");
+    expect(await popover.count()).toBe(0);
+    await expect(field).toBeFocused();
+  }
+
+  // The field lets go: the first-load popover opens, then closes by itself.
+  await loadWithFieldFocused();
+  await field.blur();
+  await expect(popover).toBeVisible();
+  await expect(popover).toBeHidden({ timeout: 8_000 });
+
+  // A tap on ⓘ takes focus from the field: the popover opens and stays open past the
+  // first-load timer.
+  await loadWithFieldFocused();
+  await button.tap();
+  await expect(popover).toBeVisible();
+  await page.waitForTimeout(5_500);
+  expect(await button.getAttribute("aria-expanded")).toBe("true");
+  expect(await popover.count()).toBe(1);
 });
 
 // The reach caveat must reach a phone user: with a place chosen, the ⓘ popover states the
@@ -691,6 +715,49 @@ test("the info popover states the drawn mode's caveat on a phone", async ({ page
   await expect(info).not.toContainText(walkCaveat);
   await expectNotCovered(info.getByRole("link", { name: "Transitous", exact: true }));
   await expectNotCovered(page.getByTestId("transitous-credit"));
+});
+
+// On a short phone with the result sheet open, the floating Transitous credit and the
+// mode pill sit where the open ⓘ popover's credit line is. The open popover must be the
+// topmost surface: every credit link in it, Transitous included, can be read and tapped.
+// With the popover closed, the floating credit itself must be readable too.
+test("the open info popover stays on top of the floating controls on short phones", async ({ page }) => {
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
+  );
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
+  await page.route("**/api/transit**", (route) =>
+    route.fulfill({
+      json: { origin: ISOCHRONE.origin, rings: [ring(20, 0.03), ring(40, 0.06)], departure: "2026-07-29T05:30:00.000Z" },
+    }),
+  );
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  const shell = page.locator(".hf-map-shell");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await pickMode(page, "transit");
+  await expect(map).toHaveAttribute("data-mode", "transit");
+  await page.getByTestId("sheet-toggle").tap();
+  await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
+
+  for (const viewport of [
+    { width: 390, height: 600 },
+    { width: 375, height: 548 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const button = page.getByTestId("info-button");
+    if ((await button.getAttribute("aria-expanded")) === "true") await button.click();
+    await expect(page.getByTestId("info-popover")).toHaveCount(0);
+    await expectNotCovered(page.getByTestId("transitous-credit"));
+    const info = await openInfo(page);
+    await expectBasemapCredits(info);
+    await expectNotCovered(info.getByRole("link", { name: "Transitous", exact: true }));
+  }
 });
 
 // The address bar never leaves the phone screen, so after a search the field must

@@ -82,20 +82,28 @@ export async function sampleMapClearPercent(page: Page): Promise<number> {
   });
 }
 
-// Fails unless a tap at the element's centre would land on it: the element itself or
-// something inside it is the topmost thing there. Visibility alone passes for a credit
-// another floating control sits on top of; this proves it can be read and tapped.
+// Fails unless the element is the topmost thing along its middle: at five points across
+// its width (10%, 30%, 50%, 70% and 90%, at half its height) the hit is the element itself
+// or something inside it. Visibility alone passes for a credit another floating control
+// sits on top of, and a centre-only probe passes for one covered at an end; this proves it
+// can be read and tapped.
 export async function expectNotCovered(locator: Locator): Promise<void> {
   await expect(locator).toBeVisible();
   await expect
-    .poll(() =>
-      locator.evaluate((element) => {
-        const box = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-        return hit !== null && element.contains(hit);
-      }),
+    .poll(
+      () =>
+        locator.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const y = box.top + box.height / 2;
+          const covered = [0.1, 0.3, 0.5, 0.7, 0.9].filter((f) => {
+            const hit = document.elementFromPoint(box.left + box.width * f, y);
+            return hit === null || !element.contains(hit);
+          });
+          return covered.map((f) => `${Math.round(f * 100)}%`).join(", ") || "none";
+        }),
+      { message: `nothing may sit on top of ${locator} (covered points across its width)` },
     )
-    .toBe(true);
+    .toBe("none");
 }
 
 // Open the ⓘ popover with its button and return it. A popover that is already open may be

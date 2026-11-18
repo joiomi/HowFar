@@ -126,11 +126,32 @@ describe("InfoControl", () => {
     const click = (open: boolean) => {
       const button = find(InfoControl({ open, onOpenChange, mode: "walk", transitState: false }), (el) => el.type === "button");
       if (!button) throw new Error("no info button");
-      (button.props as { onClick: () => void }).onClick();
+      (button.props as { onClick: (e: unknown) => void }).onClick({ currentTarget: { dataset: {} } });
     };
     click(false);
     expect(onOpenChange).toHaveBeenLastCalledWith(true);
     click(true);
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("a press that starts on a closed popover opens it, even if it opened in between (the press blurred the address field)", () => {
+    const onOpenChange = vi.fn();
+    const button = (open: boolean) => {
+      const el = find(InfoControl({ open, onOpenChange, mode: "walk", transitState: false }), (e) => e.type === "button");
+      if (!el) throw new Error("no info button");
+      return el.props as { onPointerDown: (e: unknown) => void; onClick: (e: unknown) => void };
+    };
+    const target = { dataset: {} as Record<string, string | undefined> };
+    // Pressed while closed; the first-load popover opens before the click lands.
+    button(false).onPointerDown({ currentTarget: target });
+    button(true).onClick({ currentTarget: target });
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    // The press is used once: a keyboard click afterwards toggles from the shown state.
+    button(true).onClick({ currentTarget: target });
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    // A press on an open popover closes it.
+    button(true).onPointerDown({ currentTarget: target });
+    button(true).onClick({ currentTarget: target });
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 

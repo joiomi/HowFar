@@ -407,8 +407,9 @@ No air-quality or climate code exists yet. If it is built, this is the pick:
   link + a "modified" indication), Natural Earth (public domain), and the Mapzen/`tangrams/icons` POI
   sprite (MIT). The map's info popover (`src/features/map/InfoControl.tsx`, links from
   `src/features/map/credits.ts`, which the style attribution in `map-setup.ts` also uses) shows
-  them in every map state and opens by itself for 5 s when the map first loads; MapLibre's own
-  attribution control is off. They are also in the README. A tile-source or extent change must
+  them in every map state and opens by itself for 5 s when the map first loads (if the address
+  field has focus at that moment, once it loses focus; the rules are in `info-controller.ts`);
+  MapLibre's own attribution control is off. They are also in the README. A tile-source or extent change must
   re-check them. Details and the remaining gaps (raw-archive metadata, exact ESA vintage) are in
   `docs/SELFHOST.md`, "Caveats".
 - **Open item: glyphs and sprite are not self-hosted.** The basemap's font glyphs and sprite are

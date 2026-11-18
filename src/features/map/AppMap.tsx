@@ -69,7 +69,8 @@ import { createSelectionRender } from "@/features/map/selection-render";
 import { createLongPress } from "@/features/map/long-press";
 import { reachBand } from "@/features/map/reach";
 import { teardownInOrder } from "@/features/map/teardown";
-import InfoControl, { INFO_AUTO_OPEN_MS } from "@/features/map/InfoControl";
+import InfoControl from "@/features/map/InfoControl";
+import { createInfoController, type InfoController } from "@/features/map/info-controller";
 import MapPlaceholder from "@/features/map/MapPlaceholder";
 import ModePill from "@/features/map/ModePill";
 import SelectionCard from "@/features/map/SelectionCard";
@@ -312,37 +313,25 @@ export default function AppMap() {
   // is then covered by the opaque MapLibre canvas and hidden.
   const [mapReady, setMapReady] = useState(false);
 
-  // The ⓘ popover. It opens by itself once, a frame after the map first loads,
-  // and closes again after INFO_AUTO_OPEN_MS, so the data credits are on screen
-  // when the map appears. A user open or close cancels that pending close; a map
-  // tap, a pan the user starts and the address field close the popover.
+  // The ⓘ popover. info-controller.ts decides when it opens and closes (the
+  // first-load opening, its timed close, and the closes on the address field, a
+  // map tap and a pan); this component only feeds it events and renders `infoOpen`.
   const [infoOpen, setInfoOpen] = useState(false);
-  const infoAutoCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  function setInfo(open: boolean) {
-    if (infoAutoCloseRef.current !== null) clearTimeout(infoAutoCloseRef.current);
-    infoAutoCloseRef.current = null;
-    setInfoOpen(open);
-  }
+  const infoRef = useRef<InfoController | null>(null);
   useEffect(() => {
-    if (!mapReady) return;
-    let autoClose: ReturnType<typeof setTimeout> | null = null;
-    const frame = requestAnimationFrame(() => {
-      // Someone already typing an address is left alone: focusing the field
-      // closes the popover, so it does not open over the field either.
-      const active = document.activeElement;
-      if (active instanceof HTMLElement && active.closest('[data-testid="top-bar"]')) return;
-      setInfoOpen(true);
-      autoClose = setTimeout(() => {
-        infoAutoCloseRef.current = null;
-        setInfoOpen(false);
-      }, INFO_AUTO_OPEN_MS);
-      infoAutoCloseRef.current = autoClose;
+    const info = createInfoController({
+      setOpen: setInfoOpen,
+      fieldHasFocus: () => {
+        const active = document.activeElement;
+        return active instanceof HTMLElement && active.matches('[data-testid="top-bar"] [role="combobox"]');
+      },
     });
+    infoRef.current = info;
     return () => {
-      cancelAnimationFrame(frame);
-      if (autoClose !== null) clearTimeout(autoClose);
+      info.dispose();
+      infoRef.current = null;
     };
-  }, [mapReady]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -759,6 +748,7 @@ export default function AppMap() {
       reachDirections.reframe();
       el.dataset.mapLoaded = "true";
       setMapReady(true); // cover + hide the first-paint placeholder
+      infoRef.current?.mapReady(); // the first-load ⓘ popover, with the data credits
       // Symmetric with `hf:interactive`: marks when the deferred engine has finished
       // loading and the map is visible unprompted — the perf harness reports both, so shell-
       // interactive vs map-visible are separable on the emulator AND a real device.
@@ -906,7 +896,7 @@ export default function AppMap() {
 
     // A tap or click on the map closes the ⓘ popover (and still does whatever the
     // handler below decides).
-    map.on("click", () => setInfo(false));
+    map.on("click", () => infoRef.current?.mapClick());
     map.on("click", (e) => {
       // A long-press just fired the reach popup — swallow the follow-up click so
       // it doesn't also start a selection.
@@ -1020,7 +1010,7 @@ export default function AppMap() {
       closeClusterPreview();
       // A pan or zoom the user starts closes the ⓘ popover; a camera move the app
       // makes (framing a selection) has no originalEvent and leaves it open.
-      if (e.originalEvent) setInfo(false);
+      infoRef.current?.moveStart(Boolean(e.originalEvent));
     });
     map.on("dragend", () => {
       el.dataset.mapDrag = String(Number(el.dataset.mapDrag ?? "0") + 1);
@@ -1270,15 +1260,24 @@ export default function AppMap() {
           onKeyDown={onSearchKeyDown}
           onFocus={() => {
             dispatchCombo({ type: "focus" });
-            setInfo(false);
+            infoRef.current?.fieldFocus();
           }}
-          onBlur={closeSuggest}
+          onBlur={() => {
+            closeSuggest();
+            infoRef.current?.fieldBlur();
+          }}
           onPick={pickSuggestion}
           onHover={(index) => dispatchCombo({ type: "hover", index })}
           onClear={() => clearAddressRef.current?.()}
         />
-        {/* The reach caveat and the data credits: top right, in every state. */}
-        <InfoControl open={infoOpen} onOpenChange={setInfo} mode={sel.mode} transitState={transitState} />
+        {/* The reach caveat and the data credits: top right, in every state. Its open
+            popover is the topmost surface of this plane (z-50). */}
+        <InfoControl
+          open={infoOpen}
+          onOpenChange={(open) => infoRef.current?.userSet(open)}
+          mode={sel.mode}
+          transitState={transitState}
+        />
         {/* The travel mode, its two presets, and the pace or departure toggle:
             above the result sheet on a phone, under the address bar from md. A
             mode whose reach failed is flagged on its button (never a takeover). */}
@@ -1355,6 +1354,22 @@ export default function AppMap() {
         ) : showFirstRun ? (
           <div className="absolute inset-x-3 bottom-[max(3.6rem,calc(env(safe-area-inset-bottom)+3rem))] z-10 sm:inset-x-4 md:bottom-auto md:left-4 md:right-auto md:top-[9rem] md:w-[388px]">
             <EmptyState />
+          </div>
+        ) : null}
+
+        {/* The basemap credits (OSM · ESA WorldCover · Natural Earth) are in the ⓘ
+            popover, present in every state. The Transitous credit is the ADDITIONAL
+            transit obligation: besides its line in the popover it stays visible here
+            whenever transit data is displayed: a transit reach, or a right-click
+            journey (MOTIS/Transitous). Not on walk/car states, where showing it
+            would imply transit data that isn't there. On a phone it floats on the
+            right above the mode pill's row, tracking the sheet; from md it sits at
+            the bottom right, beside the zoom control. It lives in this plane, last
+            in keyboard order, so the open ⓘ popover (z-50) paints over it where the
+            two meet on a short phone; the popover credits Transitous too. */}
+        {transitState ? (
+          <div className="pointer-events-auto absolute bottom-[calc(var(--hf-sheet-clearance,0px)+4.25rem)] right-3 z-20 md:bottom-3 md:right-14">
+            <TransitousCredit />
           </div>
         ) : null}
       </div>
@@ -1444,19 +1459,6 @@ export default function AppMap() {
         </div>
       )}
 
-      {/* The basemap credits (OSM · ESA WorldCover · Natural Earth) are in the ⓘ
-          popover, present in every state. The Transitous credit is the ADDITIONAL
-          transit obligation: besides its line in the popover it stays visible here
-          whenever transit data is displayed: a transit reach, or a right-click
-          journey (MOTIS/Transitous). Not on walk/car states, where showing it
-          would imply transit data that isn't there. On a phone it floats on the
-          right above the mode pill's row, tracking the sheet; from md it sits at
-          the bottom right, beside the zoom control. */}
-      {transitState ? (
-        <div className="absolute bottom-[calc(var(--hf-sheet-clearance,0px)+4.25rem)] right-3 z-20 md:bottom-3 md:right-14">
-          <TransitousCredit />
-        </div>
-      ) : null}
     </div>
   );
 }
