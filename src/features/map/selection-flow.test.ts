@@ -222,6 +222,44 @@ describe("selectionReducer — the failed mode", () => {
     });
     expect(resolved.failedMode).toBeNull();
   });
+
+  it("a pace or departure change with no place to recompute settles at idle without the failure", () => {
+    const failed = fail("transit", "isochrone", 502); // no place resolved yet
+    const paced = selectionReducer(failed, { type: "setPace", pace: "slow" });
+    expect(paced).toMatchObject({ status: "idle", message: null, failedMode: null });
+    const timed = selectionReducer(failed, { type: "setTimeContext", timeContext: { kind: "preset", preset: "quiet" } });
+    expect(timed).toMatchObject({ status: "idle", message: null, failedMode: null });
+  });
+
+  it("property: a failure message or a flagged mode only ever exists in the error state", () => {
+    const actionArb: fc.Arbitrary<SelectionAction> = fc.oneof(
+      ...(["walk", "transit", "car"] as const).flatMap((mode) => [
+        fc.constant<SelectionAction>({ type: "start", mode }),
+        fc.constant<SelectionAction>({ type: "start", mode, preserveLast: true }),
+        fc.constant<SelectionAction>({ type: "toggle", next: mode }),
+      ]),
+      fc.constant<SelectionAction>({ type: "resolved", token: -1, origin: ORIGIN, label: "x" }),
+      fc.constant<SelectionAction>({ type: "failed", token: -1, stage: "isochrone", httpStatus: 502 }),
+      fc.constant<SelectionAction>({ type: "failed", token: -1, stage: "geocode", httpStatus: 404 }),
+      fc.constant<SelectionAction>({ type: "crash", token: -1 }),
+      fc.constant<SelectionAction>({ type: "clear" }),
+      fc.constant<SelectionAction>({ type: "setPace", pace: "slow" }),
+      fc.constant<SelectionAction>({ type: "setPace", pace: "normal" }),
+      fc.constant<SelectionAction>({ type: "setTimeContext", timeContext: { kind: "preset", preset: "quiet" } }),
+      fc.constant<SelectionAction>({ type: "setTimeContext", timeContext: { kind: "preset", preset: "crowded" } }),
+    );
+    fc.assert(
+      fc.property(fc.array(actionArb, { maxLength: 40 }), (actions) => {
+        let state = initialSelectionState;
+        for (const raw of actions) {
+          // Responses always carry the live token (a stale one is a no-op).
+          state = selectionReducer(state, "token" in raw ? { ...raw, token: state.token } : raw);
+          if ((state.message !== null || state.failedMode !== null) && state.status !== "error") return false;
+        }
+        return true;
+      }),
+    );
+  });
 });
 
 describe("modeSwitchInput — what a mode switch recomputes", () => {
@@ -240,11 +278,23 @@ describe("modeSwitchInput — what a mode switch recomputes", () => {
     expect(modeSwitchInput(failedRecompute, null)).toEqual(expected);
   });
 
-  it("re-runs a first search that failed, so the new mode answers for the same address", () => {
+  it("re-runs a first search whose reach failed, so the new mode answers for the same address", () => {
     const failed = selectionReducer(start("transit"), { type: "failed", token: 1, stage: "isochrone", httpStatus: 502 });
     expect(modeSwitchInput(failed, search)).toBe(search);
+  });
+
+  it("runs nothing again for a failure a mode switch cannot change: the address lookup, a place outside Bucharest, an unknown crash", () => {
+    for (const [stage, httpStatus] of [
+      ["geocode", 404],
+      ["geocode", 503],
+      ["reverse", 422],
+      ["isochrone", 422],
+    ] as const) {
+      const failed = selectionReducer(start("transit"), { type: "failed", token: 1, stage, httpStatus });
+      expect(modeSwitchInput(failed, search)).toBeNull();
+    }
     const crashed = selectionReducer(start("transit"), { type: "crash", token: 1 });
-    expect(modeSwitchInput(crashed, search)).toBe(search);
+    expect(modeSwitchInput(crashed, search)).toBeNull();
   });
 
   it("runs nothing with no place yet or while the first search is still loading (the switch cancels it)", () => {

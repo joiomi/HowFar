@@ -1115,7 +1115,7 @@ export default function AppMap() {
     if (next === selRef.current.mode) return;
     // Read what to recompute before the toggle, which settles a switch with no
     // resolved place at idle: the current point (no geocode/reverse), or a first
-    // search that failed, run again in the new mode.
+    // search whose reach failed, run again in the new mode.
     const rerun = modeSwitchInput(selRef.current, pendingInputRef.current);
     // Invalidate any in-flight select so a walk response can't land under a
     // transit toggle (or vice-versa); the reducer bumps the token to match.
@@ -1373,7 +1373,9 @@ export default function AppMap() {
             journey (MOTIS/Transitous). Not on walk/car states, where showing it
             would imply transit data that isn't there.
             A failed selection shows as the error banner: ↻ retries, and a failed
-            transit or car reach also offers walking. The map stays live around it.
+            transit or car reach (the flagged mode, never a missing address or a
+            place outside Bucharest) also offers walking. The map stays live
+            around it.
             On a phone the two share one column above the mode pill's row, tracking
             the sheet: the credit on the right, the banner full width beneath it, so
             the banner can never cover the credit. From md the column dissolves
@@ -1392,7 +1394,7 @@ export default function AppMap() {
               <ErrorBanner
                 message={errorMessage}
                 onRetry={recomputeCurrent}
-                onSwitchToWalk={sel.mode !== "walk" ? () => switchMode("walk") : undefined}
+                onSwitchToWalk={sel.failedMode && sel.failedMode !== "walk" ? () => switchMode("walk") : undefined}
               />
             </div>
           ) : null}

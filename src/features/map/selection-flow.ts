@@ -210,18 +210,19 @@ function isReachFailure(stage: Stage, httpStatus: number): boolean {
 
 /**
  * What a mode switch recomputes: the resolved place, or, when a first search
- * failed, that search again, so switching to walking after a failed transit
- * search shows the walking reach of the same address. Null when there is
- * nothing to run: no place yet, or a first search still loading (the switch
- * cancels it). Read it BEFORE dispatching the toggle, which settles a switch
- * with no resolved place at idle.
+ * failed on the old mode's reach, that search again, so switching to walking
+ * after a failed transit reach shows the walking reach of the same address.
+ * Null when there is nothing to run: no place yet, a first search still loading
+ * (the switch cancels it), or a failure no mode can change (the address lookup,
+ * a place outside Bucharest, an unknown crash: ↻ retries those). Read it BEFORE
+ * dispatching the toggle, which settles a switch with no resolved place at idle.
  */
 export function modeSwitchInput(
-  state: Pick<SelectionState, "status" | "lastSelection">,
+  state: Pick<SelectionState, "failedMode" | "lastSelection">,
   pending: SelectInput | null,
 ): SelectInput | null {
   if (state.lastSelection) return { kind: "point", ...state.lastSelection };
-  return state.status === "error" ? pending : null;
+  return state.failedMode !== null ? pending : null;
 }
 
 export function selectionReducer(state: SelectionState, action: SelectionAction): SelectionState {
@@ -299,8 +300,10 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       // flight or resolved yet it re-runs the pending input (finding G — a pace
       // change before the first resolution must not be lost).
       const token = state.token + 1;
+      // Settling at idle drops a failure too: its message and flag belong to
+      // the error state only.
       if (state.lastSelection === null && state.status !== "loading") {
-        return { ...state, pace: action.pace, token, status: "idle" };
+        return { ...state, pace: action.pace, token, status: "idle", message: null, failedMode: null };
       }
       return { ...state, pace: action.pace, token };
     }
@@ -309,7 +312,7 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       if (sameTimeContext(action.timeContext, state.timeContext)) return state; // no-op
       const token = state.token + 1;
       if (state.lastSelection === null && state.status !== "loading") {
-        return { ...state, timeContext: action.timeContext, token, status: "idle" };
+        return { ...state, timeContext: action.timeContext, token, status: "idle", message: null, failedMode: null };
       }
       return { ...state, timeContext: action.timeContext, token };
     }

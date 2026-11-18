@@ -279,8 +279,16 @@ test("a FAILED recompute clears the reach and flags the mode as unavailable — 
   await expectBannerClear(page);
 });
 
-test("a failed transit reach offers retry and a switch to walking", async ({ page }) => {
+test("a failed transit reach offers retry and a switch to walking; a failed address lookup offers only retry", async ({
+  page,
+}) => {
   await baseStubs(page);
+  // The address lookup is down at first. Registered after baseStubs, so it is asked first;
+  // once the lookup is back it falls through to baseStubs' answer.
+  let geocodeFails = true;
+  await page.route("**/api/geocode**", (route) =>
+    geocodeFails ? route.fulfill({ status: 503, json: { error: "unavailable" } }) : route.fallback(),
+  );
   await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK_PRESET }));
   let transitFails = true;
   await page.route("**/api/transit**", (route) =>
@@ -295,7 +303,16 @@ test("a failed transit reach offers retry and a switch to walking", async ({ pag
   await pickMode(page, "transit");
   await search(page, "Piata Unirii");
 
+  // A failed address lookup is no fault of public transport: ↻ only, no walk switch, no flag.
   const banner = page.getByTestId("error-banner");
+  await expect(banner).toContainText("Nu am putut căuta adresa.");
+  await expect(page.getByTestId("banner-walk")).toHaveCount(0);
+  await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public");
+  await expectBannerClear(page);
+
+  // ↻ once the lookup is back: the address resolves, and now the transit reach itself fails.
+  geocodeFails = false;
+  await page.getByTestId("banner-retry").click();
   await expect(banner).toContainText("Nu am putut calcula zona cu transportul public.");
   await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
   await expect(page.getByTestId("transitous-credit")).toHaveCount(0);
