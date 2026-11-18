@@ -43,12 +43,10 @@ export function decideClusterAction(expansionZoom: number, maxZoom: number): Clu
  * What activating a mark should do, once its leaves are known — the whole
  * resolution ladder as ONE pure decision.
  *
- * Extracted from the popup controller because the composed condition was the only untested decision left
- * (its sub-pieces were unit-tested, the composition was not), and it lives
- * in a coverage-excluded file — the exact rationale used to un-exclude the cluster
- * controller. The e2e that tried to cover it could only measure the fan's DECORATIVE
- * coordinates and passed with zero fans, so it would have stayed green if the
- * coincidence wiring were removed. Here the composition itself is testable.
+ * Kept out of the popup controller so the composition is unit-testable: its
+ * sub-pieces have their own tests, the popup controller is a coverage-excluded
+ * file, and an e2e can only measure the fan's DECORATIVE coordinates (it passes
+ * with zero fans), so it would stay green if the coincidence wiring were removed.
  */
 export type MarkAction =
   | { kind: "zoom"; zoom: number }

@@ -187,12 +187,11 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
 
   // Amenities: keyed by `amenityFetchKey` — origin + mode + effective pace + departure
   // context (NOT the selection token, which every recompute bumps). The
-  // clip is mode-dependent, so a Walk↔Transit or crowded↔quiet toggle now CLEARS and
+  // clip is mode-dependent, so a Walk↔Transit or crowded↔quiet toggle CLEARS and
   // refetches; a generation guards stale responses. A transient failure auto-retries once
-  // (the public-Overpass race flakes and recovers seconds later), and
-  // the last origin is kept so the Retry button
-  // Kept so the Retry button (component scope) can refetch the last
-  // origin; the fetch's abort/gen/key/timer state is internal to the controller.
+  // (the public-Overpass race flakes and recovers seconds later), and the last origin is
+  // kept so the Retry button (component scope) can refetch it; the fetch's
+  // abort/gen/key/timer state is internal to the controller.
   const amenityOriginRef = useRef<Origin | null>(null);
   const clearAmenitiesRef = useRef<(() => void) | null>(null);
   const fetchAmenitiesRef = useRef<
@@ -789,10 +788,9 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     // Right-click / long-press "how do I get there?" — ONE action in
     // every mode. Right-clicking anywhere means "get me there by public
     // transport": auto-switch to transit (from walk/car) and draw the journey +
-    // path in the directions dock The walk/car band answers are
-    // gone. Deliberately does NOT defer to pickAmenity (unlike the left-click):
-    // the reach question is "how do I get to THIS point", answerable anywhere —
-    // including over a marker.
+    // path in the directions dock. Deliberately does NOT defer to pickAmenity
+    // (unlike the left-click): the reach question is "how do I get to THIS
+    // point", answerable anywhere — including over a marker.
     const handleReach = (lngLat: { lng: number; lat: number }) => {
       const sel = selRef.current;
       const coords: [number, number] = [lngLat.lng, lngLat.lat];
@@ -1418,7 +1416,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
                 car={sel.car}
               />
               {/* Reach refinements live WITH the result they adjust. The two
-                  controls are gated INDEPENDENTLY PaceControl
+                  controls are gated INDEPENDENTLY: PaceControl
                   is strictly Walk (pace is a walking concept);
                   TimeContextControl is transit OR car (car reach is
                   time-aware for traffic realism). They are never merged into one

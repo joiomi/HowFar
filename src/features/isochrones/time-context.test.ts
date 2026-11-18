@@ -16,7 +16,7 @@ describe("TIME_PRESETS", () => {
     expect(TIME_PRESET_IDS).toEqual(["crowded", "quiet"]);
     expect(DEFAULT_TIME_PRESET).toBe("crowded");
     expect(DEFAULT_TIME_CONTEXT).toEqual({ kind: "preset", preset: "crowded" });
-    // crowded must carry the default fields exactly.
+    // The `crowded` preset must carry the default fields exactly.
     const c = TIME_PRESETS.crowded;
     expect([c.weekday, c.hour, c.minute]).toEqual([3, 8, 30]);
   });

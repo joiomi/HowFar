@@ -106,8 +106,9 @@ function pedestrianSpeedMsOf(speedMPerMin: number): string {
 }
 
 export const PACE_MODEL: Record<Pace, PaceModel> = {
-  // 3 km/h — 37.5% below the calibration anchor — far enough that the
-  // linear rescale was re-checked with a distance-ruler audit here. Labelled an "estimated reach" (non-anchor) in the control.
+  // 3 km/h — 37.5% below the calibration anchor — far enough that the linear
+  // rescale was re-checked with a distance-ruler audit here. Labelled an
+  // "estimated reach" (non-anchor) in the control.
   slow: {
     id: "slow",
     label: "Slow",

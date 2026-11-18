@@ -257,11 +257,10 @@ describe("dedupeAmenities", () => {
 });
 
 describe("decideMarkAction — the whole resolution ladder", () => {
-  // The composed condition
-  // was the last untested decision (its pieces were tested, the composition
-  // was not), it lived in a coverage-excluded file, and the e2e that tried to cover it
-  // could only measure the fan's DECORATIVE coordinates and passed with zero fans — so
-  // removing the coincidence wiring would have left it green. Tested here directly.
+  // The composed condition is tested here directly: its pieces have their own tests,
+  // the popup controller that calls it is coverage-excluded, and an e2e can only
+  // measure the fan's DECORATIVE coordinates (it passes with zero fans), so removing
+  // the coincidence wiring would leave the e2e green.
   const base = {
     expansionZoom: 30, // above maxZoom ⇒ not splittable
     maxZoom: 22,

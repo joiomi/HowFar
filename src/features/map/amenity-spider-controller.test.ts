@@ -5,11 +5,12 @@ import type { Amenity } from "@/features/amenities/amenities";
 /**
  * Unit coverage for the spiderfy controller.
  *
- * Deliberately NOT excluded from coverage as "MapLibre glue". As with the
- * donut controller, it is covered here because this module decides when the fan owns the map, what its leaves' screen
- * positions are after a camera move, and which leaf a click resolved to — decisions
- * whose failure modes (a stale fan, a fan that cannot be clicked, marks that never
- * come back) are exactly the class of defect to avoid.
+ * Deliberately NOT excluded from coverage as "MapLibre glue". As with the donut
+ * controller, it is covered here because this module decides when the fan owns
+ * the map, what its leaves' screen positions are after a camera move, and which
+ * leaf a click resolved to — decisions whose failure modes (a stale fan, a fan
+ * that cannot be clicked, marks that never come back) are exactly the class of
+ * defect to avoid.
  *
  * Same fake-DOM/`Marker` approach as `amenity-cluster-controller.test.ts`: the
  * `node` environment plus ~40 lines of fake beats adding a DOM dependency.

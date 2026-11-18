@@ -8,18 +8,19 @@ import { createLoadState } from "@/features/map/load-state";
 import { createRoutePathController } from "@/features/map/route-path-controller";
 
 /**
- * Verification path for the dispose contract: a disposed controller must leave NO async work that can fire against
- * a torn-down map. The full reverse-order + map.remove()-last sequencing is
- * enforced structurally in AppMap's two-phase effect cleanup; these tests pin
- * the per-controller "post-dispose no-op" for the ones that own a timer / abort
- * / animation frame, which is where a real late-write leak would originate.
+ * Verification path for the dispose contract: a disposed controller must leave NO
+ * async work that can fire against a torn-down map. The full reverse-order +
+ * map.remove()-last sequencing is enforced structurally in AppMap's two-phase
+ * effect cleanup; these tests pin the per-controller "post-dispose no-op" for the
+ * ones that own a timer / abort / animation frame, which is where a real
+ * late-write leak would originate.
  *
  * ONE controller in that class is covered elsewhere, deliberately:
  * `amenity-cluster-controller` owns a rAF plus `render`/`sourcedata`
  * subscriptions, and its dispose test lives in `amenity-cluster-controller.test.ts`
  * because it needs that file's DOM + `Marker` fakes to build a marker worth
- * disposing. This file is not its home — so if a controller is added here, check
- * the claim, not just the intent.
+ * disposing. When a controller is covered somewhere other than this file, name
+ * that file here and confirm its dispose test actually exists.
  */
 
 afterEach(() => {

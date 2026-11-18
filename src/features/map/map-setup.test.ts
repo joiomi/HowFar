@@ -436,9 +436,8 @@ describe("addAmenityLayers", () => {
     // Icons must be present at the map's opening zoom (11.5), not gated above it.
     expect(icons.minzoom).toBeUndefined();
 
-    // ...but names must be collision-managed, or they overprint into the
-    // "GG"/"+G+" mud a glyph layer produced when BOTH of
-    // these were true.
+    // ...but names must be collision-managed: with BOTH of these true, a glyph
+    // layer overprints into "GG"/"+G+" mud.
     expect(labels.layout["text-allow-overlap"]).toBe(false);
     expect(labels.layout["text-ignore-placement"]).toBe(false);
     expect(labels.minzoom).toBe(AMENITY_LABEL_MINZOOM);

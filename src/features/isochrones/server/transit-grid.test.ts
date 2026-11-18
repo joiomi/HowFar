@@ -123,8 +123,9 @@ describe("buildRings", () => {
 
   it("derives its speed constants from the pace model — no second speed model", () => {
     // A module declaring its OWN `80` and `1.402` would be a second source of
-    // truth that keeps a stale speed when the pace speeds change. Assert IDENTITY with the pace model (a drift test), not
-    // literals — restating numbers here is what allowed the duplicate to hide.
+    // truth that keeps a stale speed when the pace speeds change. Assert IDENTITY
+    // with the pace model (a drift test), not literals — restating numbers here
+    // would let such a duplicate hide.
     expect(WALK_SPEED_M_PER_MIN).toBe(PACE_MODEL.normal.speedMPerMin);
     expect(STREET_DETOUR).toBe(PACE_STREET_DETOUR);
     expect(EGRESS_M_PER_MIN).toBe(PACE_MODEL.normal.egressMPerMin);

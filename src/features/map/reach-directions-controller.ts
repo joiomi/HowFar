@@ -167,9 +167,9 @@ export function createReachDirectionsController({
         if (!plan.reachable) {
           return void setView({ state: "none", title: "No public-transport route", detail: "No trip was found for this departure time." });
         }
-        // A plan with no transit leg is a walk-only (or bike-direct) fallback —
-        // walk/car band answers are not useful here, so a
-        // right-click that yields no public-transport leg is reported as "no
+        // A plan with no transit leg is a walk-only (or bike-direct) fallback. A
+        // walk/car band answer is not useful here, so a right-click that yields
+        // no public-transport leg is reported as "no
         // public-transport route" (same as an unreachable result), NOT an "On
         // foot" walk-band. No draw, no declutter. The prior draw was torn down by
         // the arbiter above. (Deliberately ONLY this — a short vehicle hop with

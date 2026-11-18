@@ -88,7 +88,7 @@ describe("reach-directions-controller — mutual exclusivity", () => {
     expect(closeStopPopup).toHaveBeenCalledTimes(2);
   });
 
-  it("open() self-invalidates the prior journey even when closeStopPopupis a no-op", async () => {
+  it("open() self-invalidates the prior journey even when closeStopPopup is a no-op", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(reachablePlan) })) as never);
     const { controller, journey } = makeController({ drawReturns: true });
     controller.open({ kind: "transit", coords: [26.1, 44.4], band: 30, url: "/api/reach?x=1" });
