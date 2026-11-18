@@ -5,8 +5,6 @@ isochrones (how far 15/30/45 minutes really take you on foot and by public trans
 nearby essentials — built on free, public data. Air quality and a transparent 0–100 livability
 score are planned next (not shipped yet).
 
-![HowFar — public-transport reachability (15/30/45 min) for a central Bucharest address on the dark basemap](docs/screenshot.png)
-
 > **Status: M2 in progress — runs locally; there is no public deployment right now**
 > (the earlier hosted preview is offline).
 > Working today: address search with type-ahead suggestions (or click anywhere on the map),
@@ -20,8 +18,7 @@ score are planned next (not shipped yet).
 > sign-in, tests + [CI green](https://github.com/joitamihnea1999/HowFar/actions), and a
 > deployment configuration with Postgres over private networking. Next in M2: air-quality summary and the transparent
 > livability score. Custom domain: not yet attached.
-> Docs: [`docs/BRIEF.md`](docs/BRIEF.md) (product brief) ·
-> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (code tour, provider checklist) ·
+> Docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (code tour, provider checklist) ·
 > [`docs/PROVIDERS.md`](docs/PROVIDERS.md) (verified data-provider decisions).
 
 ## Stack
@@ -93,8 +90,7 @@ real catalogue integration tests, a cached basemap extract, and Playwright again
 ## Performance budgets
 
 The mobile map flow is measured against owner budgets by the re-runnable harness in `scripts/perf`
-(see `docs/PERF_AUDIT.md` for the full before/after and `scripts/perf/README.md` for the runbook,
-including a one-command real-Android re-run). Two of those budgets are **enforced**; the rest are
+(see `scripts/perf/README.md` for the runbook, including a one-command real-Android re-run). Two of those budgets are **enforced**; the rest are
 **measured and reported** (not gamed into a hard gate).
 
 **Enforced — initial-JS ceiling (`npm run perf:budget`, in `check:ci`, the close, and CI).**
@@ -137,32 +133,6 @@ kept out of the materialized tuplestore so a big `car`/`transit` reach does not 
 catalogue buffer. Isochrone/car/reverse cold p95 pass their budgets; suggest/geocode sit marginally
 over at n=30 and are left unaddressed (their cause — prefix-search cost vs warmth — is unconfirmed, so
 warming them would be an unproven fix).
-
-## Deploying to Railway
-
-`railway.json` is committed (build fetches tiles; start runs `prisma migrate deploy`;
-healthcheck = `/api/ready`). One-time setup — **order matters**: connecting the repo triggers
-an immediate deploy, and the start command's migration needs the database and env first.
-
-1. Create an empty Railway project (Hobby plan — the Trial pauses after 30 days).
-2. Add a **PostgreSQL service with PostGIS enabled** and wait for it to provision. Verify
-   `CREATE EXTENSION postgis` is allowed before touching the current app service.
-3. Create the app service **empty** (no source) and set its variables now:
-   `DATABASE_URL` as a Railway variable *reference* to the PostgreSQL service's
-   **private-network** URL, and
-   `AUTH_SECRET` (`npx auth secret`). Optional: `AUTH_GOOGLE_ID/SECRET`,
-   `AUTH_GITHUB_ID/SECRET` (OAuth callback: `https://<domain>/api/auth/callback/<provider>`),
-   `ORS_API_KEY`.
-4. Only now connect this GitHub repo to the app service (auto-deploys `main`) and wait for
-   the deploy to pass the `/api/ready` healthcheck. Generate a public URL
-   (`railway domain`) or attach a custom domain.
-5. Create a second service from the same repo for the importer, set its config-file path to
-   `/railway.importer.json`, share the private `DATABASE_URL` and `AUTH_SECRET`, and keep its
-   committed Sunday 03:00 UTC schedule. Its process exits after every run; failures retry twice.
-
-Production already runs PostgreSQL 17 + PostGIS only (the former MySQL service was removed).
-New environments should provision PostGIS from day one as above — there is no MySQL path in
-this repository.
 
 ## Attribution
 
