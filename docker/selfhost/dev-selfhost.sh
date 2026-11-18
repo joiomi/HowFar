@@ -33,7 +33,7 @@
 #
 # Not covered here: applying the schema (`prisma migrate deploy`) and importing the amenity
 # catalogue (`npm run amenities:refresh`) are the normal app setup (README). And transit
-# (/api/transit, /api/reach) is still NOT self-hosted (MOTIS/GTFS gate) -- those routes
+# (/api/transit, /api/reach) is NOT self-hosted -- those routes
 # hit the network even under dev:selfhost. See docs/SELFHOST.md.
 #
 # Usage (from the app root, via npm):

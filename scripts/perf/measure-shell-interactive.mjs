@@ -13,8 +13,8 @@
 //   map-visible-unprompted — `hf:map-ready` mark: the deferred engine has loaded and the map is
 //                            visible, with NO interaction driven (auto-load).
 //
-// Runs unchanged on a real Android (PERF_DEVICE=real) — the two real-device follow-ups the owner
-// asked to record: shell-interactive ≤2.5 s and map-visible-unprompted ≤4 s.
+// Runs unchanged on a real Android (PERF_DEVICE=real) — the two real-device targets:
+// shell-interactive ≤2.5 s and map-visible-unprompted ≤4 s.
 import { writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

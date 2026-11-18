@@ -275,7 +275,7 @@ export async function transitIsochrone(
  * PRESET transit isochrone (additive) — thresholds [20,40], the field
  * built to 45 so the 40-contour is byte-identical to the shipped 45-field's
  * 40-level. FAILS CLOSED: no street-routed walk union ⇒ ProviderError (502), no
- * radial fallback, no cache write. Not in the live path until 2b requests it.
+ * radial fallback, no cache write. Served for `?model=preset` (the UI's path).
  */
 export async function transitPresetIsochrone(
   latRaw: number,

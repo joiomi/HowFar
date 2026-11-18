@@ -19,10 +19,12 @@ import { PROVIDER_DEFAULTS, canonicalHost, providerConfig, serverEnv, taggedCach
 import { providerFetch, ProviderError, roundCoord } from "@/lib/provider-http";
 
 /**
- * OpenRouteService isochrones (server-side, cached). One request returns three
- * nested reachability polygons. Two profiles are used:
- *   - foot-walking (walk mode): calibrated + pace-scaled 15/30/45-min ranges.
- *   - driving-car  (car mode): nominal 10/20/30-min ranges.
+ * OpenRouteService isochrones (server-side, cached). One request returns all
+ * nested reachability polygons of a selection. Two profiles are used:
+ *   - foot-walking (walk mode): calibrated + pace-scaled ranges — preset
+ *     10/20/40 min, parked legacy 15/30/45.
+ *   - driving-car  (car mode): nominal ranges — preset 10/25 min, parked legacy
+ *     10/20/30.
  * The API key is the app's only secret provider key and must never reach the
  * client. The two profiles share the normalize contract, rate limiter, cache,
  * and single-flight machinery — they differ only in URL, ranges, labels, and
@@ -251,8 +253,8 @@ function assertNested(rings: Ring[]): void {
 }
 
 /**
- * PRESET walk isochrone (additive — NOT in the live path until 2b sends
- * `?model=preset`). ONE ORS request for the full preset walk set [10,20,40]
+ * PRESET walk isochrone (served for `?model=preset`, the path the UI uses).
+ * ONE ORS request for the full preset walk set [10,20,40]
  * (`ALL_PRESET_WALK_MIN`), cached under a preset-specific key so it can never
  * collide with the legacy `iso:foot:v4:` rings. Callers SLICE the result: the
  * walk route returns the [10,20] contours (the chips); the transit union takes
@@ -322,7 +324,7 @@ async function fetchAndCache(
   // Public ⇔ CANONICAL host matches the default AND scheme is https:
   //  - canonicalHost lowercases + strips a trailing dot + ignores the default
   //    port, so case/port/trailing-dot variants of the public host still keep
-  //    the key (a raw-string compare would 403 the live deployment);
+  //    the key (a raw-string compare would 403 every public-host request);
   //  - the explicit https check means the secret key is never sent over cleartext
   //    to the public host (a host-only compare would leak it over http — and
   //    `parseProviderConfig` already rejects an http public base, so this is

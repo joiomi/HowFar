@@ -40,7 +40,7 @@ export default defineConfig({
     },
     {
       // The phone-first suites run in the mobile project. `preset-render` pins its
-      // own 390×844 viewport (the task's phone size) via `test.use`.
+      // own 390×844 viewport (the target phone size) via `test.use`.
       name: "mobile-chromium",
       testMatch: /(ui-mobile|preset-render)\.spec\.ts/,
       use: { ...devices["Pixel 7"] },

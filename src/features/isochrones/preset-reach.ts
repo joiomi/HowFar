@@ -5,13 +5,12 @@
  * the server provider clients and the client view can read it.
  *
  * SCOPE: this module holds the calibrated NUMBERS and the pure generator. The
- * provider clients + routes now consume it as an ADDITIVE serving path — the
- * isochrone / car / transit routes serve the presets only when called with
- * `?model=preset` (absent ⇒ the legacy 15/30/45 path, byte-identical), via
- * `walkingPresetIsochrone` / `drivingPresetIsochrone` / `transitPresetIsochrone`
- * under distinct `*:preset:v1:` cache keys. It is NOT yet wired into `bands.ts` /
- * the amenity clip (still the legacy 3-ring model) or any client UI — those are the
- * remaining phone-first changes.
+ * client requests every reach route with `?model=preset`, and the isochrone /
+ * car / transit routes serve the presets via `walkingPresetIsochrone` /
+ * `drivingPresetIsochrone` / `transitPresetIsochrone` under distinct
+ * `*:preset:v1:` cache keys. Without `?model` they serve the parked legacy
+ * 15/30/45 path; `bands.ts` and the amenity clip remain on that 3-ring model
+ * (see docs/ARCHITECTURE.md, "Parked code").
  *
  * CALIBRATION PROVENANCE (do not edit a number without re-running the campaign):
  *   - WALK ranges are ORS foot-walking `range` seconds AT THE 80 m/min CALIBRATION
@@ -108,13 +107,13 @@ export function presetMinFor(mode: Mode, index: number): number {
 export type ReachModel = "legacy" | "preset";
 
 /**
- * Strict `?model=` query parser: absent/empty → `legacy` (the
- * byte-identical default the current client relies on), `"preset"` → `preset`,
+ * Strict `?model=` query parser: absent/empty → `legacy` (the parked
+ * path; the client always sends `preset`), `"preset"` → `preset`,
  * anything else → `null` so the route 400s WITHOUT a provider call. Mirrors
  * `parsePaceStrict` — a junk value is a loud 400, never a silent fall-through to
- * legacy (which would hide a broken client contract). 2a's model space is these
- * two only; there is no per-minute selector until Custom ships (that stays a
- * separate calibration task).
+ * legacy (which would hide a broken client contract). The model space is these
+ * two only; there is no per-minute selector (arbitrary minutes would need their
+ * own calibration).
  */
 export function parseReachModelStrict(raw: string | null | undefined): ReachModel | null {
   if (raw === null || raw === undefined || raw === "") return "legacy";

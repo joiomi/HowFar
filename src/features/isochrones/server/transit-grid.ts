@@ -13,8 +13,9 @@ import { LAUNCH_BBOX } from "@/lib/bounds";
  * isochrones, so we build them ourselves from the reachable stops Transitous
  * MOTIS reports (provider details: docs/PROVIDERS.md, Transitous section).
  *
- * Approach: rasterize a reachability field over the launch bounding box, then
- * extract 15/30/45-minute contours with marching squares (`d3-contour`).
+ * Approach: rasterize a reachability field over the map bounding box, then
+ * extract contours at the requested thresholds (preset 20/40, parked legacy
+ * 15/30/45) with marching squares (`d3-contour`).
  *   field(cell) = min over stops s of ( transit-minutes(s) + egress-minutes(s→cell) )
  *   (+ the origin's own radial walk access, ONLY when the caller has no
  *    street-routed walking isochrone to union in — see stampOrigin below)
@@ -73,7 +74,8 @@ export interface Ring {
 }
 
 /**
- * Build the 15/30/45-minute transit reachability rings from an origin and the
+ * Build the transit reachability rings (default thresholds 15/30/45; the preset
+ * path passes [20,40]) from an origin and the
  * set of reachable stops. Always returns exactly `THRESHOLDS.length` rings,
  * ascending; a threshold with no reachable area yields an empty MultiPolygon.
  *

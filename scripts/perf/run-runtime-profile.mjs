@@ -1,4 +1,4 @@
-// Runtime profile of the three hot interactions (deliverable 3), repeated over N runs:
+// Runtime profile of the three hot interactions, repeated over N runs:
 //   A. address select → ring reveal
 //   B. mode toggle (walk → car)
 //   C. pan/zoom gesture  (real TOUCH: one-finger pan + two-finger pinch, via CDP)
@@ -8,7 +8,7 @@
 // React commit counting works WITHOUT touching app code: we install a minimal
 // __REACT_DEVTOOLS_GLOBAL_HOOK__ before any script runs; production React still calls
 // onCommitFiberRoot on every commit if the hook is present. A commit == one render pass. The
-// owner's architecture claim is that pan/zoom is render-free — interaction C should add no
+// architecture claim is that pan/zoom is render-free — interaction C should add no
 // commits over idle.
 //
 // Reported numbers are the MEDIAN across PERF_RUNS runs (each a fresh page load), with the

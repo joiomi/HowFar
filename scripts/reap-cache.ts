@@ -1,13 +1,13 @@
 /**
- * ApiCache reaper — delete expired cache rows. Run on a cadence in production.
+ * ApiCache reaper — delete expired cache rows. Run on a cadence wherever the app runs.
  *
  * The app never deletes expired `ApiCache` rows on the read path (that would race
- * a concurrent refresh); this script is the production trigger. On the launch VPS,
- * schedule it hourly, e.g. a crontab line:
+ * a concurrent refresh); this script is the trigger. Run it as a scheduled job on
+ * the host, e.g. hourly with a crontab line:
  *
  *   17 * * * * cd /srv/howfar && node --env-file=.env ./node_modules/.bin/tsx scripts/reap-cache.ts >> /var/log/howfar/reap.log 2>&1
  *
- * Ownership: ops / go-live checklist. Observability: prints a one-line JSON summary
+ * Observability: prints a one-line JSON summary
  * (deleted rows + L1 purged) and exits non-zero only on an unexpected failure.
  * Idempotent and safe to overlap — each batch is an atomic conditional delete.
  *

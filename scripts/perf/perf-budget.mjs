@@ -1,6 +1,6 @@
 // CI initial-JS budget gate. The DETERMINISTIC half of the
 // perf enforcement: it asserts, on the real build, that MapLibre is deferred and the initial
-// (critical-path) JS is under the owner budget. It runs the validated bundle instrument
+// (critical-path) JS is under the budget. It runs the validated bundle instrument
 // (analyze-bundle.mjs) against a live `next start` and asserts on its JSON report.
 //
 // NEVER skip-green: analyze-bundle exits non-zero if the page did not load / Resource Timing

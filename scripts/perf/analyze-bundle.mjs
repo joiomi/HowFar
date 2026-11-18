@@ -1,4 +1,4 @@
-// Bundle analysis (deliverable 2). Authoritative source = what the browser actually pulls
+// Bundle analysis. Authoritative source = what the browser actually pulls
 // over the wire for the map route, because Turbopack chunk names are hashed and Next 16's
 // build output no longer prints per-route sizes (verified: no app-build-manifest.json,
 // build-manifest.json `pages` is empty for the App Router — there is NO static route→chunk map).

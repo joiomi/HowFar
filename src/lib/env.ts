@@ -307,8 +307,8 @@ function assertNoHttpOnPublicHost(cfg: ProviderConfig): void {
  * Safety guard: you may only RELAX a provider's rate
  * limit below its ToS-safe default when you actually self-host that provider.
  * Setting e.g. `NOMINATIM_MIN_INTERVAL_MS=0` while `NOMINATIM_BASE_URL` is still
- * the public default would let the LIVE deployment exceed OSM's ≤1 req/s and get
- * the product's IP blocked — with no other warning. Fail closed: throw so the
+ * the public default would let the app exceed OSM's ≤1 req/s and get
+ * its IP blocked — with no other warning. Fail closed: throw so the
  * operator must ALSO point the base at their own instance. Raising the interval
  * (more throttle) is always allowed; overpass keys off its interactive pool.
  */

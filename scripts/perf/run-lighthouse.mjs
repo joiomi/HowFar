@@ -1,4 +1,4 @@
-// Lighthouse mobile (deliverable 1). Runs the Lighthouse "mobile" preset (Moto G-class:
+// Lighthouse mobile. Runs the Lighthouse "mobile" preset (Moto G-class:
 // 4x CPU slowdown + Slow 4G, simulated) against the main map flow and reports the median
 // of N runs for Performance score, TTI, LCP, TBT, CLS (+ FCP, Speed Index for context).
 //

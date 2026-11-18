@@ -1,5 +1,5 @@
 // Run every measurement in sequence, then print a combined pass/fail summary against the
-// owner budgets. Sequential (not parallel) so the runs don't contend for CPU and skew each
+// budgets. Sequential (not parallel) so the runs don't contend for CPU and skew each
 // other. Each sub-runner also writes its own results/<name>.json.
 import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync, rmSync } from "node:fs";
@@ -65,11 +65,11 @@ if (rtOk) push(`pan/zoom ≥ ${BUDGETS.panZoomMedianFps} fps`, `${rt.panZoom.med
 if (rtOk) push(`pan/zoom worst frame ≤ ${BUDGETS.panZoomMaxFrameMs} ms`, `${rt.panZoom.worstFrameAllRunsMs} ms`, rt.panZoom.worstFrameAllRunsMs <= BUDGETS.panZoomMaxFrameMs, rt.emulationBased || rt.softwareWebgl);
 if (api) for (const e of api.endpoints) push(`API ${e.endpoint} p95 ≤ ${e.budgetMs} ms`, `cold ${e.coldP95 ?? "—"} ms`, e.coldP95PassesBudget, false);
 
-console.log(`\n================= COMBINED SUMMARY vs OWNER BUDGETS =================`);
+console.log(`\n================= COMBINED SUMMARY vs BUDGETS =======================`);
 if (rt && rt.softwareWebgl) console.log(`  ⚠ WebGL was SOFTWARE (${rt.webglRenderer}) — pan/zoom fps is inflated; real-device re-measure mandatory.`);
 for (const r of rows) console.log(`  ${r.verdict === "PASS" ? "✅" : "❌"} ${r.budget.padEnd(34)} ${String(r.measured).padEnd(12)} ${r.emu}`);
 const fails = rows.filter((r) => r.verdict === "FAIL").length;
-console.log(`\n  ${fails} of ${rows.length} budgets failing. See docs/PERF_AUDIT.md for the gap list.`);
+console.log(`\n  ${fails} of ${rows.length} budgets failing. See scripts/perf/README.md.`);
 if (rt && !rt.renderFree) console.log(`  ⚠ gesture NOT render-free — investigate.`);
 if (failed > 0) {
   console.error(`\n[all] ${failed} runner(s) failed — summary is INCOMPLETE. Exiting non-zero.`);

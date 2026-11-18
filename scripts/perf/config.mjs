@@ -42,10 +42,10 @@ export const TEST_ADDRESS = "Piata Unirii Bucuresti";
 export const TEST_ORIGIN = { lat: 44.4268, lng: 26.1025 };
 
 // Self-hosted endpoints whose latency we measure from the browser. Transit + reach are
-// deliberately EXCLUDED: they are NOT self-hosted (MOTIS/GTFS gate) and hit the public
+// deliberately EXCLUDED: they are NOT self-hosted and hit the public
 // network under the overlay, so their latency is not a property of the local stack.
 // `cold` jitters the origin so each sample is a fresh ApiCache key (provider round-trip);
-// `warm` repeats the identical URL (ApiCache hit). Budgets are the owner's p95 targets.
+// `warm` repeats the identical URL (ApiCache hit). Budgets are the p95 targets.
 // Real, varied Bucharest inputs so each COLD sample is a distinct ApiCache key AND a valid
 // query that exercises the real provider path (not a 404 on gibberish). We cycle a fixed
 // list + a small coord jitter, so cold is representative first-touch latency, not error-path.
@@ -133,7 +133,7 @@ export function amenityInSessionPairs({ lat, lng } = TEST_ORIGIN) {
   };
 }
 
-// Owner budgets (the gap list is measured against these). Kept here so every runner and
+// The budgets every runner reports against. Kept here so every runner and
 // the report generator read one source of truth.
 export const BUDGETS = {
   ttiMs: 2500,

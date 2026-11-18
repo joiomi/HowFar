@@ -1,13 +1,13 @@
-// API latency from the browser (deliverable 4). Measures each self-hosted endpoint the
+// API latency from the browser. Measures each self-hosted endpoint the
 // map flow calls — suggest / geocode / reverse / isochrone / car / amenities — COLD (first
 // hit, ApiCache miss → full provider/PostGIS round trip) and WARM (repeat → ApiCache hit),
-// reporting p50/p95 per endpoint against the owner's budgets.
+// reporting p50/p95 per endpoint against the budgets.
 //
 // Measured same-origin from a real browser (fetch + performance.now), NO CPU/network
 // throttle: these budgets target the STACK's own latency (server + local transport), not a
 // simulated 4G link. On a real device add the network RTT on top — flagged in the report.
 //
-// Transit + reach are deliberately excluded: NOT self-hosted (MOTIS/GTFS gate), they hit
+// Transit + reach are deliberately excluded: NOT self-hosted, they hit
 // the public network under the overlay so their latency is not a property of the local stack.
 import { writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";

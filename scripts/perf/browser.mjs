@@ -73,7 +73,7 @@ export async function applyEmulation(page) {
 
 // Read the UNMASKED WebGL renderer for the page's GL context. On a display-less CI/dev host
 // this is SwiftShader (software rasterization), which materially inflates GL-bound metrics
-// (pan/zoom fps especially) — so every report records it and the audit discloses it. Returns
+// (pan/zoom fps especially) — so every report records it. Returns
 // { renderer, software } where `software` is true for SwiftShader/llvmpipe/software backends.
 export async function webglRenderer(page) {
   try {

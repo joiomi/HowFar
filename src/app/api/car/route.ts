@@ -8,9 +8,10 @@ import { errorResponse, jsonError, outOfAreaGuard, parseLatLng } from "@/lib/api
 
 /**
  * Driving-car isochrone. Mirrors /api/isochrone but for the car
- * mode: fixed ORS driving-car profile, 10/20/30-min labels. Car has NO pace
- * (a walk concept), but it is TIME-AWARE: a `preset` or
- * `weekday`+`time` selects a Bucharest traffic slot whose congestion factor
+ * mode: fixed ORS driving-car profile; `?model=preset` serves the 10/25-min
+ * presets, no `?model` the parked legacy 10/20/30-min labels. Car has NO pace
+ * (a walk concept), but it is TIME-AWARE: the time `preset` (`weekday`/`time`
+ * are rejected) selects a Bucharest traffic slot whose congestion factor
  * shrinks the free-flow ranges so the painted band reflects real drive time.
  * The response carries a `car` block describing the basis (always "estimate" —
  * typical congestion, not live traffic) so the UI can be honest. Origin is
