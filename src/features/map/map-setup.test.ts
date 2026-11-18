@@ -30,6 +30,7 @@ import {
   addPresetReachLayers,
   addRoutePathLayers,
   AMENITY_LABEL_MINZOOM,
+  MAP_LOCALE,
   SPIDER_ICON_LAYER,
   SPIDER_LABEL_LAYER,
   SPIDER_LEG_LAYER,
@@ -109,13 +110,24 @@ describe("createMapStyle", () => {
     }
   });
 
-  it("uses the protomaps-hosted glyphs and dark sprite, with exactly the dark/en basemap stack", () => {
+  it("uses the protomaps-hosted glyphs and dark sprite, with exactly the dark/ro basemap stack", () => {
     const style = createMapStyle("https://example.com/api/tiles");
     expect(style.glyphs).toBe("https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf");
     expect(style.sprite).toBe("https://protomaps.github.io/basemaps-assets/sprites/v4/dark");
     // Pin the flavor and label language, not just non-emptiness: switching to
     // another namedFlavor or language must fail here.
-    expect(style.layers).toEqual(layers("protomaps", namedFlavor("dark"), { lang: "en" }));
+    expect(style.layers).toEqual(layers("protomaps", namedFlavor("dark"), { lang: "ro" }));
+  });
+
+  it("localises MapLibre's own control and canvas labels to Romanian", () => {
+    expect(MAP_LOCALE).toEqual({
+      "Map.Title": "Hartă",
+      "Marker.Title": "Punct pe hartă",
+      "NavigationControl.ZoomIn": "Mărește",
+      "NavigationControl.ZoomOut": "Micșorează",
+      "NavigationControl.ResetBearing": "Orientează spre nord",
+      "Popup.Close": "Închide",
+    });
   });
 
   it("is pure: two calls with different URLs do not share state", () => {

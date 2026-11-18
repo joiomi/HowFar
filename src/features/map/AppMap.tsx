@@ -45,6 +45,7 @@ import {
   addReachPathLayers,
   addRoutePathLayers,
   createMapStyle,
+  MAP_LOCALE,
 } from "@/features/map/map-setup";
 import { createAmenitySpiderController } from "@/features/map/amenity-spider-controller";
 import { createAmenitiesController, type AmenityUi } from "@/features/map/amenities-controller";
@@ -407,6 +408,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       maxZoom: MAP_MAX_ZOOM,
       maxBounds: LAUNCH_MAX_BOUNDS,
       attributionControl: { compact: false },
+      locale: MAP_LOCALE,
     });
     mapRef.current = map;
     // Expose the map instance for e2e RENDERED-state assertions: the

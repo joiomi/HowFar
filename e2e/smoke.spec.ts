@@ -59,6 +59,9 @@ test("landing page renders the map shell and finishes loading tiles", async ({ p
   // MapLibre `load` fired = style parsed + self-hosted pmtiles served via /api/tiles.
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
 
+  await expect(page.locator("html")).toHaveAttribute("lang", "ro");
+  await expect(page).toHaveTitle("HowFar — până unde ajungi în București");
+
   // Attribution is a licence requirement — assert the credits are really in the
   // rendered DOM, not just the style object. OSM (ODbL); ESA WorldCover landcover
   // credited with its licence name + link and a "modified" indication (CC BY 4.0,

@@ -130,6 +130,8 @@ describe("photon config-driven host", () => {
     const [url, opts] = providerFetch.mock.calls[0] as [string, { rateHost: string; provider: string; minIntervalMs: number }];
     expect(url.startsWith("https://photon.komoot.io/api?")).toBe(true);
     expect(url).toContain("lat=44.43&lon=26.10"); // focus kept byte-identical
+    expect(url).toContain("&lang=default");
+    expect(url).not.toContain("lang=en");
     expect(opts.rateHost).toBe("photon.komoot.io");
     // labelled bucket + config-driven interval (default 300)
     expect(opts.provider).toBe("photon");
@@ -156,6 +158,6 @@ describe("photon config-driven host", () => {
     expect(url.startsWith("https://photon.internal/api?")).toBe(true);
     expect(opts.rateHost).toBe("photon.internal");
     // Cache key config-namespaced under an override (guards the taggedCacheKey wrapper).
-    expect([...store.keys()].every((k) => /^[0-9a-f]{8}:suggest:/.test(k))).toBe(true);
+    expect([...store.keys()].every((k) => /^[0-9a-f]{8}:suggest:v2:/.test(k))).toBe(true);
   });
 });

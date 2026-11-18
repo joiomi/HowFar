@@ -4,18 +4,18 @@ import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
 });
 
 export const metadata: Metadata = {
-  title: "HowFar — Neighborhood Livability Explorer",
+  title: "HowFar — până unde ajungi în București",
   description:
-    "Turn any Bucharest address into a visual 'how good is it to live here?' map: walk and transit isochrones plus nearby essentials. Air quality and a livability score are planned.",
+    "Alege o adresă din București și vezi pe hartă până unde ajungi pe jos, cu transportul public sau cu mașina.",
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="ro"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

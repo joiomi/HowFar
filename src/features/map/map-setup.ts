@@ -80,9 +80,20 @@ export function createMapStyle(tilesUrl: string): maplibregl.StyleSpecification 
           ' &middot; <a href="https://www.naturalearthdata.com">Natural Earth</a>',
       },
     },
-    layers: layers("protomaps", namedFlavor("dark"), { lang: "en" }),
+    layers: layers("protomaps", namedFlavor("dark"), { lang: "ro" }),
   };
 }
+
+/** Romanian strings for MapLibre's own controls and canvas, passed as the
+ * map's `locale` option. */
+export const MAP_LOCALE: Record<string, string> = {
+  "Map.Title": "Hartă",
+  "Marker.Title": "Punct pe hartă",
+  "NavigationControl.ZoomIn": "Mărește",
+  "NavigationControl.ZoomOut": "Micșorează",
+  "NavigationControl.ResetBearing": "Orientează spre nord",
+  "Popup.Close": "Închide",
+};
 
 /** One fill + one line layer per ring BAND, filtered by the feature's `band`
  * (fixed position id 15/30/45, mode-independent — see isochrone-view). Color

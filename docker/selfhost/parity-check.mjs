@@ -390,7 +390,7 @@ async function provenancePreflight(publicBase, localBase, o) {
     const appSug = (await getJson(localBase, `/api/suggest?q=${encodeURIComponent(o.suggestQuery)}`)).suggestions?.[0];
     // Match the params the app sends Photon (bbox + Bucharest focus), else an
     // unconstrained direct query returns a global top hit and the check is meaningless.
-    const r = await fetch(`${ENGINES.photon}/api?q=${encodeURIComponent(o.suggestQuery)}&bbox=${PROV_BBOX}&lat=${PROV_LAT}&lon=${PROV_LON}&limit=1&lang=en`);
+    const r = await fetch(`${ENGINES.photon}/api?q=${encodeURIComponent(o.suggestQuery)}&bbox=${PROV_BBOX}&lat=${PROV_LAT}&lon=${PROV_LON}&limit=1&lang=default`);
     const pj = r.ok ? await r.json() : null;
     const pc = pj?.features?.[0]?.geometry?.coordinates;
     if (!appSug || !pc) problems.push("Photon cross-check: missing app or direct suggestion");

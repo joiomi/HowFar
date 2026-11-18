@@ -73,7 +73,7 @@ const inFlight = new Map<string, Promise<Suggestion[]>>();
 /** Type-ahead address suggestions for a partial query, Bucharest-constrained. */
 export async function suggest(query: string): Promise<Suggestion[]> {
   const q = query.trim();
-  const key = taggedCacheKey(`suggest:${sha256Hex(q.toLowerCase())}`);
+  const key = taggedCacheKey(`suggest:v2:${sha256Hex(q.toLowerCase())}`);
   const hit = await getCachedSafe<Suggestion[]>(key);
   if (hit) return hit;
 
@@ -96,7 +96,7 @@ async function fetchAndCacheSuggestions(key: string, q: string): Promise<Suggest
     // `/api` is Photon's search path (kept in code so PHOTON_BASE_URL is a bare
     // host like the other providers). The lat/lon focus is a ranking bias only,
     // kept unchanged here; deriving it from the bbox centre is a later follow-up.
-    const url = `${photonBase}/api?q=${encodeURIComponent(q)}&bbox=${BBOX}&lat=44.43&lon=26.10&limit=8&lang=en`;
+    const url = `${photonBase}/api?q=${encodeURIComponent(q)}&bbox=${BBOX}&lat=44.43&lon=26.10&limit=8&lang=default`;
     const res = await providerFetch(url, {
       provider: "photon",
       rateHost: new URL(photonBase).host,
