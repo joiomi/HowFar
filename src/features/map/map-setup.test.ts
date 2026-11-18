@@ -20,6 +20,7 @@ import {
   PRESET_FILL_LAYER,
   PRESET_FILL_SOURCE,
   PRESET_INTERIOR_LAYER,
+  PRESET_LABEL_LAYER,
   PRESET_LINE_SOURCE,
 } from "@/features/isochrones/preset-view";
 
@@ -188,16 +189,39 @@ describe("addPresetReachLayers (phone-first — additive, alongside the legacy i
       [PRESET_FILL_SOURCE, { type: "geojson", data: EMPTY_FC }],
       [PRESET_LINE_SOURCE, { type: "geojson", data: EMPTY_FC }],
     ]);
-    expect(layerSpecs.map((l) => l.id)).toEqual([PRESET_FILL_LAYER, PRESET_EDGE_LAYER, PRESET_INTERIOR_LAYER]);
+    expect(layerSpecs.map((l) => l.id)).toEqual([
+      PRESET_FILL_LAYER,
+      PRESET_EDGE_LAYER,
+      PRESET_INTERIOR_LAYER,
+      PRESET_LABEL_LAYER,
+    ]);
 
     const fill = layerSpecs.find((l) => l.id === PRESET_FILL_LAYER)!;
     expect(fill).toMatchObject({ type: "fill", source: PRESET_FILL_SOURCE, paint: { "fill-color": ["get", "fillColor"] } });
+    // The fill starts transparent and is faded in per mode by the painter, over 320 ms.
+    expect(fill).toMatchObject({ paint: { "fill-opacity": 0, "fill-opacity-transition": { duration: 320, delay: 0 } } });
     // The decorative shells carry NO band/kind filter — they are all painted (stacked → the ramp).
     expect(fill.filter).toBeUndefined();
 
     const edge = layerSpecs.find((l) => l.id === PRESET_EDGE_LAYER)!;
     expect(edge).toMatchObject({ type: "line", source: PRESET_LINE_SOURCE, filter: ["==", ["get", "kind"], "edge"] });
     expect((edge.paint as Record<string, unknown>)["line-dasharray"]).toBeUndefined(); // edge is SOLID
+
+    // The reach time rides the edge line as "~N min", tinted by the line colour.
+    expect(layerSpecs.find((l) => l.id === PRESET_LABEL_LAYER)).toMatchObject({
+      type: "symbol",
+      source: PRESET_LINE_SOURCE,
+      filter: ["==", ["get", "kind"], "edge"],
+      layout: {
+        "symbol-placement": "line",
+        "symbol-spacing": 300,
+        "text-field": ["concat", "~", ["to-string", ["get", "minutes"]], " min"],
+        "text-font": ["Noto Sans Medium"],
+        "text-size": 13,
+        "text-keep-upright": true,
+      },
+      paint: { "text-color": ["get", "lineColor"], "text-halo-color": "#0d110e", "text-halo-width": 2 },
+    });
 
     const interior = layerSpecs.find((l) => l.id === PRESET_INTERIOR_LAYER)!;
     expect(interior).toMatchObject({ type: "line", source: PRESET_LINE_SOURCE, filter: ["==", ["get", "kind"], "interior"] });

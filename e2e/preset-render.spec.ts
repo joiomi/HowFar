@@ -186,6 +186,128 @@ test("car preset: 10/25 contours, the basemap credits in the info popover, and N
   await expect(page.getByTestId("transitous-credit")).toHaveCount(0);
 });
 
+/** The slice of the exposed map handle the label and fill read-backs use. */
+type ReachMap = {
+  getLayoutProperty(layer: string, name: string): unknown;
+  getPaintProperty(layer: string, name: string): unknown;
+  queryRenderedFeatures(
+    geometry?: [number, number] | [[number, number], [number, number]],
+    options?: { layers?: string[] },
+  ): { properties: Record<string, unknown> }[];
+  unproject(point: [number, number]): { lat: number; lng: number };
+  getCanvas(): HTMLCanvasElement;
+};
+
+test("the reach edge is labelled ~N min and a tap on the label is not a new selection", async ({ page }) => {
+  await baseStubs(page);
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK_PRESET }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
+  const reverseUrls: string[] = [];
+  await page.route("**/api/reverse**", (route) => {
+    reverseUrls.push(route.request().url());
+    route.fulfill({ json: { lat: 44.43, lng: 26.11, label: "Punctul de control" } });
+  });
+
+  const map = await waitForMap(page);
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-preset-contours", "10");
+  // The camera must have stopped, or the label moves between finding it and tapping it.
+  await expect(map).toHaveAttribute("data-camera-settled", "true", { timeout: 10_000 });
+
+  // The layer carries the "~N min" text expression.
+  expect(await page.evaluate(() => (window as unknown as { __hfMap: ReachMap }).__hfMap.getLayoutProperty("preset-reach-label", "text-field"))).toEqual([
+    "concat",
+    "~",
+    ["to-string", ["get", "minutes"]],
+    " min",
+  ]);
+
+  // The label is actually placed, and it says 10.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          (window as unknown as { __hfMap: ReachMap }).__hfMap
+            .queryRenderedFeatures(undefined, { layers: ["preset-reach-label"] })
+            .map((f) => f.properties.minutes),
+        ),
+      { timeout: 15_000 },
+    )
+    .toContain(10);
+
+  // Find one pixel on the label and one clear pixel (canvas on top, no label within the tap
+  // box, below the top bar) to use as the sentinel selection.
+  const px = await page.evaluate(() => {
+    const m = (window as unknown as { __hfMap: ReachMap }).__hfMap;
+    const canvas = m.getCanvas();
+    const rect = canvas.getBoundingClientRect();
+    const onLabel = (x: number, y: number, r: number) =>
+      m.queryRenderedFeatures(
+        [
+          [x - r, y - r],
+          [x + r, y + r],
+        ],
+        { layers: ["preset-reach-label"] },
+      ).length > 0;
+    const onCanvas = (x: number, y: number) => document.elementFromPoint(rect.left + x, rect.top + y) === canvas;
+    let label: [number, number] | null = null;
+    let sentinel: [number, number] | null = null;
+    for (let y = 160; y < rect.height - 200 && !(label && sentinel); y += 6) {
+      for (let x = 6; x < rect.width - 6; x += 6) {
+        if (!label && onCanvas(x, y) && m.queryRenderedFeatures([x, y], { layers: ["preset-reach-label"] }).length > 0) {
+          label = [x, y];
+        } else if (!sentinel && onCanvas(x, y) && !onLabel(x, y, 24)) {
+          sentinel = [x, y];
+        }
+      }
+    }
+    return {
+      label,
+      sentinel,
+      sentinelLngLat: sentinel ? m.unproject(sentinel) : null,
+      left: rect.left,
+      top: rect.top,
+    };
+  });
+  expect(px.label, "a label pixel on the canvas").not.toBeNull();
+  expect(px.sentinel, "a clear pixel on the canvas").not.toBeNull();
+
+  // Tap the label, then the sentinel. The sentinel's selection is the positive signal;
+  // only after it has landed do we check that the label tap did nothing.
+  await page.mouse.click(px.left + px.label![0], px.top + px.label![1]);
+  await page.mouse.click(px.left + px.sentinel![0], px.top + px.sentinel![1]);
+  await expect(map).toHaveAttribute("data-selection", "Punctul de control");
+
+  expect(reverseUrls).toHaveLength(1);
+  const url = new URL(reverseUrls[0]!);
+  expect(Number(url.searchParams.get("lat"))).toBeCloseTo(px.sentinelLngLat!.lat, 5);
+  expect(Number(url.searchParams.get("lng"))).toBeCloseTo(px.sentinelLngLat!.lng, 5);
+});
+
+test("transit fill is lighter than walk and fades in", async ({ page }) => {
+  await baseStubs(page);
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK_PRESET }));
+  await page.route("**/api/transit**", (route) => route.fulfill({ json: TRANSIT_PRESET }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: emptyAmenities(ORIGIN) }));
+  const fillOpacity = () => page.evaluate(() => (window as unknown as { __hfMap: ReachMap }).__hfMap.getPaintProperty("preset-reach-fill", "fill-opacity"));
+
+  const map = await waitForMap(page);
+  // Nothing is drawn yet: the fill is transparent.
+  expect(await fillOpacity()).toBe(0);
+
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-mode", "walk");
+  await expect.poll(fillOpacity).toBe(0.16);
+
+  await pickMode(page, "transit");
+  await expect(map).toHaveAttribute("data-mode", "transit");
+  await expect.poll(fillOpacity).toBe(0.1);
+
+  // Clearing the address takes the reach away, so the fill goes back to transparent.
+  await page.getByTestId("clear-address").click();
+  await expect.poll(fillOpacity).toBe(0);
+});
+
 test("first paint shows a realistic map placeholder, never a dark void", async ({ page }) => {
   await baseStubs(page);
   await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK_PRESET }));

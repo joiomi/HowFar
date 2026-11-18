@@ -6,6 +6,7 @@ import {
   buildPresetShellFeatures,
   PRESET_GRADIENT_STOPS,
   PRESET_SHELL_STEPS,
+  presetFillOpacity,
   presetInteriorLineMinutes,
   presetRampColor,
   presetReachCaveat,
@@ -223,5 +224,11 @@ describe("presetReachCaveat — the honesty caveat each mode carries", () => {
 
   it("never claims a trip can be shorter than drawn: near a barrier the reach over-claims, it never under-claims", () => {
     for (const m of MODES) expect(presetReachCaveat(m)).not.toMatch(/mai scurt/);
+  });
+});
+
+describe("presetFillOpacity", () => {
+  it("is lighter for transit than for walk and car", () => {
+    expect([presetFillOpacity("walk"), presetFillOpacity("transit"), presetFillOpacity("car")]).toEqual([0.16, 0.1, 0.16]);
   });
 });

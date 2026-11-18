@@ -4,6 +4,7 @@ import type maplibregl from "maplibre-gl";
 import {
   activeGuardHasFeature,
   hitTestHasFeature,
+  reachLabelAt,
   safeQueryRenderedFeatures,
   safeQuerySourceFeatures,
 } from "@/features/map/query-features";
@@ -96,5 +97,42 @@ describe("safeQuerySourceFeatures (rAF stamp-poll guard)", () => {
       }),
     } as unknown as maplibregl.Map;
     expect(safeQuerySourceFeatures(map, "route-path")).toEqual([]);
+  });
+});
+
+describe("reachLabelAt (fail-OPEN tap guard for the reach label)", () => {
+  const mapWith = (query: () => unknown, hasLayer = true) =>
+    ({
+      getLayer: vi.fn(() => (hasLayer ? {} : undefined)),
+      queryRenderedFeatures: vi.fn(query),
+    }) as unknown as maplibregl.Map;
+
+  it("hits the label layer inside a 4 px box around the tap", () => {
+    const map = mapWith(() => [{ id: 1 }]);
+    expect(reachLabelAt(map, { x: 100, y: 200 })).toBe(true);
+    expect(map.queryRenderedFeatures).toHaveBeenCalledWith(
+      [
+        [96, 196],
+        [104, 204],
+      ],
+      { layers: ["preset-reach-label"] },
+    );
+  });
+
+  it("is false when nothing is under the tap", () => {
+    expect(reachLabelAt(mapWith(() => []), { x: 1, y: 1 })).toBe(false);
+  });
+
+  it("is false, without querying, while the label layer does not exist yet", () => {
+    const map = mapWith(() => [{ id: 1 }], false);
+    expect(reachLabelAt(map, { x: 1, y: 1 })).toBe(false);
+    expect(map.queryRenderedFeatures).not.toHaveBeenCalled();
+  });
+
+  it("fails open: a query error must not swallow the tap", () => {
+    const map = mapWith(() => {
+      throw new Error("feature index out of bounds");
+    });
+    expect(reachLabelAt(map, { x: 1, y: 1 })).toBe(false);
   });
 });

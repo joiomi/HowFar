@@ -13,9 +13,9 @@ import { RING_BANDS } from "@/features/isochrones/isochrone-view";
 import {
   PRESET_EDGE_LAYER,
   PRESET_FILL_LAYER,
-  PRESET_FILL_OPACITY,
   PRESET_FILL_SOURCE,
   PRESET_INTERIOR_LAYER,
+  PRESET_LABEL_LAYER,
   PRESET_LINE_OPACITY,
   PRESET_LINE_SOURCE,
 } from "@/features/isochrones/preset-view";
@@ -158,7 +158,7 @@ export function addPresetReachLayers(map: LayerHost): void {
     source: PRESET_FILL_SOURCE,
     paint: {
       "fill-color": ["get", "fillColor"],
-      "fill-opacity": PRESET_FILL_OPACITY,
+      "fill-opacity": 0,
       "fill-opacity-transition": { duration: 320, delay: 0 },
     },
   });
@@ -185,6 +185,26 @@ export function addPresetReachLayers(map: LayerHost): void {
       "line-dasharray": [5, 4],
       "line-opacity": 0.85,
       "line-opacity-transition": { duration: 320, delay: 0 },
+    },
+  });
+  // The reach time written along the edge, in the line's own colour with a dark halo.
+  map.addLayer({
+    id: PRESET_LABEL_LAYER,
+    type: "symbol",
+    source: PRESET_LINE_SOURCE,
+    filter: ["==", ["get", "kind"], "edge"] as maplibregl.FilterSpecification,
+    layout: {
+      "symbol-placement": "line",
+      "symbol-spacing": 300,
+      "text-field": ["concat", "~", ["to-string", ["get", "minutes"]], " min"],
+      "text-font": ["Noto Sans Medium"],
+      "text-size": 13,
+      "text-keep-upright": true,
+    },
+    paint: {
+      "text-color": ["get", "lineColor"],
+      "text-halo-color": "#0d110e",
+      "text-halo-width": 2,
     },
   });
 }

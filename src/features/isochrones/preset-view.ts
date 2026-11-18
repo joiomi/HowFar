@@ -49,7 +49,12 @@ export const PRESET_LINE_SOURCE = "preset-reach-line";
 export const PRESET_FILL_LAYER = "preset-reach-fill";
 export const PRESET_EDGE_LAYER = "preset-reach-edge";
 export const PRESET_INTERIOR_LAYER = "preset-reach-interior";
-export const PRESET_FILL_OPACITY = 0.16;
+export const PRESET_LABEL_LAYER = "preset-reach-label";
+/** The reach fill's opacity for a mode. Transit reads lighter: its shells already stack over a
+ * wider area, so the same 0.16 would bury the basemap. */
+export function presetFillOpacity(mode: Mode): number {
+  return mode === "transit" ? 0.1 : 0.16;
+}
 export const PRESET_LINE_OPACITY = 0.95;
 
 function hexToRgb(hex: string): [number, number, number] {

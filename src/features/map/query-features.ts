@@ -1,5 +1,7 @@
 import type maplibregl from "maplibre-gl";
 
+import { PRESET_LABEL_LAYER } from "@/features/isochrones/preset-view";
+
 /**
  * `map.queryRenderedFeatures` can throw `feature index out of bounds` when it is
  * called while a GeoJSON source is mid-`setData` swap — the render feature index
@@ -64,6 +66,25 @@ export function activeGuardHasFeature(
   const layers = layerIds.filter((id) => map.getLayer(id));
   if (layers.length === 0) return true;
   return hitTestHasFeature(map, geometry, { layers });
+}
+
+/**
+ * "Is the reach label under this tap?" — a tap on the label is a read, not a new selection.
+ * Fails OPEN, unlike the route guards: a query error means "no label", so a glitch can never
+ * swallow a real tap. The 4 px box around the point forgives a fingertip's imprecision.
+ */
+export function reachLabelAt(map: maplibregl.Map, point: { x: number; y: number }): boolean {
+  if (!map.getLayer(PRESET_LABEL_LAYER)) return false;
+  return (
+    safeQueryRenderedFeatures(
+      map,
+      [
+        [point.x - 4, point.y - 4],
+        [point.x + 4, point.y + 4],
+      ],
+      { layers: [PRESET_LABEL_LAYER] },
+    ).length > 0
+  );
 }
 
 /**

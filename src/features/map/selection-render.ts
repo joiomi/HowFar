@@ -6,7 +6,9 @@ import { presetMinFor, type PresetIndex } from "@/features/isochrones/preset-rea
 import {
   buildPresetContourFeatures,
   buildPresetShellFeatures,
+  PRESET_FILL_LAYER,
   PRESET_FILL_SOURCE,
+  presetFillOpacity,
   PRESET_LINE_SOURCE,
 } from "@/features/isochrones/preset-view";
 import type { LoadState } from "@/features/map/load-state";
@@ -78,6 +80,7 @@ export function createSelectionRender({
     const fillSource = map.getSource(PRESET_FILL_SOURCE) as maplibregl.GeoJSONSource | undefined;
     const lineSource = map.getSource(PRESET_LINE_SOURCE) as maplibregl.GeoJSONSource | undefined;
     fillSource?.setData({ type: "FeatureCollection", features: shells });
+    if (map.getLayer(PRESET_FILL_LAYER)) map.setPaintProperty(PRESET_FILL_LAYER, "fill-opacity", presetFillOpacity(mode));
     lineSource?.setData({ type: "FeatureCollection", features: contours });
     // Deterministic oracle stamped from the ACTUALLY-BUILT features, NOT from the
     // client-side `presetContourMinutes(mode, chip)` constants — so if the served
@@ -205,6 +208,7 @@ export function createSelectionRender({
     settleEpoch++; // invalidate any pending settle stamp from a prior fit
     cancelRingReveal();
     closeStopPopup(); // a new selection dismisses any open stop popup
+    if (map.getLayer(PRESET_FILL_LAYER)) map.setPaintProperty(PRESET_FILL_LAYER, "fill-opacity", 0);
     (map.getSource(PRESET_FILL_SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(
       EMPTY_FC as GeoJSON.FeatureCollection,
     );

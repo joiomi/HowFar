@@ -57,6 +57,7 @@ import { createHoverController } from "@/features/map/hover-controller";
 import { createLoadState } from "@/features/map/load-state";
 import { setMapGl, type MapGl } from "@/features/map/map-runtime";
 import { createPopupController } from "@/features/map/popup-controller";
+import { reachLabelAt } from "@/features/map/query-features";
 import {
   createReachDirectionsController,
   type ReachDirectionsController,
@@ -908,6 +909,9 @@ export default function AppMap() {
         suppressNextClick = false;
         return;
       }
+      // A tap on the reach label reads the time; it is not a new selection and must have no
+      // effect at all (no pin move, no banner clear, no request).
+      if (reachLabelAt(map, e.point)) return;
       // ANY amenity click opens its popup and does NOT start a selection (no
       // geocode/reverse/isochrone) — inspecting a marker must
       // never recompute the address. A click on the active drawn
