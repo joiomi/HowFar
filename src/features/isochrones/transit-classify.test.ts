@@ -29,8 +29,8 @@ describe("hasTransitLeg", () => {
     expect(hasTransitLeg([leg("UNKNOWN", 20)])).toBe(false);
   });
 
-  it("counts a short vehicle hop between long walks as transit — no walk-share heuristic (review reversal)", () => {
-    // The route-ranking calibration capture's owner-approved best trip is a
+  it("counts a short vehicle hop between long walks as transit — no walk-share heuristic", () => {
+    // The route-ranking calibration capture's best trip is a
     // 3-min tram between 27 min of walking; any share/minutes threshold
     // misclassifies it as "no route", so the classifier must stay leg-based.
     expect(hasTransitLeg([leg("WALK", 12), leg("TRAM", 3), leg("WALK", 15)])).toBe(true);

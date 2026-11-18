@@ -141,7 +141,7 @@ describe("buildPresetShellFeatures — the DECORATIVE ramp (clipped, annular)", 
     expect(shells.every((f) => !("minutes" in (f.properties ?? {})))).toBe(true);
   });
 
-  it("every shell is CONTAINED in the served outer reach — a shell never paints past the honest edge (containment, impl review)", () => {
+  it("every shell is CONTAINED in the served outer reach — a shell never paints past the honest edge (containment)", () => {
     // A deliberately NON-STAR-shaped outer (an L, origin in the notch) — a naive homothety
     // toward the origin would fling scaled copies over the unreachable notch. The clip must
     // keep every painted vertex inside the served outer polygon.
@@ -238,7 +238,7 @@ describe("presetReachExplainer — the honest reach claim (assertive gate)", () 
     for (const [mode, min] of pairs) {
       expect(presetReachExplainer(mode, min).toLowerCase()).toContain("about");
       // Must NOT use "within" at all — even "within about a N-minute walk" reads as
-      // the absolute promise the caveat then contradicts (impl review).
+      // the absolute promise the caveat then contradicts.
       expect(presetReachExplainer(mode, min)).not.toMatch(/\bwithin\b/i);
     }
     expect(modes).toHaveLength(3);
@@ -249,7 +249,7 @@ describe("presetReachExplainer — the honest reach claim (assertive gate)", () 
   });
 });
 
-describe("presetReachCaveat — the barrier honesty rider (owner honesty requirement)", () => {
+describe("presetReachCaveat — the barrier honesty rider", () => {
   it("walk + transit carry a barrier caveat; car does NOT (0% over-claim, no street-walk)", () => {
     expect(presetReachCaveat("walk")).toBeTruthy();
     expect(presetReachCaveat("transit")).toBeTruthy();

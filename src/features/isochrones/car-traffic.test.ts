@@ -75,7 +75,7 @@ describe("carTrafficSlot — input hygiene", () => {
   });
 });
 
-describe("carTrafficSlotFor — Crowded / Not-crowded mapping (task 059)", () => {
+describe("carTrafficSlotFor — Crowded / Not-crowded mapping", () => {
   it("crowded → am-peak (2.1), quiet → midday (1.5) — a visible, honest contrast", () => {
     const crowded = carTrafficSlotFor({ kind: "preset", preset: "crowded" });
     const quiet = carTrafficSlotFor({ kind: "preset", preset: "quiet" });

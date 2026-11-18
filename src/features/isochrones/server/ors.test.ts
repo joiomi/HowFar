@@ -72,9 +72,8 @@ describe("walkingIsochrone", () => {
   });
 
   it("requests SLOW's own scaled ranges, not Normal's (the pace must reach ORS)", async () => {
-    // Until task 064 every ORS contract test ran at the default pace, so a
-    // broken pace→ranges path would have shipped green. 3 km/h ⇒ the anchor
-    // triple × 50/80.
+    // Contract tests at the default pace alone would let a broken pace→ranges
+    // path ship green. 3 km/h ⇒ the anchor triple × 50/80.
     providerFetch.mockResolvedValue(orsResponse([poly(517), poly(1046), poly(1580)]));
     const result = await walkingIsochrone(44.4268, 26.1025, "slow");
     const opts = providerFetch.mock.calls[0][1] as { init: { body: string } };
@@ -147,7 +146,7 @@ describe("walkingIsochrone", () => {
     const second = await walkingIsochrone(44.4, 26.1);
     expect(providerFetch).toHaveBeenCalledTimes(1);
     expect(second).toEqual(first);
-    // v4 key: pace-scoped; rings cached at the pre-064 walk speed must never
+    // v4 key: pace-scoped; rings cached at an earlier walk speed (v3) must never
     // be served again (the geometry changed, the coordinates did not).
     expect([...store.keys()]).toEqual(["iso:foot:v4:normal:44.40000,26.10000"]);
   });
@@ -196,9 +195,9 @@ describe("walkingIsochrone", () => {
   });
 });
 
-describe("drivingIsochrone (car, tasks 053/058)", () => {
-  // Car uses the driving-car profile and relabels to 10/20/30 min. Task 058
-  // makes it TIME-AWARE: the nominal 600/1200/1800 s free-flow ranges are
+describe("drivingIsochrone (car)", () => {
+  // Car uses the driving-car profile and relabels to 10/20/30 min. It is
+  // TIME-AWARE: the nominal 600/1200/1800 s free-flow ranges are
   // DIVIDED by the traffic slot's congestion factor, so the request carries the
   // SCALED ranges. midday (×1.5) → [400,800,1200]; am-peak (×2.1) → smaller.
   // These assertions pin the driving request CONTRACT (profile URL, no Accept
@@ -225,7 +224,7 @@ describe("drivingIsochrone (car, tasks 053/058)", () => {
     parsed.range.forEach((v: number, i: number) => expect(v).toBeLessThan(MIDDAY_RANGES[i]!));
   });
 
-  it("routes the request URL and rate-limit host to an ORS_BASE_URL override (task 007)", async () => {
+  it("routes the request URL and rate-limit host to an ORS_BASE_URL override", async () => {
     providerConfig.mockReturnValue({ orsBase: "https://ors.internal", intervals: { ors: 1500 } });
     providerFetch.mockResolvedValue(orsResponse(MIDDAY_RANGES.map(poly)));
     await drivingIsochrone(44.4268, 26.1025, midday);
@@ -234,7 +233,7 @@ describe("drivingIsochrone (car, tasks 053/058)", () => {
     expect(opts.rateHost).toBe("ors.internal");
   });
 
-  it("config-namespaces the cache key under an override (guards the taggedCacheKey wrapper) (task 007)", async () => {
+  it("config-namespaces the cache key under an override (guards the taggedCacheKey wrapper)", async () => {
     // Real configCacheTag reads process.env; stub it to a non-default provider so
     // the tag is non-empty. Deleting the taggedCacheKey wrapper in ors.ts would
     // leave the key untagged and fail this.
@@ -275,7 +274,7 @@ describe("drivingIsochrone (car, tasks 053/058)", () => {
   });
 });
 
-describe("ORS API key policy — public vs keyless self-host (task 009)", () => {
+describe("ORS API key policy — public vs keyless self-host", () => {
   const authOf = () =>
     (providerFetch.mock.calls[0][1] as { init: { headers: Record<string, string> } }).init.headers
       .Authorization;

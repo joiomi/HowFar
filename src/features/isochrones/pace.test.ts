@@ -15,7 +15,7 @@ describe("PACE_MODEL", () => {
   // literals, and they are what actually catches a wrong speed. Everything
   // below is a consistency/structure guard that a uniformly-wrong model would
   // still satisfy — see "the scaling property is structural, not a value check".
-  it("normal is exactly 5 km/h and its derived values (owner, task 064)", () => {
+  it("normal is exactly 5 km/h and its derived values", () => {
     const n = PACE_MODEL.normal;
     expect(n.speedMPerMin).toBe(5000 / 60); // 83.33… m/min == 5 km/h
     expect((n.speedMPerMin * 60) / 1000).toBeCloseTo(5, 10);
@@ -24,7 +24,7 @@ describe("PACE_MODEL", () => {
     expect(n.egressMPerMin).toBeCloseTo(5000 / 60 / STREET_DETOUR, 10);
   });
 
-  it("slow is exactly 3 km/h and its derived values (owner, task 064)", () => {
+  it("slow is exactly 3 km/h and its derived values", () => {
     const s = PACE_MODEL.slow;
     expect(s.speedMPerMin).toBe(50); // 3 km/h
     expect((s.speedMPerMin * 60) / 1000).toBeCloseTo(3, 10);
@@ -93,16 +93,15 @@ describe("PACE_MODEL", () => {
     for (const p of PACES) {
       expect(PACE_MODEL[p].label.length).toBeGreaterThan(0);
       expect(PACE_MODEL[p].emoji.length).toBeGreaterThan(0);
-      // Per-option meaning shown under BOTH buttons (task 059 owner ask).
+      // Per-option meaning shown under BOTH buttons.
       expect(PACE_MODEL[p].blurb.length).toBeGreaterThan(0);
       expect(PACE_MODEL[p].hint.length).toBeGreaterThan(0);
     }
   });
 
   it("the copy states the SPEEDS WE ACTUALLY WALK — no stale km/h can survive", () => {
-    // The user-visible promise must track the model. Before task 064 the blurbs
-    // said 4 / 4.8 km/h while nothing asserted the number, so wrong copy could
-    // ship silently; these assertions tie the words to the constants.
+    // The user-visible promise must track the model; these assertions tie the
+    // words to the constants so wrong copy cannot ship silently.
     expect(PACE_MODEL.slow.blurb).toContain("3 km/h");
     expect(PACE_MODEL.normal.blurb).toContain("5 km/h");
     expect(PACE_MODEL.normal.hint).toContain("5 km/h");
@@ -124,7 +123,7 @@ describe("parsePaceStrict (the single fail-loud parser used by every route)", ()
     expect(parsePaceStrict("")).toBe("normal");
     expect(DEFAULT_PACE).toBe("normal");
     expect(parsePaceStrict("slow")).toBe("slow");
-    // Retired ids are NOT aliased (no live users, task 059): they 400, never
+    // Retired ids are NOT aliased (no live users): they 400, never
     // silently become Normal (the over-claiming direction).
     expect(parsePaceStrict("brisk")).toBeNull();
     expect(parsePaceStrict("relaxed")).toBeNull();

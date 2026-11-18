@@ -4,7 +4,7 @@
  * the color/label decisions and the feature shape are unit-testable without
  * MapLibre. The component keeps the imperative `setData`/marker/layer calls.
  *
- * BANDS vs MINUTES (task 053) now live in the pure `bands.ts` (task 065), because
+ * BANDS vs MINUTES live in the pure `bands.ts`, because
  * the server-side amenity clip needs them too and must not import this module's
  * colour/copy graph. The band primitives are re-exported here so existing client
  * call sites keep working; `bands.ts` is the single home.
@@ -99,7 +99,7 @@ export function visibleLegendBands(filter: RingFilter): readonly Band[] {
  * One plain-language sentence saying what the shaded area(s) MEAN — the rings
  * are the product's core visualization, yet color dots + "N min" alone don't
  * tell a first-time user that teal/violet/blue areas are "everything you can
- * reach within N minutes by this mode" (owner, task: ring comprehension).
+ * reach within N minutes by this mode".
  * Minutes come from `visibleLegendBands` + `bandMinutes`, so the sentence can
  * never disagree with the painted rings or hardcode 15/30/45 (car reads
  * 10/20/30). Shared by the SelectionCard legend and the mobile peek hint.

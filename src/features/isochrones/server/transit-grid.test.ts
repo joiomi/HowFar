@@ -122,9 +122,8 @@ describe("buildRings", () => {
   }, 20_000);
 
   it("derives its speed constants from the pace model — no second speed model", () => {
-    // Until task 064 this module declared its OWN `80` and `1.402`. That made it
-    // a second source of truth that would have kept the pre-064 speed when the
-    // owner changed it. Assert IDENTITY with the pace model (a drift test), not
+    // A module declaring its OWN `80` and `1.402` would be a second source of
+    // truth that keeps a stale speed when the pace speeds change. Assert IDENTITY with the pace model (a drift test), not
     // literals — restating numbers here is what allowed the duplicate to hide.
     expect(WALK_SPEED_M_PER_MIN).toBe(PACE_MODEL.normal.speedMPerMin);
     expect(STREET_DETOUR).toBe(PACE_STREET_DETOUR);
@@ -326,7 +325,7 @@ describe("unionRings", () => {
   });
 });
 
-describe("dropSmallComponents (task 052 — speck filter)", () => {
+describe("dropSmallComponents (speck filter)", () => {
   const ORIG = { lat: 44.4268, lng: 26.1025 };
   // Far centres, well clear of the origin so PIP can't accidentally keep them.
   const BIG = { lat: 44.5, lng: 26.2 };

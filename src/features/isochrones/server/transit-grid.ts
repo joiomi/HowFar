@@ -38,9 +38,9 @@ import { LAUNCH_BBOX } from "@/lib/bounds";
  */
 
 /** Pedestrian speed of the Normal pace (5 km/h) — the speed the ring LABELS
- * promise. DERIVED from `pace.ts`, never re-declared: until task 064 this
- * module carried its own `80` and `1.402` literals, a second speed model that
- * would have silently kept the pre-064 speed when the owner changed it. */
+ * promise. DERIVED from `pace.ts`, never re-declared: a second copy of the
+ * speed model (own `80` / `1.402` literals) would silently keep stale speeds when
+ * the pace speeds change. */
 export const WALK_SPEED_M_PER_MIN = PACE_MODEL.normal.speedMPerMin;
 /** Median street-network detour vs crow-fly in Bucharest — measured 2026-07-17
  * from 143 routed-vs-straight distance pairs at 6 diverse origins (MOTIS
@@ -82,14 +82,13 @@ export interface Ring {
  * street-routed walking rings instead (transit.ts's normal path) — the radial
  * disc would only ADD over-claimed area the union cannot remove.
  *
- * `egressMPerMin` is REQUIRED: the radial egress/origin-walk speed. Task 051
- * threads the active pace here so stop egress (and the radial-fallback origin
+ * `egressMPerMin` is REQUIRED: the radial egress/origin-walk speed. The active
+ * pace is threaded here so stop egress (and the radial-fallback origin
  * stamp) scale with Slow/Normal in lockstep with the MOTIS access speed and the
  * unioned ORS ring — otherwise a paced request would show internally
- * inconsistent rings. It has NO default on purpose (task 064): a defaulted
+ * inconsistent rings. It has NO default on purpose: a defaulted
  * Normal speed would let a future call site silently stamp Normal-pace egress
- * on a Slow request, which is exactly the drift class this module stopped
- * carrying when its duplicate speed constants were removed.
+ * on a Slow request — the drift class a duplicated speed constant creates.
  */
 export function buildRings(
   origin: { lat: number; lng: number },
@@ -194,15 +193,14 @@ export function buildRings(
 
 /**
  * Minimum area (m²) a disconnected ring component must have to survive the
- * speck filter (task 052 C). Below this, a component is a visual artifact — a
+ * speck filter. Below this, a component is a visual artifact — a
  * scatter of tiny polygons around far stops reads as "the map is broken" on a
  * livability map, even though it is genuinely (barely) reachable. The right-click
- * "how do I get there?" popup (task 052 D) is what surfaces the real far pockets
- * that ARE substantial. Calibrated on real Bucharest addresses (see the task's C
- * checkpoint): specks measured well under this; the far-metro pockets (e.g. the
+ * "how do I get there?" popup is what surfaces the real far pockets
+ * that ARE substantial. Calibrated on real Bucharest addresses: specks measured well under this; the far-metro pockets (e.g. the
  * northern M2 area reachable from Berceni) measure far above it.
  */
-export const MIN_TRANSIT_COMPONENT_AREA_M2 = 200_000; // ~0.2 km²; calibrated (task 052)
+export const MIN_TRANSIT_COMPONENT_AREA_M2 = 200_000; // ~0.2 km²; calibrated
 
 /**
  * Drop tiny disconnected components from each transit ring, keeping every

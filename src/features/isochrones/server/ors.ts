@@ -22,18 +22,18 @@ import { providerFetch, ProviderError, roundCoord } from "@/lib/provider-http";
  * OpenRouteService isochrones (server-side, cached). One request returns three
  * nested reachability polygons. Two profiles are used:
  *   - foot-walking (walk mode): calibrated + pace-scaled 15/30/45-min ranges.
- *   - driving-car  (car mode, task 053): nominal 10/20/30-min ranges.
+ *   - driving-car  (car mode): nominal 10/20/30-min ranges.
  * The API key is the app's only secret provider key and must never reach the
  * client. The two profiles share the normalize contract, rate limiter, cache,
  * and single-flight machinery — they differ only in URL, ranges, labels, and
  * cache prefix.
  */
 
-// Host/base are config-driven (task 007) — default = today's public ORS. Read
+// Host/base are config-driven — default = today's public ORS. Read
 // inside the fetch function; the rate-limit host derives from the base.
 /** ORS isochrone endpoint for a routing profile (foot-walking | driving-car). */
 const isoUrl = (base: string, profile: string) => `${base}/v2/isochrones/${profile}`;
-// Rate-limit interval is config-driven (task 009, `intervals.ors`, default
+// Rate-limit interval is config-driven (`intervals.ors`, default
 // 1500 ms = free tier ~40 isochrone req/min, PROVIDERS.md ⇒ ≥1.5 s spacing).
 const TIMEOUT_MS = 12_000;
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -44,23 +44,23 @@ const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 // Berceni, 2026-07-17) put the nominal 900/1800/2700 s boundaries at
 // 1.265/1.164/1.123 × their labels at the 80 m/min CALIBRATION ANCHOR. Two-pass
 // fit landed the anchor triple [827,1674,2528] (now `pace.ts`
-// CALIBRATED_RANGES_S_AT_80). Since task 064 NO pace walks at the anchor speed —
-// every pace's triple is that baseline scaled by speed/CALIBRATION_SPEED (task
-// 051, distance is speed-independent); `PACE_MODEL[pace].orsRangesS` is the
+// CALIBRATED_RANGES_S_AT_80). NO pace walks at the anchor speed —
+// every pace's triple is that baseline scaled by speed/CALIBRATION_SPEED
+// (distance is speed-independent); `PACE_MODEL[pace].orsRangesS` is the
 // requested triple. So the polygon LABELED
 // "15/30/45 min" takes ≈ that many street-walking minutes at the chosen pace.
 // Methodology + re-run: docs/PROVIDERS.md "Calibration".
 const NOMINAL_MINUTES = [15, 30, 45];
-// Car (task 053): owner-picked 10/20/30-min bands (600/1200/1800 s) so the
+// Car: 10/20/30-min bands (600/1200/1800 s) so the
 // driving reach fits the Bucharest map extent — a 45-min drive is ~3.5× the
 // tiled area (measured). These are NOMINAL FREE-FLOW seconds.
 //
-// TASK 058 — traffic realism: the task-056 re-audit ("ranges already accurate,
+// TRAFFIC REALISM: the free-flow re-audit ("ranges already accurate,
 // no calibration factor") was FREE-FLOW-ONLY — it validated the ORS free-flow
 // number against free-flow rulers (public OSRM + ORS-Matrix), and is silent on
 // CONGESTION. Bucharest is heavily congested (public TomTom Traffic Index 2025:
 // 62.5% congestion, 18.5 km/h avg), so free-flow reach over-claims 1.5–2.2× at
-// peak. Car reach is now TIME-AWARE: `drivingIsochrone` divides these nominal
+// peak. Car reach is TIME-AWARE: `drivingIsochrone` divides these nominal
 // seconds by a per-time-of-day congestion factor (features/isochrones/
 // car-traffic.ts) so the painted band reflects real drive time. We do NOT call
 // a live-traffic provider — TomTom's free tier is Evaluation-Use-only (Portal
@@ -179,14 +179,14 @@ export async function walkingIsochrone(
 ): Promise<IsochroneResult> {
   // The cache key includes pace so a Slow request never serves the Normal ring
   // (and concurrent different-pace callers don't share one flight).
-  // v3 (task 051): pace added to the key. v4 (task 064): the walking speeds
-  // changed to 3/5 km/h, so every cached ring's GEOMETRY is different at the
-  // same coordinates — v3 entries must never serve (7-day TTL).
+  // v3 added pace to the key. v4: the walking speeds changed to 3/5 km/h, so
+  // every cached ring's GEOMETRY differs at the same coordinates — v3 entries
+  // must never serve (7-day TTL).
   const key = taggedCacheKey(`iso:foot:v4:${pace}:${roundCoord(latRaw)},${roundCoord(lngRaw)}`);
   return orsIsochrone("foot-walking", latRaw, lngRaw, PACE_MODEL[pace].orsRangesS, NOMINAL_MINUTES, key);
 }
 
-/** Driving-car isochrone (10/20/30-min labels, tasks 053/058). Time-aware: the
+/** Driving-car isochrone (10/20/30-min labels). Time-aware: the
  *  nominal free-flow ranges are DIVIDED by the traffic slot's congestion factor,
  *  so the painted band reflects real Bucharest drive time at that time of day.
  *  No pace (a walk concept). Cache `iso:car:v2:{frev}:est:{slotId}:{coords}` —
@@ -279,7 +279,7 @@ export async function walkingPresetIsochrone(
 
 /**
  * PRESET driving isochrone (additive). TIME-AWARE like the legacy car
- * path (task 058): the nominal [10,25] free-flow ranges are DIVIDED by the
+ * path: the nominal [10,25] free-flow ranges are DIVIDED by the
  * traffic slot's congestion factor, so the served band reflects real drive time —
  * NEVER free-flow. The factor-table revision + slot are IN THE KEY so a
  * recalibration can't serve stale rings; the preset prefix keeps it distinct from
@@ -313,13 +313,13 @@ async function fetchAndCache(
 
   const { orsBase, intervals } = providerConfig();
 
-  // Task 009: the API key belongs to the PUBLIC ORS only. For the public
+  // The API key belongs to the PUBLIC ORS only. For the public
   // default host the key is required and sent as `Authorization`; a self-hosted
   // ORS (any non-default base) needs no key, so we neither require it nor send
   // it — a stale `ORS_API_KEY` left in the env must NOT leak to a self-host.
   // (A self-host that itself requires auth is a parked follow-up: an explicit
   //  self-host auth var, not this public key.)
-  // Public ⇔ CANONICAL host matches the default AND scheme is https (task 009):
+  // Public ⇔ CANONICAL host matches the default AND scheme is https:
   //  - canonicalHost lowercases + strips a trailing dot + ignores the default
   //    port, so case/port/trailing-dot variants of the public host still keep
   //    the key (a raw-string compare would 403 the live deployment);

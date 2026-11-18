@@ -2,14 +2,12 @@
  * Ring BANDS — the pure band primitives, shared by the client view layer and the
  * server-side amenity clip.
  *
- * Extracted from `isochrone-view.ts` (task 065) because the amenity clip now runs
- * per MODE on the server and needs `Band`/`bandMinutes`/the band-visibility rule.
- * Importing `isochrone-view.ts` from a `server/` module would pull the colour
- * ramps and the UI copy graph along with it, and `isochrone-view.ts`'s own header
- * anticipated this ("…until the isochrone contract grows its own types module").
- * Re-declaring the constants server-side was the other option and is the mistake
- * task 064 spent a gate deleting: `transit-grid.ts` had grown a SECOND speed
- * model that silently kept the old numbers. One home, two consumers.
+ * Kept apart from `isochrone-view.ts` because the amenity clip runs per MODE on
+ * the server and needs `Band`/`bandMinutes`/the band-visibility rule. Importing
+ * `isochrone-view.ts` from a `server/` module would pull the colour ramps and the
+ * UI copy graph along with it. Re-declaring the constants server-side is the other
+ * option and a trap: a second copy (e.g. a duplicated speed model) silently keeps
+ * stale numbers. One home, two consumers.
  *
  * BANDS vs MINUTES. The three nested rings are fixed POSITIONS (inner → mid →
  * outer) with stable band ids 15/30/45 that key the MapLibre layers, the reveal
@@ -45,21 +43,18 @@ export function bandMinutes(mode: Mode, band: Band): number {
   return BAND_MINUTES[mode][band];
 }
 
-/** Which band(s) the map displays (task 024). All three rings are always
+/** Which band(s) the map displays. All three rings are always
  * FETCHED (one provider call, cached); the filter only drives layer visibility.
  * The filter is band-keyed (position), so it survives a mode switch unchanged. */
 export type RingFilter = "all" | Band;
 
-/** Owner-picked (2026-07-18, reaffirmed 2026-07-29): a fresh selection shows the
- * inner band only, and widens on demand. Band-keyed, so it is the same default
- * (the smallest/innermost band) in every mode.
+/** Default ring filter: a fresh selection shows the inner band only, and widens on
+ * demand. Band-keyed, so it is the same default (the smallest/innermost band) in
+ * every mode.
  *
- * It used to be documented as "matching the amenity clip", because the clip was a
- * fixed 15-minute WALK ring. Task 065 retired that coupling — the clip is now the
- * whole reach area of the CURRENT mode and the amenities visible at any moment are
- * the ones inside the bands actually shaded (`amenityBandsForFilter`). The owner
- * was asked whether this default should widen now that widening reveals more
- * places, and chose to keep the inner band (2026-07-29). */
+ * It is independent of the amenity clip: the clip is the whole reach area of the
+ * CURRENT mode, and the amenities visible at any moment are the ones inside the
+ * bands actually shaded (`amenityBandsForFilter`). */
 export const DEFAULT_RING_FILTER: RingFilter = 15;
 
 /** Control order: the narrow-to-wide bands, then the full stack. */
@@ -90,16 +85,15 @@ export function amenityBandsForFilter(filter: RingFilter): readonly Band[] {
 }
 
 /**
- * The one-line phrase describing WHICH area the amenity list covers (task 065).
+ * The one-line phrase describing WHICH area the amenity list covers.
  *
  * Follows the **shading**, not the clip: the payload is clipped to the outermost band,
  * but only the bands currently painted are drawn and counted, so the honest phrase
  * names the widest VISIBLE band. Minutes come from `bandMinutes`, so a car reads its
  * own labels (10/20/30) and the sentence can never disagree with the ring legend.
  *
- * This replaces the hardcoded "Within a 15-min walk", which was true only while the
- * clip was a 15-minute walk ring in every mode — in transit it under-claimed the area
- * by kilometres, and after this task it would have been simply false.
+ * A hardcoded "Within a 15-min walk" would be true only if the clip were a 15-minute
+ * walk ring in every mode; in transit it would under-claim the area by kilometres.
  */
 export function amenityScopeLabel(mode: Mode, filter: RingFilter): string {
   // Derived totally rather than by indexing `amenityBandsForFilter` and guarding the

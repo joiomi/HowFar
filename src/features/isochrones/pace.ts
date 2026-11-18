@@ -7,9 +7,8 @@
  * PURE module — no server imports — so the client `PaceControl` can read
  * `label`/`emoji`/`hint` while the server reads the speed fields.
  *
- * CONTRACT — ANCHOR + SCALE (task 064). Two numbers that used to be the same
- * number are now deliberately different, and conflating them is the trap this
- * module exists to prevent:
+ * CONTRACT — ANCHOR + SCALE. Two numbers are deliberately different, and
+ * conflating them is the trap this module exists to prevent:
  *
  *   - CALIBRATION_SPEED_M_PER_MIN (80) is a MEASUREMENT RULER, not anybody's
  *     walking speed. The ORS ranges `CALIBRATED_RANGES_S_AT_80` were fitted by
@@ -22,15 +21,14 @@
  * "simplifies" `scaledRanges` to divide by `normal.speedMPerMin`, Slow's ranges
  * silently change and Normal's silently become the raw uncalibrated triple.
  *
- * Task 064 (owner order): walking speeds are now Slow = 3 km/h (50 m/min) and
- * Normal = 5 km/h (5000/60 m/min), replacing 4 / 4.8 km/h. This RETIRES the
- * task-051 "normal is byte-identical to the pre-051 constants" invariant — the
- * owner changed the promised speed, so no pace is the anchor any more and every
- * derived value moved (all four provider cache keys were bumped in the same
- * commit: iso:foot:v4, transit:v5, reach:plan:v5, amenity:local:v4).
+ * Walking speeds are Slow = 3 km/h (50 m/min) and Normal = 5 km/h (5000/60
+ * m/min). Neither pace equals the 80 m/min anchor, so every derived value
+ * (ranges, MOTIS pedestrian speed, egress) is the anchor rescaled; the provider
+ * cache keys carry the matching versions (iso:foot:v4, transit:v5, reach:plan:v5,
+ * amenity:local:v4).
  *
- * VALIDATED: task 051 G6 bounded the linear scale within ±10% at 66 m/min
- * (−2.1%); task 064 re-audited it at the new Slow (50 m/min) — see PROVIDERS.md
+ * VALIDATED: the linear scale was bounded within ±10% at 66 m/min (−2.1%) and
+ * re-audited at Slow (50 m/min) — see PROVIDERS.md
  * "Walking-speed audit at Slow". Slow is still labelled an "estimated reach" in the UI
  * because it is a scaled, not directly measured, pace. If a future audit fails,
  * ESCALATE — do not quietly substitute a measured triple, since that breaks the
@@ -43,7 +41,7 @@ export const PACES: readonly Pace[] = ["slow", "normal"] as const;
 export const DEFAULT_PACE: Pace = "normal";
 
 /** The speed the ORS ranges below were MEASURED at — a calibration ruler, NOT a
- *  product walking speed (no pace has equalled it since task 064). Only change
+ *  product walking speed (no pace equals it). Only change
  *  this alongside a fresh street-distance audit. */
 export const CALIBRATION_SPEED_M_PER_MIN = 80;
 /** Median Bucharest street-network detour vs crow-fly (measured 2026-07-17). */
@@ -60,8 +58,8 @@ export interface PaceModel {
   /** Leading glyph for the control (client only reads this). */
   emoji: string;
   /** Short per-option description shown UNDER each button (both visible, so a
-   *  user can choose without selecting) — the owner's "short description of what
-   *  it means" (task 059). */
+   *  user can choose without selecting) — a short description of what
+   *  it means. */
   blurb: string;
   /** Adaptive one-line "when to use this" hint (client `aria-live`). */
   hint: string;
@@ -89,11 +87,11 @@ function scaledRanges(speedMPerMin: number): [number, number, number] {
   ];
 }
 
-// Product speeds (task 064, owner-set). Kept as `km/h × 1000 / 60` expressions
+// Product speeds. Kept as `km/h × 1000 / 60` expressions
 // rather than rounded literals so the promised km/h stays exact. Named
 // *_PACE_SPEED_* so neither can be mistaken for the calibration anchor above —
-// the pre-064 `NORMAL_SPEED_M_PER_MIN` meant the anchor, and reviving that
-// spelling for a pace speed is precisely the conflation this module forbids.
+// naming a pace speed like the anchor (`NORMAL_SPEED_M_PER_MIN`) is precisely the
+// conflation this module forbids.
 /** Slow = 3 km/h. */
 const SLOW_PACE_SPEED_M_PER_MIN = 3000 / 60;
 /** Normal = 5 km/h. */
@@ -108,9 +106,8 @@ function pedestrianSpeedMsOf(speedMPerMin: number): string {
 }
 
 export const PACE_MODEL: Record<Pace, PaceModel> = {
-  // 3 km/h — 37.5% below the calibration anchor, i.e. further from it than any
-  // pace task 051 validated, which is why task 064 re-ran the G6 distance-ruler
-  // audit here. Labelled an "estimated reach" (non-anchor) in the control.
+  // 3 km/h — 37.5% below the calibration anchor — far enough that the
+  // linear rescale was re-checked with a distance-ruler audit here. Labelled an "estimated reach" (non-anchor) in the control.
   slow: {
     id: "slow",
     label: "Slow",
@@ -118,7 +115,7 @@ export const PACE_MODEL: Record<Pace, PaceModel> = {
     blurb: "leisurely, ~3 km/h",
     hint: "an easy stroll — with kids, a stroller, or in no hurry",
     speedMPerMin: SLOW_PACE_SPEED_M_PER_MIN,
-    // 50/60 = 0.8333… m/s -> "0.833" (probed live in task 064).
+    // 50/60 = 0.8333… m/s -> "0.833" (probed live).
     pedestrianSpeedMs: pedestrianSpeedMsOf(SLOW_PACE_SPEED_M_PER_MIN),
     egressMPerMin: SLOW_PACE_SPEED_M_PER_MIN / STREET_DETOUR,
     orsRangesS: scaledRanges(SLOW_PACE_SPEED_M_PER_MIN),
@@ -130,7 +127,7 @@ export const PACE_MODEL: Record<Pace, PaceModel> = {
     blurb: "average adult, ~5 km/h",
     hint: "average adult, about 5 km/h",
     speedMPerMin: NORMAL_PACE_SPEED_M_PER_MIN,
-    // (5000/60)/60 = 1.3888… m/s -> "1.389" (probed live in task 064).
+    // (5000/60)/60 = 1.3888… m/s -> "1.389" (probed live).
     pedestrianSpeedMs: pedestrianSpeedMsOf(NORMAL_PACE_SPEED_M_PER_MIN),
     egressMPerMin: NORMAL_PACE_SPEED_M_PER_MIN / STREET_DETOUR,
     orsRangesS: scaledRanges(NORMAL_PACE_SPEED_M_PER_MIN),
@@ -140,8 +137,8 @@ export const PACE_MODEL: Record<Pace, PaceModel> = {
 /** Narrow an untrusted string (query param) to a `Pace` for API validation: null
  * when the value is present but invalid (so a route can 400 on junk incl. the
  * retired `relaxed`/`brisk` ids — fail-loud, no silent alias) vs undefined/empty
- * → default. Every route uses this strict form (the pre-059 lenient `parsePace`
- * that silently defaulted junk was removed as dead + policy-contradicting). */
+ * → default. Every route uses this strict form; a lenient variant that
+ * silently defaulted junk would contradict the fail-loud policy. */
 export function parsePaceStrict(raw: string | null | undefined): Pace | null {
   if (raw === null || raw === undefined || raw === "") return DEFAULT_PACE;
   return (PACES as readonly string[]).includes(raw) ? (raw as Pace) : null;

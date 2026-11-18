@@ -12,11 +12,11 @@ import {
 } from "@/features/isochrones/time-context";
 
 describe("TIME_PRESETS", () => {
-  it("is exactly the two ids crowded, quiet; default = crowded == pre-059 Wed 08:30", () => {
+  it("is exactly the two ids crowded, quiet; default = crowded == Wed 08:30", () => {
     expect(TIME_PRESET_IDS).toEqual(["crowded", "quiet"]);
     expect(DEFAULT_TIME_PRESET).toBe("crowded");
     expect(DEFAULT_TIME_CONTEXT).toEqual({ kind: "preset", preset: "crowded" });
-    // Byte-identity: crowded must carry the pre-059 default fields exactly.
+    // crowded must carry the default fields exactly.
     const c = TIME_PRESETS.crowded;
     expect([c.weekday, c.hour, c.minute]).toEqual([3, 8, 30]);
   });
@@ -59,7 +59,7 @@ describe("parseTimeContext (route validation)", () => {
   it("valid preset → preset context; unknown/retired preset → null (400)", () => {
     expect(parseTimeContext({ preset: "crowded" })).toEqual({ kind: "preset", preset: "crowded" });
     expect(parseTimeContext({ preset: "quiet" })).toEqual({ kind: "preset", preset: "quiet" });
-    // Retired ids are NOT aliased — they 400 (no live users, task 059).
+    // Retired ids are NOT aliased — they 400 (no live users).
     expect(parseTimeContext({ preset: "weekday-morning" })).toBeNull();
     expect(parseTimeContext({ preset: "midday" })).toBeNull();
     expect(parseTimeContext({ preset: "lunchtime" })).toBeNull();

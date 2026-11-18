@@ -1,5 +1,5 @@
 /**
- * Car-mode traffic realism (task 058) — PURE, shared by the `/api/car` route and
+ * Car-mode traffic realism — PURE, shared by the `/api/car` route and
  * the client copy. Bucharest driving is heavily congested (public TomTom Traffic
  * Index 2025: 62.5% congestion, 18.5 km/h average), so free-flow ORS driving
  * times over-claim reach 1.5–2.2× at peak. We do NOT call a live-traffic
@@ -42,8 +42,8 @@ export interface CarTrafficSlot {
 /**
  * Factor-table revision. BUMP THIS whenever the numbers below change — it is
  * embedded in the car isochrone cache keys (ors.ts), so a recalibration can
- * never silently serve rings computed with the old factors (panel fable-4/
- * terra-4). `c1` = initial public-Index-grounded table (2026-07-24, task 058).
+ * never silently serve rings computed with the old factors. `c1` = initial
+ * public-Index-grounded table (2026-07-24).
  */
 export const CAR_FACTOR_REVISION = "c1";
 
@@ -83,7 +83,7 @@ export function carTrafficSlot(weekday: number, hour: number, minute = 0): CarTr
 
   let def: SlotDef;
   if (isWeekend(wd)) {
-    // Weekend daytime runs 10–22h: extended past 20:00 (panel sonnet-1) so
+    // Weekend daytime runs 10–22h: extended past 20:00 so
     // weekend-evening dinner/nightlife traffic isn't under-scaled to the 1.1
     // off-peak factor (which would OVER-claim reach — the unsafe direction).
     def = h >= 10 && h < 22 ? WEEKEND_DAY : WEEKEND_OFF;

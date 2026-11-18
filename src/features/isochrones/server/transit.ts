@@ -32,16 +32,15 @@ import { withTimeout } from "@/lib/timeout";
  * isochrone so the map renders both modes through one path.
  */
 
-// Transitous host is config-driven (task 007) — default = today's public MOTIS.
+// Transitous host is config-driven — default = today's public MOTIS.
 // The one-to-all path is version-specific and stays in code; only the base moves.
 const ONE_TO_ALL_PATH = "/api/v6/one-to-all";
-// Interval is config-driven (task 009, `intervals.transit`, default 1500 ms;
+// Interval is config-driven (`intervals.transit`, default 1500 ms;
 // community-run — be a good citizen). Shared with transit-plan via the same
 // `provider:"transit"` bucket, so the two MOTIS paths keep one chain.
 // Absolute end-to-end budget for the one-to-all fetch: a fast network drop /
-// abort ("fetch failed") heals on ONE retry (task 018 — the owner saw
-// `/api/transit` + the amenities-in-transit cascade fail intermittently, healing
-// on an identical retry), but the retry must NOT double the worst-case latency
+// abort ("fetch failed") heals on ONE retry (`/api/transit` + the amenities-in-transit
+// cascade failed intermittently and healed on an identical retry), but the retry must NOT double the worst-case latency
 // on a genuinely-slow/dead provider. The client `/api/transit` fetch has no
 // deadline of its own, so this budget is what bounds the whole call: a stalled
 // attempt aborts at the budget signal, and the retry only fires when a real
@@ -52,8 +51,8 @@ const ONE_TO_ALL_RETRY_BACKOFF_MS = 250;
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_TRAVEL_MIN = THRESHOLDS[THRESHOLDS.length - 1]; // 45
 // MOTIS access-walk speed, egress stamping, and the unioned ORS ring all read
-// ONE speed model — `PACE_MODEL[pace]` (task 051). Normal pace sends "1.389" m/s
-// (5 km/h, task 064 — the pre-064 "1.333" byte-identity pin is retired); routed
+// ONE speed model — `PACE_MODEL[pace]`. Normal pace sends "1.389" m/s
+// (5 km/h); routed
 // transfers cost nothing extra and reach ~4% more stops (probed 2026-07-17).
 // Ceiling on how long the transit response waits for the walking rings: past
 // this, ship with the radial origin fallback instead of inheriting ORS's
@@ -111,10 +110,10 @@ function bucharestOffsetMinutes(date: Date): number {
  * moment the user happens to visit (a night-time "now" would show near-empty
  * rings). Resolves `fields` (weekday/hour/minute) to the nearest UPCOMING
  * Europe/Bucharest instant, DST-correct. Default (no `fields`) ==
- * upcoming Wednesday 08:30, never-today — the pre-051 behaviour, byte-identical.
+ * upcoming Wednesday 08:30, never-today.
  *
  * Presets are strictly-future, never today → ~6-day cache reuse, rolls forward
- * weekly (task 059 removed the Custom same-day mode). Exported for tests.
+ * weekly. Exported for tests.
  *
  * DST: the offset is recomputed AT the target instant (`offAtTarget`), so
  * spring-forward/fall-back are handled; a wall time in a fold resolves to the
@@ -253,8 +252,8 @@ const PRESET_VARIANT: TransitVariant = {
 };
 
 /** Transit isochrone (15/30/45 min) from a point, via Transitous one-to-all, at
- * a walking `pace` and departure `timeContext`. Defaults reproduce the pre-051
- * request exactly (normal pace, Crowded preset = the old weekday-morning fields). */
+ * a walking `pace` and departure `timeContext`. Defaults: normal pace, Crowded preset
+ * (weekday-morning fields). */
 export async function transitIsochrone(
   latRaw: number,
   lngRaw: number,
@@ -264,8 +263,8 @@ export async function transitIsochrone(
   const departure = representativeDeparture(new Date(), departureFields(timeContext));
   // Cache key includes pace + departure so paced/time-shifted rings never serve
   // a Normal/other-time result (and different-pace/time concurrent callers
-  // don't share one flight). v4 (task 052): ring geometry gained the speck
-  // filter. v5 (task 064): the walking speeds changed to 3/5 km/h, which moves
+  // don't share one flight). v4: ring geometry gained the speck
+  // filter. v5: the walking speeds changed to 3/5 km/h, which moves
   // both the MOTIS access walk and the egress stamping — v4 entries would serve
   // rings built at the old speed.
   const key = taggedCacheKey(`transit:v5:${pace}:${roundCoord(latRaw)},${roundCoord(lngRaw)}:${departure}`);
@@ -366,8 +365,8 @@ async function fetchAndBuild(
   // the transit response hostage (the walk ring is polish, not a dependency).
   // Capped at WHICHEVER IS SMALLER — the walk-ring timeout OR the remaining
   // one-to-all budget — so the WHOLE /api/transit response really is bounded by
-  // ONE_TO_ALL_BUDGET_MS (the walk timer no longer stacks a fresh 8 s on top; the
-  // unfinished ORS call keeps running into the 7-day cache as before). Task 018 H3.
+  // ONE_TO_ALL_BUDGET_MS (the walk timer does not stack a fresh 8 s on top; the
+  // unfinished ORS call keeps running into the 7-day cache).
   const walkWaitMs = Math.max(0, Math.min(WALK_RINGS_TIMEOUT_MS, deadline - Date.now()));
   const timedWalk = await withTimeout(walkPromise, walkWaitMs);
   if (!timedWalk.ok) {
@@ -427,7 +426,7 @@ async function fetchAndBuild(
   }
 
   // Drop tiny disconnected specks from the FINAL rings — after the whole
-  // union/radial-fallback resolution above (task 052 C, plan-panel P11), so the
+  // union/radial-fallback resolution above, so the
   // fallback path is filtered too — while always keeping the origin's component.
   // The nesting invariant survives (see dropSmallComponents).
   rings = dropSmallComponents(rings, { lat, lng });

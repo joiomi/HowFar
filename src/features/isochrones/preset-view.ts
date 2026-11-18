@@ -1,13 +1,13 @@
 /**
- * Pure PRESET reach render model (phone-first, task 022).
+ * Pure PRESET reach render model (phone-first).
  *
  * PARALLEL + ADDITIVE to `isochrone-view.ts`'s legacy fixed-3-band render (walk/transit
  * 15/30/45, car 10/20/30). The legacy path is left byte-identical — this module drives the
  * `?model=preset` phone-first render only: the continuous per-mode light→dark reach
  * gradient over the CALIBRATED preset contours (walk 10/20, transit 20/40,
- * car 10/25) that task 020 serves.
+ * car 10/25) that the `?model=preset` serving path returns.
  *
- * HONESTY — the render-midpoint rule (task 020). Only TWO
+ * HONESTY — the render-midpoint rule. Only TWO
  * calibrated contours exist per mode, NOT a per-minute time field. So:
  *   - the gradient FILL is a set of DECORATIVE shells (the served outer polygon scaled toward
  *     the origin at `PRESET_SHELL_STEPS` steps, colour-ramped). They carry NO minute label and
@@ -168,12 +168,12 @@ function clipToOuter(a: GeoJSON.Feature<Poly>, outer: GeoJSON.Feature<Poly>): Ge
  * Decorative shell FILL features for the selected preset — a CLIPPED, ANNULAR set so the ramp
  * reads as a smooth "sooner→later" texture WITHOUT the two defects a naive homothety has:
  *   - each shell is `ring_i = scale(outer, i/N) ∩ outer`, so it can never spill past the served
- *     reach (a homothety of a concave / multi-part isochrone is NOT contained in the original —
- *     impl review; without the clip a detached far component would paint fill over unreachable
+ *     reach (a homothety of a concave / multi-part isochrone is NOT contained in the original;
+ *     without the clip a detached far component would paint fill over unreachable
  *     ground and overstate reach);
  *   - the painted feature is the ANNULUS `ring_i − ring_{i-1}`, so no two features overlap and the
  *     single translucent fill layer can't composite to an opaque wash at the origin (8 nested
- *     full fills at 0.16 stack to ≈0.75 there — impl review). Union of the annuli = the outer
+ *     full fills at 0.16 stack to ≈0.75 there). Union of the annuli = the outer
  *     reach, painted at one uniform opacity, lightest at the origin.
  * The shells carry NO minute label and claim nothing (the legend labels only the calibrated
  * contour LINES) — pure decoration, honest by construction.
@@ -252,7 +252,7 @@ export function presetInteriorLineMinutes(mode: Mode, selectedMin: number): numb
 }
 
 /**
- * HONEST REACH COPY (owner honesty requirement — a release blocker; the reach is
+ * HONEST REACH COPY (a release blocker: the reach is
  * a claim about where a user can actually get). What the shaded reach MEANS for
  * the selected preset. The number is the SELECTED served contour, so the sentence
  * can never claim a minute the map isn't drawing. "in about N minutes" — never
@@ -263,8 +263,8 @@ export function presetInteriorLineMinutes(mode: Mode, selectedMin: number): numb
  */
 export function presetReachExplainer(mode: Mode, selectedMin: number): string {
   // "About a N-minute …" — NOT "within" (an absolute promise the estimate can't
-  // keep near barriers; impl review flagged that "within about a N-minute walk"
-  // still read as the absolute claim the caveat then contradicts).
+  // keep near barriers; "within about a N-minute walk"
+  // still reads as the absolute claim the caveat then contradicts).
   switch (mode) {
     case "walk":
       return `About a ${selectedMin}-minute walk from here.`;
@@ -276,9 +276,9 @@ export function presetReachExplainer(mode: Mode, selectedMin: number): string {
 }
 
 /**
- * The honesty CAVEAT (owner honesty requirement): the reach is a typical-street-walk estimate
- * that can OVERSTATE near barriers (rivers / rail — the accepted anisotropy task
- * 020 documented and task 021 will fix). Walk + transit carry it (their reach
+ * The honesty CAVEAT: the reach is a typical-street-walk estimate
+ * that can OVERSTATE near barriers (the accepted river/rail anisotropy).
+ * Walk + transit carry it (their reach
  * folds in a street walk that a barrier can lengthen); car does NOT (0% over-claim
  * measured on the served free-flow ranges, no street-walk component). Returns null
  * where no caveat applies, so the UI renders nothing rather than an empty line.
@@ -286,9 +286,8 @@ export function presetReachExplainer(mode: Mode, selectedMin: number): string {
  * The over-claim DIRECTION is honest (the estimate over-reaches at barriers, never
  * under-reaches), but NOT minimized: near a barrier the gap is real (a river/rail
  * detour adds ~10 min on foot; the transit periphery can run ~30 min longer), so
- * the copy says "noticeably shorter", not "a little" — the impl review flagged the
- * softer wording as under-stating a documented severe tail (the neither-direction
- * honesty bar cuts both ways).
+ * the copy says "noticeably shorter", not "a little" — softer wording would
+ * under-state a documented severe tail (the honesty bar cuts both ways).
  */
 export function presetReachCaveat(mode: Mode): string | null {
   switch (mode) {

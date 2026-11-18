@@ -86,7 +86,7 @@ describe("decodePolyline", () => {
   it("rejects an overlong / never-terminating varint instead of accepting garbage", () => {
     // All-continuation bytes ("~" = 0x7e-63 = 0x3f, high bit set) never terminate;
     // the decoder must stop at the 32-bit ceiling and return the safe prefix (here
-    // nothing), NOT emit a bogus (0,0)-ish point (review).
+    // nothing), NOT emit a bogus (0,0)-ish point.
     expect(decodePolyline("~~~~~~~~~~", 7)).toEqual([]);
     // A valid first point followed by an overlong lng group → keep only the good point.
     const good = decodePolyline("_p~iF~ps|U", 5); // a classic precision-5 pair

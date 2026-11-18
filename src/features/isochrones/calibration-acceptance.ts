@@ -1,6 +1,6 @@
 /**
  * Calibration-campaign acceptance + coverage policy — PURE, so the guards that
- * keep a live measurement campaign from FALSE-GREENING are unit-tested (rule 13)
+ * keep a live measurement campaign from FALSE-GREENING are unit-tested
  * instead of living only inside a dev script nobody re-runs in CI.
  *
  * Two failure classes a naive campaign hides, both in the reassuring direction:

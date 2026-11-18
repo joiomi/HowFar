@@ -7,7 +7,7 @@ import { isRetriableFetchError, providerFetch, ProviderError, roundCoord, USER_A
 
 /**
  * Transitous MOTIS journey planning (server-side, cached) for the right-click
- * "how do I get there?" popup (task 052 D). Unlike the reachability isochrone
+ * "how do I get there?" popup. Unlike the reachability isochrone
  * (one-to-all → polygons), this asks the SAME free/keyless engine for the actual
  * best trip from the selected origin to a clicked point, so the popup can give
  * specific, actionable directions — walk to a named stop, board a named line
@@ -16,11 +16,11 @@ import { isRetriableFetchError, providerFetch, ProviderError, roundCoord, USER_A
  * User-Agent + attribution to transitous.org/sources (rendered client-side).
  */
 
-// Transitous host is config-driven (task 007) — default = today's public MOTIS,
+// Transitous host is config-driven — default = today's public MOTIS,
 // shared with one-to-all (transit.ts). The plan path is version-specific and
 // stays in code; only the base moves.
 const PLAN_PATH = "/api/v1/plan";
-// Interval is config-driven (task 009, `intervals.transit`, default 1500 ms);
+// Interval is config-driven (`intervals.transit`, default 1500 ms);
 // shares the `provider:"transit"` bucket with one-to-all (transit.ts).
 /** END-TO-END budget for resolving one trip plan: rate-limiter queue wait +
  * first attempt + the bounded retry, all under ONE absolute deadline (an
@@ -28,19 +28,18 @@ const PLAN_PATH = "/api/v1/plan";
  * only after the shared-host queue, so a `/plan` parked behind a slow
  * one-to-all could finish and get CACHED after the client's deadline
  * (`REACH_TIMEOUT_MS`) had already shown an error, and the very next click
- * would "heal" — the flaky-product read this task exists to kill. Budget <
+ * would "heal" — a flaky-looking product. Budget <
  * client deadline is asserted in transit-plan.test.ts; the overrun path
- * throws a ProviderError and caches nothing. Task 018 raised it 10s→12s: the
- * owner saw "aborted at exactly 10.0s … the remote was just slow; identical
- * retries succeed", i.e. the remote wanted ~10s and hit the OLD 10s ceiling — a
- * MODESTLY longer single attempt (the owner's own suggestion) lets that remote
- * SUCCEED on the first try, without a doomed short-timeout retry. A retry still
+ * throws a ProviderError and caches nothing. 12 s because the remote sometimes
+ * needs ~10 s: a 10 s ceiling aborted it although an identical retry succeeds, so
+ * a MODESTLY longer single attempt lets it SUCCEED on the first try, without a
+ * doomed short-timeout retry. A retry still
  * fires for a FAST failure (network drop) with budget to spare; a genuine
  * timeout has no budget left, an honest failure the client's next click reheals. */
 export const PLAN_BUDGET_MS = 12_000;
 /** Don't bother retrying unless at least this much of the budget remains — a
  * retry needs the configured transit spacing (default 1.5 s — the interval is
- * config-driven since task 009) plus a realistic response window. Tuned for the
+ * config-driven) plus a realistic response window. Tuned for the
  * default; a self-host that sets a very different TRANSIT_MIN_INTERVAL_MS may
  * want this derived from the interval (parked follow-up). */
 const RETRY_MIN_REMAINING_MS = 3_000;
@@ -61,25 +60,25 @@ const NO_TRANSIT_TTL_MS = 5 * 60 * 1000;
  * whole remaining band walking from the alight stop (up to 45 min), while MOTIS
  * defaults `maxPostTransitTime` to 900s — so a point could be painted reachable
  * yet get "no route" from `/plan`, flipping within meters at the 15-min-walk
- * frontier (the owner-reported right-click flake). 2700s = the 45-min band, the
+ * frontier (the right-click flake). 2700s = the 45-min band, the
  * egress model's own extreme. `maxPreTransitTime` deliberately stays at the
  * 900s default: the rings' one-to-all sends no override either, so raising it
- * would surface trips the map never painted (review).
+ * would surface trips the map never painted.
  */
 export const PLAN_MAX_POST_TRANSIT_S = 2700;
 /** Pedestrian contract for `/plan`, identical to the one-to-all call that
  * paints the rings (transit.ts): Normal pace (transit pace is always Normal —
- * task 052, `effectivePace`) + OSM-routed transfers. Divergent walking
+ * `effectivePace`) + OSM-routed transfers. Divergent walking
  * semantics between the two calls is another painted-vs-planned mismatch
  * source. Sourced from PACE_MODEL so the two calls can never drift apart. */
 export const PLAN_PEDESTRIAN_SPEED_MS = PACE_MODEL.normal.pedestrianSpeedMs;
 /** Legs-per-itinerary cap (payload bound). Bucharest trips run ~3–9 legs; a
- * value well above that drops only degenerate/hostile responses (task 054). */
+ * value well above that drops only degenerate/hostile responses. */
 const MAX_REACH_LEGS = 24;
 
 /** A leg endpoint's coordinates ([lng, lat] carried as named fields). Optional:
  * a malformed leg without finite coords still lists its step, it just can't be
- * drawn (task 054). */
+ * drawn. */
 export interface ReachPoint {
   lat: number;
   lng: number;
@@ -97,7 +96,7 @@ export interface ReachLeg {
   toName: string;
   minutes: number;
   /** Board/alight coordinates, surfaced so the client can highlight the stops
-   * the rider actually uses (task 054). Absent when the leg lacks finite coords. */
+   * the rider actually uses. Absent when the leg lacks finite coords. */
   from?: ReachPoint;
   to?: ReachPoint;
   /** The leg's drawn track as [lng, lat] points, decoded from MOTIS
@@ -138,7 +137,7 @@ interface MotisPlanBody {
   itineraries?: MotisItinerary[];
   /** Non-transit (walk/bike) options MOTIS returns separately — used as a
    * fallback so a very-close destination gets a walking answer instead of a
-   * false "no public-transport route" (impl-panel T4). */
+   * false "no public-transport route". */
   direct?: MotisItinerary[];
 }
 
@@ -148,7 +147,7 @@ function placeName(p: MotisPlace | null | undefined): string {
 /** A leg endpoint's coords, or undefined when either is missing / non-numeric /
  * out of range — a leg without drawable coords still lists as a step. Requires
  * an ACTUAL number (not a coercible null/""): `Number(null)` is 0, which would
- * otherwise plant a false (0,0) stop off West Africa (review). */
+ * otherwise plant a false (0,0) stop off West Africa. */
 function placePoint(p: MotisPlace | null | undefined): ReachPoint | undefined {
   const lat = p?.lat;
   const lng = p?.lon;
@@ -160,7 +159,7 @@ function placePoint(p: MotisPlace | null | undefined): ReachPoint | undefined {
 /** Transitous encodes `legGeometry` at precision 7. Default to 7 (NOT the format's
  * usual 5) when the field is missing, so a dropped precision degrades to correct
  * decoding rather than silently pushing every path 100× out of range → empty →
- * straight-line-only draw (review). */
+ * straight-line-only draw. */
 const DEFAULT_LEG_PRECISION = 7;
 /** Decode a MOTIS leg's `legGeometry` to a bounded [lng,lat] track. */
 function legPath(g: MotisLegGeometry | null | undefined): [number, number][] {
@@ -173,7 +172,7 @@ function minutesOf(seconds: unknown): number {
   return Number.isFinite(s) && s > 0 ? Math.round(s / 60) : 0;
 }
 /** Raw trip duration in seconds (0 for missing/non-positive) — used for RANKING,
- * so a sub-minute difference is not lost to rounding (task 057). `minutesOf` is
+ * so a sub-minute difference is not lost to rounding. `minutesOf` is
  * for DISPLAY only. */
 function durationSeconds(seconds: unknown): number {
   const s = Number(seconds);
@@ -181,7 +180,7 @@ function durationSeconds(seconds: unknown): number {
 }
 /** A finite, non-negative integer transfer count from untrusted MOTIS input —
  * one source for both parsing and scoring, so the comparator can't see NaN or a
- * negative reward (task 057). */
+ * negative reward. */
 function normTransfers(v: unknown): number {
   const t = Number(v);
   return Number.isFinite(t) && t > 0 ? Math.trunc(t) : 0;
@@ -189,8 +188,8 @@ function normTransfers(v: unknown): number {
 
 /**
  * Per-transfer penalty (seconds) applied when RANKING itineraries: an extra
- * transfer must save MORE than this to be recommended (task 057). Real riders —
- * and the owner's feedback — prefer a simpler, more-direct trip over shaving a
+ * transfer must save MORE than this to be recommended. Real riders
+ * prefer a simpler, more-direct trip over shaving a
  * few minutes with an extra vehicle. Calibrated against a real MOTIS capture
  * where a direct Tram-1 trip (1800s) and a Tram+Bus trip (1500s) differ by
  * exactly 300s: at 360s the direct trip wins STRICTLY (not via a fragile tie),
@@ -214,7 +213,7 @@ export function parseItinerary(it: MotisItinerary): ReachPlan {
     // Bound legs-per-itinerary: with each leg's `path` now up to
     // MAX_POLYLINE_POINTS, a degenerate/hostile MOTIS response could otherwise
     // build a multi-MB ReachPlan that gets cached (6h) and shipped to the client.
-    // A real Bucharest trip is well under this (review).
+    // A real Bucharest trip is well under this.
     if (legs.length >= MAX_REACH_LEGS) break;
     if (!l || typeof l !== "object") continue; // tolerate null/garbled leg entries (T2)
     const mode = str(l.mode) ?? "UNKNOWN";
@@ -226,8 +225,8 @@ export function parseItinerary(it: MotisItinerary): ReachPlan {
       fromName: placeName(l.from),
       toName: placeName(l.to),
       minutes,
-      // Coords + decoded track ride along so the client can DRAW the journey
-      // (task 054); from/to are kept even when the path decodes to nothing.
+      // Coords + decoded track ride along so the client can DRAW the journey;
+      // from/to are kept even when the path decodes to nothing.
       from: placePoint(l.from),
       to: placePoint(l.to),
       path: legPath(l.legGeometry),
@@ -256,9 +255,9 @@ export function parseItinerary(it: MotisItinerary): ReachPlan {
  * gets an answer (T4). Itineraries without a finite positive duration are dropped
  * (T2).
  *
- * Ranking (task 057) is a TRANSFER-PENALISED total order on RAW seconds — an
+ * Ranking is a TRANSFER-PENALISED total order on RAW seconds — an
  * extra transfer must save more than `TRANSFER_PENALTY_S` to be chosen, so we
- * recommend the direct/simpler trip the owner expects rather than an uglier
+ * recommend the direct/simpler trip riders expect rather than an uglier
  * transfer that shaves a couple of minutes. Locked total order (no rounding):
  *   1. `durationSec + TRANSFER_PENALTY_S × transfers` ascending (the penalised cost)
  *   2. `transfers` ascending (at equal cost, fewer transfers wins)
@@ -295,7 +294,7 @@ export function bestPlan(body: MotisPlanBody, opts?: { maxSeconds?: number }): R
     typeof maxSeconds === "number" && maxSeconds > 0 ? durationSeconds(it.duration) <= maxSeconds : true;
   const ordered = [...ranked.filter(inBand), ...ranked.filter((it) => !inBand(it))];
   // Take the best candidate that PARSES to a usable answer — a malformed winner
-  // (e.g. legs that all trim away) must not bury a valid runner-up (review).
+  // (e.g. legs that all trim away) must not bury a valid runner-up.
   for (const candidate of ordered) {
     const plan = parseItinerary(candidate);
     if (plan.reachable) return plan;
@@ -317,9 +316,9 @@ export async function planTrip(
   departureIso: string,
   maxMinutes?: number,
 ): Promise<ReachPlan> {
-  // v4 (task 063): the request contract changed (maxPostTransitTime +
+  // v4: the request contract changed (maxPostTransitTime +
   // pedestrianSpeed + useRoutedTransfers) — a cached v3 plan could keep serving
-  // a "no route" answer the new limits would revive. v5 (task 064): the
+  // a "no route" answer the new limits would revive. v5: the
   // pedestrian speed sent to /plan changed 1.333 -> 1.389 m/s, so the walking
   // legs (and therefore the chosen itinerary) can differ. maxMinutes is in the
   // key because it changes the selected itinerary.
@@ -353,7 +352,7 @@ async function fetchPlanBody(
       rateHost: host,
       minIntervalMs,
       // The attempt runs to the absolute budget; the budget signal is what
-      // bounds the whole call (single modestly-long attempt, task 018).
+      // bounds the whole call (single modestly-long attempt).
       timeoutMs: PLAN_BUDGET_MS,
       signal: budgetSignal,
       init: { headers: { "User-Agent": USER_AGENT } },
@@ -405,14 +404,14 @@ async function fetchAndParse(
   // deadline showed an error (the heal-loop). What it does NOT bound: the
   // shared-host queue wait itself, so the resulting ProviderError may surface
   // later than PLAN_BUDGET_MS — an
-  // honest, uncached, retryable failure (review: accepted residual; making the
+  // honest, uncached, retryable failure (an accepted residual: making the
   // limiter signal-aware would touch every provider for no material gain).
   const isTransitAnswer = (p: ReachPlan): boolean => p.reachable && hasTransitLeg(p.legs);
   const usableDirect = (b: MotisPlanBody): boolean =>
     (Array.isArray(b.direct) ? b.direct : []).some((it) => it && durationSeconds(it.duration) > 0);
   const canRetry = () => Date.now() + RETRY_MIN_REMAINING_MS < deadline;
 
-  // ONE unified retry loop, capped at TWO fetchPlanBody calls total (task 018 —
+  // ONE unified retry loop, capped at TWO fetchPlanBody calls total —
   // nesting a fetch-failure retry INSIDE the empty-response retry could reach
   // 3–4 upstream calls on the shared 1.5 s transit bucket, poor citizenship on a
   // community host). A single retry

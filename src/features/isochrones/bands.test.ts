@@ -8,7 +8,7 @@ import {
   LEGEND_BANDS,
 } from "./bands";
 
-describe("amenityBandsForFilter — CUMULATIVE, because ring polygons are nested (task 065)", () => {
+describe("amenityBandsForFilter — CUMULATIVE, because ring polygons are nested", () => {
   it("includes every band the selected filter actually shades", () => {
     // A ring layer paints the WHOLE reach polygon for its band, not an annulus, so
     // selecting 30 shades the 30-minute area INCLUDING the inner 15 zone. Filtering
@@ -38,7 +38,7 @@ describe("amenityBandsForFilter — CUMULATIVE, because ring polygons are nested
   });
 });
 
-describe("amenityScopeLabel — the phrase follows the SHADING, not the clip (task 065)", () => {
+describe("amenityScopeLabel — the phrase follows the SHADING, not the clip", () => {
   it("names the widest VISIBLE band, per mode", () => {
     // The payload is clipped to the outer band, but only painted bands are shown, so
     // the sentence must describe what is visible or it over-claims.
@@ -56,9 +56,9 @@ describe("amenityScopeLabel — the phrase follows the SHADING, not the clip (ta
     expect(amenityScopeLabel("car", "all")).toBe("Within a 30-min drive");
   });
 
-  it("keeps the pre-065 wording at the default filter in walk mode", () => {
-    // Deliberate: the default view is unchanged for the owner, so existing copy
-    // assertions stay valid and only the widened/other-mode cases are new.
+  it("reads \"Within a 15-min walk\" at the default filter in walk mode", () => {
+    // Deliberate: the default view keeps the plain 15-min walk wording; only the
+    // widened/other-mode cases differ.
     expect(amenityScopeLabel("walk", DEFAULT_RING_FILTER)).toBe("Within a 15-min walk");
   });
 });

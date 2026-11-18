@@ -115,8 +115,8 @@ describe("reachExplainer", () => {
   });
 });
 
-describe("ring filter (task 024)", () => {
-  it("defaults to the inner band (owner-picked) and offers each band plus All", () => {
+describe("ring filter", () => {
+  it("defaults to the inner band and offers each band plus All", () => {
     expect(DEFAULT_RING_FILTER).toBe(15);
     expect(RING_FILTER_OPTIONS).toEqual([15, 30, 45, "all"]);
   });

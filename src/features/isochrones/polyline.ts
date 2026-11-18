@@ -1,5 +1,5 @@
 /**
- * Google "encoded polyline" decoder (task 054), used for MOTIS `/plan`
+ * Google "encoded polyline" decoder, used for MOTIS `/plan`
  * `legGeometry.points`. Transitous encodes at **precision 7** (1e7 scale) — NOT
  * the usual 1e5 the format is famous for — so the caller MUST pass the leg's own
  * `legGeometry.precision`. Verified against a live `/plan` capture: every leg's
@@ -61,7 +61,7 @@ export function decodePolyline(encoded: unknown, precision = 5): [number, number
     } while (byte >= 0x20 && shift < 32);
     // A continuation bit still set at the 32-bit ceiling is a malformed/overlong
     // varint (a corrupt or hostile string) — stop rather than accept a garbage
-    // value that would decode to a bogus coordinate (review).
+    // value that would decode to a bogus coordinate.
     if (byte >= 0x20) return coords;
     lat += result & 1 ? ~(result >> 1) : result >> 1;
 

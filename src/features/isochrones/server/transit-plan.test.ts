@@ -112,7 +112,7 @@ describe("parseItinerary", () => {
 
   it("does NOT coerce null/blank endpoint coords to (0,0) — a leg with no numeric coords has undefined from/to", () => {
     // Number(null)===0 / Number("")===0 would otherwise plant a false (0,0) stop
-    // off West Africa and draw a bogus straight route there (review).
+    // off West Africa and draw a bogus straight route there.
     const plan = parseItinerary({
       legs: [{ mode: "BUS", duration: 300, from: { name: "X", lat: null, lon: null }, to: { name: "Y", lat: "", lon: "" } }],
     }) as Extract<ReachPlan, { reachable: true }>;
@@ -126,7 +126,7 @@ describe("parseItinerary", () => {
     expect(plan.legs.length).toBeLessThanOrEqual(24);
   });
 
-  // Self-consistent geometry check (plan-panel, Critical): rather than pin the
+  // Self-consistent geometry check: rather than pin the
   // precision-7 decode to hardcoded magic numbers, assert that each leg's decoded
   // legGeometry endpoints reproduce THAT leg's own from/to coords, from a real
   // committed /plan capture. If the MOTIS scale ever changes, this fails loudly
@@ -232,7 +232,7 @@ describe("bestPlan", () => {
   });
 });
 
-describe("bestPlan transfer penalty + within-band (task 057)", () => {
+describe("bestPlan transfer penalty + within-band", () => {
   it("prefers the DIRECT Tram-1 trip over the marginally-faster Tram+Bus, on the real fixture", () => {
     const plan = bestPlan(multi) as Extract<ReachPlan, { reachable: true }>;
     // The direct itinerary is Tram 1 only (0 transfers, 1800s); the old pure-fastest
@@ -327,13 +327,13 @@ describe("planTrip", () => {
     expect(url).toContain(`time=${encodeURIComponent(DEP)}`);
   });
 
-  it("defaults to today's public plan host, and a TRANSIT_BASE_URL override moves URL + rateHost (task 007)", async () => {
+  it("defaults to today's public plan host, and a TRANSIT_BASE_URL override moves URL + rateHost", async () => {
     providerFetch.mockResolvedValue(planResponse([FAST]));
     await planTrip(FROM, TO, DEP);
     const [defUrl, defOpts] = providerFetch.mock.calls[0] as [string, { rateHost: string; provider: string; minIntervalMs: number }];
     expect(defUrl.startsWith("https://api.transitous.org/api/v1/plan?")).toBe(true);
     expect(defOpts.rateHost).toBe("api.transitous.org");
-    // task 009: MUST share the `transit` bucket with one-to-all (same upstream)
+    // MUST share the `transit` bucket with one-to-all (same upstream)
     expect(defOpts.provider).toBe("transit");
     expect(defOpts.minIntervalMs).toBe(1500);
 
@@ -372,7 +372,7 @@ describe("planTrip", () => {
     // The rings' egress is our radial walk model (up to the whole remaining
     // band), so the planner must allow the same last-mile walking — with the
     // 900s default, points >15-min walk from every stop got "no route" while
-    // painted reachable (the owner-reported right-click flake).
+    // painted reachable (the right-click flake).
     expect(url).toContain(`maxPostTransitTime=${PLAN_MAX_POST_TRANSIT_S}`);
     expect(PLAN_MAX_POST_TRANSIT_S).toBe(2700); // = the 45-min outer band
     // Ingress stays at the MOTIS default — the rings' one-to-all sends no
@@ -390,7 +390,7 @@ describe("planTrip", () => {
     // enforced by an ABSOLUTE abort signal spanning queue wait + attempt +
     // retry (a per-attempt timeout alone starts after the shared-host queue).
     expect(PLAN_BUDGET_MS).toBeLessThan(REACH_TIMEOUT_MS);
-    // Ceiling (task 018): cap the client deadline so raising the budget pair can
+    // Ceiling: cap the client deadline so raising the budget pair can
     // never drift up and make every genuine phone failure slower.
     expect(REACH_TIMEOUT_MS).toBeLessThanOrEqual(15_000);
     // G2 heal-loop margin: a server success at ~budget must still beat the
@@ -406,7 +406,7 @@ describe("planTrip", () => {
     expect(opts.timeoutMs).toBe(PLAN_BUDGET_MS);
   });
 
-  it("RETRIES a fast abort-shaped failure then succeeds (owner: 'identical retries succeed') — 2 calls (task 018)", async () => {
+  it("RETRIES a fast abort-shaped failure then succeeds ('identical retries succeed') — 2 calls", async () => {
     providerFetch
       .mockRejectedValueOnce(Object.assign(new Error("This operation was aborted"), { name: "AbortError" }))
       .mockResolvedValueOnce(planResponse([FAST]));
@@ -601,14 +601,14 @@ describe("planTrip", () => {
     await expect(planTrip(FROM, TO, DEP)).rejects.toThrow(/503/);
   });
 
-  it("a PERSISTENT network failure is wrapped as a ProviderError after ONE retry (2 calls, nothing cached) — task 018", async () => {
+  it("a PERSISTENT network failure is wrapped as a ProviderError after ONE retry (2 calls, nothing cached)", async () => {
     providerFetch.mockRejectedValue(new TypeError("network down")); // both attempts fail
     await expect(planTrip(FROM, TO, DEP)).rejects.toThrow(/request failed: network down/);
     expect(providerFetch).toHaveBeenCalledTimes(2); // transient → retried once
     expect(store.size).toBe(0); // an honest failure caches nothing
   });
 
-  it("HEALS a transient plan failure: network-fail-then-succeed returns the route via 2 calls (task 018)", async () => {
+  it("HEALS a transient plan failure: network-fail-then-succeed returns the route via 2 calls", async () => {
     providerFetch
       .mockRejectedValueOnce(new TypeError("network down"))
       .mockResolvedValueOnce(planResponse([FAST]));
@@ -617,13 +617,13 @@ describe("planTrip", () => {
     expect(providerFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("does NOT retry a deterministic upstream status (503) — exactly 1 call (task 018)", async () => {
+  it("does NOT retry a deterministic upstream status (503) — exactly 1 call", async () => {
     providerFetch.mockResolvedValue({ ok: false, status: 503, json: () => Promise.resolve({}) });
     await expect(planTrip(FROM, TO, DEP)).rejects.toThrow(/503/);
     expect(providerFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("UNIFIED retry is capped at 2 calls for a mixed empty→fetch-fail sequence, and surfaces an honest failure (suspect empty not cached) — task 018", async () => {
+  it("UNIFIED retry is capped at 2 calls for a mixed empty→fetch-fail sequence, and surfaces an honest failure (suspect empty not cached)", async () => {
     providerFetch
       .mockResolvedValueOnce(planResponse([])) // suspect empty
       .mockRejectedValueOnce(new TypeError("network down")); // confirmation retry fails
@@ -632,7 +632,7 @@ describe("planTrip", () => {
     expect(store.size).toBe(0); // nothing cached
   });
 
-  it("UNIFIED retry is capped at 2 calls for a mixed fetch-fail→empty sequence — task 018", async () => {
+  it("UNIFIED retry is capped at 2 calls for a mixed fetch-fail→empty sequence", async () => {
     providerFetch
       .mockRejectedValueOnce(new TypeError("network down")) // transient
       .mockResolvedValueOnce(planResponse([])); // retry yields determinate not-reachable

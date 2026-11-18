@@ -29,7 +29,7 @@
  *     state that times are typical street-walk estimates and can overstate near
  *     barriers. It is NOT within a symmetric ±10% bar at those origins.
  *   - CAR minutes are NOMINAL free-flow (`minutes × 60`); ORS driving-car is
- *     accurate-to-conservative vs OSRM at 10/25 (task 056 straddle-1.0; re-checked
+ *     accurate-to-conservative vs OSRM at 10/25 (straddle-1.0 audit; re-checked
  *     directly on the served free-flow ranges 2026-09-03, 0% over-claim — receipt
  *     `scripts/calibrate/receipts/car-spotcheck-2026-09-03.json`). The per-time-of-day
  *     congestion factor (`car-traffic.ts`) applies on top, shrinking the reach further.

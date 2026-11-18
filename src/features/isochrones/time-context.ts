@@ -7,14 +7,13 @@
  * PURE module — no server imports — so the client control and the server read
  * the same table.
  *
- * Task 059 cut this to the least-necessary set the owner asked for: TWO options,
- * **Crowded** (weekday rush) and **Not crowded** (off-peak midday). The four old
- * presets and the free-form Custom day/time editor are gone. `crowded` reuses the
- * pre-059 default fields exactly (upcoming Wednesday 08:30 Europe/Bucharest,
- * strictly-future / never-today), so a default request stays byte-identical
- * (same resolved departure → same transit cache key; same am-peak car slot).
+ * The least-necessary set: TWO options, **Crowded** (weekday rush) and **Not
+ * crowded** (off-peak midday); there is no free-form day/time editor. `crowded` is
+ * the default (upcoming Wednesday 08:30 Europe/Bucharest, strictly-future /
+ * never-today), so a default request resolves to the same departure, the same
+ * transit cache key and the same am-peak car slot.
  *
- * No live users (CLAUDE.md), so removed query params are NOT aliased — they are
+ * No live users, so removed query params are NOT aliased — they are
  * rejected fail-loud (→ 400) rather than silently defaulting, and the intentional
  * API break is documented in docs/PROVIDERS.md.
  */
@@ -37,8 +36,8 @@ export interface TimePreset {
 }
 
 export const TIME_PRESETS: Record<TimePresetId, TimePreset> = {
-  // `crowded` == the pre-059 default (Wed 08:30) → byte-identical default rings
-  // and the weekday-morning car slot (am-peak ×2.1).
+  // `crowded` == the default (Wed 08:30) → the default rings and the
+  // weekday-morning car slot (am-peak ×2.1).
   crowded: {
     id: "crowded",
     label: "Crowded",
@@ -50,7 +49,7 @@ export const TIME_PRESETS: Record<TimePresetId, TimePreset> = {
   },
   quiet: {
     id: "quiet",
-    // Owner label "Not crowded". Mapped to weekday MIDDAY (Wed 12:30): the honest
+    // Label "Not crowded". Mapped to weekday MIDDAY (Wed 12:30): the honest
     // "not crowded" for BOTH engines — full daytime transit service + light-but-
     // real traffic (car midday ×1.5). Night/weekend would misread as a thin
     // timetable (worse reach), which is not what "quieter" should imply.
@@ -66,15 +65,14 @@ export const TIME_PRESETS: Record<TimePresetId, TimePreset> = {
 export const TIME_PRESET_IDS = Object.keys(TIME_PRESETS) as TimePresetId[];
 export const DEFAULT_TIME_PRESET: TimePresetId = "crowded";
 
-/** One option now, but kept as a discriminated shape so `tc.kind`/`tc.preset`
- *  consumers stay unchanged after the Custom variant was removed (task 059). */
+/** Preset-only; kept as a discriminated shape so `tc.kind`/`tc.preset`
+ *  consumers stay unchanged. */
 export type TimeContext = { kind: "preset"; preset: TimePresetId };
 
 export const DEFAULT_TIME_CONTEXT: TimeContext = { kind: "preset", preset: DEFAULT_TIME_PRESET };
 
 /** Resolved wall-clock fields. Both presets are strictly-future/never-today for
- * cache stability (~6-day reuse, rolls forward weekly). The pre-059 `allowToday`
- * flag existed only for the now-removed Custom mode, so it is gone. */
+ * cache stability (~6-day reuse, rolls forward weekly). */
 export interface DepartureFields {
   weekday: number;
   hour: number;
@@ -99,7 +97,7 @@ export function timeContextHint(tc: TimeContext): string {
 }
 
 /**
- * Parse untrusted query params into a `TimeContext`. Preset-only (task 059).
+ * Parse untrusted query params into a `TimeContext`. Preset-only.
  * Returns `DEFAULT_TIME_CONTEXT` when nothing relevant is supplied, `null` on
  * anything invalid (route → 400). Fail-loud on the RETIRED custom params: any
  * `weekday` or `time` present is rejected (never silently defaulted to Crowded),
@@ -115,7 +113,7 @@ export function parseTimeContext(params: {
   const time = params.time ?? "";
 
   // Retired custom mode: reject rather than ignore, so a stale client fails
-  // loudly instead of getting a silent Crowded default (plan panel).
+  // loudly instead of getting a silent Crowded default.
   if (weekday !== "" || time !== "") return null;
 
   if (preset !== "") {

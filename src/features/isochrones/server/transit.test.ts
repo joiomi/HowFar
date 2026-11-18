@@ -139,7 +139,7 @@ describe("transitIsochrone", () => {
     expect(providerFetch).toHaveBeenCalledTimes(2); // transient → retried once
   });
 
-  it("bounds each one-to-all attempt by the absolute budget (single modestly-long attempt, task 018 G1/G3)", async () => {
+  it("bounds each one-to-all attempt by the absolute budget (single modestly-long attempt)", async () => {
     providerFetch.mockResolvedValue(oneToAll([stop(44.475, 26.16, 20)]));
     await transitIsochrone(44.4, 26.1);
     const opts = providerFetch.mock.calls[0][1] as { timeoutMs?: number; signal?: AbortSignal };
@@ -147,7 +147,7 @@ describe("transitIsochrone", () => {
     expect(opts.signal).toBeInstanceOf(AbortSignal); // absolute budget signal
   });
 
-  it("RETRIES a fast abort-shaped failure then succeeds (owner: 'identical retries succeed') — 2 calls (task 018)", async () => {
+  it("RETRIES a fast abort-shaped failure then succeeds ('identical retries succeed') — 2 calls", async () => {
     providerFetch
       .mockRejectedValueOnce(Object.assign(new Error("The operation was aborted"), { name: "AbortError" }))
       .mockResolvedValueOnce(oneToAll([stop(44.475, 26.16, 20)]));
@@ -156,7 +156,7 @@ describe("transitIsochrone", () => {
     expect(providerFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("RETRIES a mid-body read failure (undici 'terminated' from res.json()) then succeeds — 2 calls (task 018 F3)", async () => {
+  it("RETRIES a mid-body read failure (undici 'terminated' from res.json()) then succeeds — 2 calls", async () => {
     providerFetch
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.reject(new TypeError("terminated")) })
       .mockResolvedValueOnce(oneToAll([stop(44.475, 26.16, 20)]));
@@ -165,7 +165,7 @@ describe("transitIsochrone", () => {
     expect(providerFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("HEALS a transient one-to-all failure: fail-then-succeed returns rings via 2 calls (task 018)", async () => {
+  it("HEALS a transient one-to-all failure: fail-then-succeed returns rings via 2 calls", async () => {
     providerFetch
       .mockRejectedValueOnce(new TypeError("fetch failed"))
       .mockResolvedValueOnce(oneToAll([stop(44.44, 26.12, 5), stop(44.475, 26.16, 20)]));
@@ -174,7 +174,7 @@ describe("transitIsochrone", () => {
     expect(providerFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("a fully-stalled one-to-all is bounded by the budget signal — rejects (honest 502) within ONE_TO_ALL_BUDGET_MS, never hangs (task 018)", async () => {
+  it("a fully-stalled one-to-all is bounded by the budget signal — rejects (honest 502) within ONE_TO_ALL_BUDGET_MS, never hangs", async () => {
     vi.useFakeTimers();
     try {
       // Resolves only if aborted — mimics a remote that never answers; the
@@ -264,7 +264,7 @@ describe("transitIsochrone", () => {
       true,
     ]);
     // Both builds carry the normal-pace egress speed EXACTLY (a `typeof
-    // === "number"` check here would have passed the pre-064 speed unchanged).
+    // === "number"` check here would pass a stale speed unchanged).
     for (const c of buildRingsMock.mock.calls) {
       expect((c[2] as { egressMPerMin: number }).egressMPerMin).toBeCloseTo(PACE_MODEL.normal.egressMPerMin, 10);
     }
@@ -327,7 +327,7 @@ describe("transitIsochrone", () => {
     const second = await transitIsochrone(44.4, 26.1);
     expect(providerFetch).toHaveBeenCalledTimes(1);
     expect(second).toEqual(first);
-    // v5 key (task 064): pace+departure scoped; pre-064 (v4) rings were built at
+    // v5 key: pace+departure scoped; v4 rings were built at
     // the old walk speed and must never serve.
     expect([...store.keys()].every((k) => k.startsWith("transit:v5:"))).toBe(true);
   });
@@ -340,13 +340,13 @@ describe("transitIsochrone", () => {
     expect(url).toContain("useRoutedTransfers=true");
   });
 
-  it("defaults to today's public Transitous host, and a TRANSIT_BASE_URL override moves URL + rateHost (task 007)", async () => {
+  it("defaults to today's public Transitous host, and a TRANSIT_BASE_URL override moves URL + rateHost", async () => {
     providerFetch.mockResolvedValue(oneToAll([]));
     await transitIsochrone(44.4, 26.1);
     const [defUrl, defOpts] = providerFetch.mock.calls[0] as [string, { rateHost: string; provider: string; minIntervalMs: number }];
     expect(defUrl.startsWith("https://api.transitous.org/api/v6/one-to-all?")).toBe(true);
     expect(defOpts.rateHost).toBe("api.transitous.org");
-    // task 009: shares the `transit` bucket with transit-plan; interval default 1500
+    // shares the `transit` bucket with transit-plan; interval default 1500
     expect(defOpts.provider).toBe("transit");
     expect(defOpts.minIntervalMs).toBe(1500);
 
@@ -379,8 +379,8 @@ describe("transitIsochrone", () => {
   });
 
   it("threads SLOW all the way through: MOTIS access speed, egress stamping, and the cache key", async () => {
-    // Task 064: every transit contract test ran at the default
-    // pace, so a broken pace→provider path would have shipped green. Slow must
+    // Contract tests at the default pace alone would let a broken pace→provider
+    // path ship green. Slow must
     // reach BOTH provider surfaces and the key, with its OWN egress speed.
     providerFetch.mockResolvedValue(oneToAll([]));
     await transitIsochrone(44.4, 26.1, "slow");
@@ -452,8 +452,8 @@ describe("representativeDeparture", () => {
   });
 
   it("is DST-correct across a fall-back weekend (offset fixpoint) — raw upcoming fields", () => {
-    // The resolver takes DepartureFields directly, so DST correctness is still
-    // proven without the removed Custom mode (task 059). now: Fri 2026-10-23
+    // The resolver takes DepartureFields directly, so DST correctness is
+    // proven from raw fields. now: Fri 2026-10-23
     // (EEST +03). Bucharest falls back Sun 2026-10-25 03:00, so the upcoming
     // Sunday 10:00 is post-transition ⇒ EET (+02) ⇒ 10:00 local = 08:00Z.
     // (Naively applying now's +03 offset would give the wrong instant.)
