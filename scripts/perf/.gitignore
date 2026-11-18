@@ -1,6 +1,6 @@
 # The perf harness installs its own deps, isolated from the app tree. Never commit them.
 node_modules/
-# Measurement outputs — regenerated each run; the committed record lives in docs/PERF_AUDIT.md.
+# Measurement outputs — regenerated each run; the current numbers are in the README.
 results/
 *.trace.json
 *.report.json

@@ -7,11 +7,12 @@ Romania extract, and for parity-checking them against the public providers.
 
 > **Scope.** In: Nominatim (`/search`+`/reverse`), Photon (`/api`), OpenRouteService
 > (walk + car isochrones), and the Protomaps basemap `.pmtiles`. **Out: transit.**
-> Transit (`/api/transit`, `/api/reach`) still uses its current provider — self-hosting
-> it (MOTIS) is blocked on a per-city GTFS commercial-licence check and is a later phase.
+> Transit (`/api/transit`, `/api/reach`) keeps the public Transitous API (the self-host
+> overlay does not set `TRANSIT_BASE_URL`); a self-hosted MOTIS with its own GTFS feed is
+> not built.
 >
 > **This is a local/dev stack.** It is not a production deployment (no TLS, no auth,
-> ports bound to `127.0.0.1`). Production provisioning is a separate phase.
+> ports bound to `127.0.0.1`), and none exists.
 
 Everything **downloaded** lives under gitignored `data/` (`data/osm/` extract,
 `data/selfhost/photon/` jar+index, `data/selfhost/planetiler/` generator checkout,
@@ -35,7 +36,7 @@ this doc are the only committed artefacts.
   ~6 GB heap (planetiler parses the whole extract's nodes); run it with the serving engines
   stopped.
 
-All commands are run from the `HowFar/` app root.
+All commands are run from the repository root.
 
 ## Measured resources
 
@@ -75,7 +76,9 @@ the run-manifest for the honest limit) — 18/18 rings (walk + car) with median 
 residual 0.0%, worst sector ≤3.1%, area 0.998–1.003 across Unirii/Grozăvești/Berceni × 3 bands;
 geocode ≤150 m and reverse ≤150 m at all three specific-landmark origins; Photon suggest top hit
 ≤110 m. (A bare neighborhood-name geocode query varies ~400 m across geocoders — inherent ranking
-variance, so the set uses specific landmarks.) Run it yourself with `docker/selfhost/parity-check.mjs` (§7).
+variance, so the set uses specific landmarks.) The rings compared are the parked legacy bands
+(walk 15/30/45, car 10/20/30): the harness requests the routes without `?model`. Run it yourself
+with `docker/selfhost/parity-check.mjs` (§7).
 
 ## 1 — Fetch the extract (and the Photon jar)
 
@@ -141,16 +144,17 @@ docker compose -f docker/selfhost/docker-compose.yml up -d ors
 docker compose -f docker/selfhost/docker-compose.yml logs -f ors      # healthy = /ors/v2/health
 ```
 
-Smoke test with the app's EXACT isochrone payload (3 intervals — the config raises
-`maximum_intervals` so this does not 502):
+Smoke test with the app's exact preset payloads (walk at Normal pace: 3 intervals for
+10/20/40 min; car under Crowded traffic: 10/25 min ÷ 2.1). The config raises
+`maximum_intervals`, so multi-range requests do not 502:
 
 ```bash
 curl -s -X POST 'http://localhost:8082/ors/v2/isochrones/foot-walking' \
   -H 'Content-Type: application/json' \
-  -d '{"locations":[[26.1025,44.4268]],"range":[861,1744,2633]}' | head -c 300; echo
+  -d '{"locations":[[26.1025,44.4268]],"range":[546,1135,2159]}' | head -c 300; echo
 curl -s -X POST 'http://localhost:8082/ors/v2/isochrones/driving-car' \
   -H 'Content-Type: application/json' \
-  -d '{"locations":[[26.1025,44.4268]],"range":[300,600,900]}' | head -c 300; echo
+  -d '{"locations":[[26.1025,44.4268]],"range":[286,714]}' | head -c 300; echo
 ```
 
 ## 5 — Basemap tiles (Protomaps schema)
@@ -178,7 +182,7 @@ app's `maxBounds`.
 
 Merge `docker/selfhost/env.selfhost.example` into `.env` (keep your existing
 `DATABASE_URL` / `AUTH_SECRET`), then run the app as usual. With none of those vars
-set the app is byte-identical to the default public-provider configuration (what the retired public preview ran).
+set the app is byte-identical to the default public-provider configuration.
 
 > **Tile cache after repointing `TILES_PMTILES_PATH`.** `/api/tiles` serves every archive
 > from the same URL with `Cache-Control: max-age=86400`, so if you point an already-loaded
@@ -241,9 +245,9 @@ For a fuller teardown (remove containers, or delete the volumes) see [Teardown](
 
 > **Not covered here.** `dev:selfhost` only starts the `db` **container**; applying the schema
 > (`prisma migrate deploy`) and importing the amenity catalogue (`npm run amenities:refresh`)
-> are the normal app setup (README Quick start), unchanged. And **transit is still not
-> self-hosted** — `/api/transit` and `/api/reach` keep their public provider (the MOTIS/GTFS
-> gate), so those routes hit the network even under `dev:selfhost`.
+> are the normal app setup (README, "Local development"), unchanged. And **transit is not
+> self-hosted**: `/api/transit` and `/api/reach` keep their public provider, so those routes
+> hit the network even under `dev:selfhost`.
 
 ## 6b — Testing on a phone over LAN
 
@@ -334,7 +338,9 @@ whether §6's overlay is in `.env`; the per-run `$(date +%s)` revision suffix co
 ApiCache namespaces so the comparison re-hits the live providers on each leg rather than
 serving cached rows (expired rows are reaped only by the `deleteExpired` sweep, not on read).
 
-The harness gates each ring on FULL bearing coverage on both legs AND median AND
+The ring comparison requests the reach routes without `?model`, so it compares the parked legacy
+bands; the preset requests use the same two ORS profiles. The harness gates each ring on FULL
+bearing coverage on both legs AND median AND
 worst-sector radial residual AND the area band. A wedge clipped from an *enclosing*
 ring casts a short ray in those bearings → caught by the worst-sector bound; the
 full-coverage gate (`n === bins`) is the separate guard for a ring that fails to
@@ -356,44 +362,44 @@ rm -rf data/osm data/selfhost                                        # reclaim d
 
 ## Caveats
 
-- **Transit is not self-hosted** (GTFS licence gate) — it keeps its current provider.
-- **Tile attribution now credits every bundled source.** The protomaps/basemaps build bundles more
-  than OpenStreetMap — Natural Earth, OSM water/land polygons, and **Daylight landcover** (derived
-  from ESA WorldCover), which carry their own attribution requirements. (Our build takes landcover
+- **Transit is not self-hosted**: it keeps the public Transitous API.
+- **Tile attribution credits every bundled source.** The protomaps/basemaps build bundles more
+  than OpenStreetMap: Natural Earth, OSM water/land polygons, and **Daylight landcover** (derived
+  from ESA WorldCover), which carry their own attribution requirements. (The build takes landcover
   from `daylight-landcover.gpkg`; it does **not** pass `--overture`, so no Overture Buildings/Places
-  layers are bundled — the upstream `LICENSE_DATA.md` "See the Overture Maps Attribution Guidelines"
+  layers are bundled. The upstream `LICENSE_DATA.md` "See the Overture Maps Attribution Guidelines"
   pointer is for ESA's own prescribed wording, applied below.) The authoritative list is
   protomaps/basemaps' own `LICENSE_DATA.md`; the local copy under
   `data/selfhost/planetiler/basemaps/` is a transient build artifact (gitignored, removed by the
   cleanup below), so cite the durable upstream at the build-pinned commit:
   <https://github.com/protomaps/basemaps/blob/a50c699adc60a45c899971b1e11275e61f13bfbf/LICENSE_DATA.md>
   (that commit is recorded in `docker/selfhost/run-manifest.md`). The map's attribution control
-  (`src/features/map/map-setup.ts`) credits OpenStreetMap (ODbL) — which also covers the ODbL
-  water/land coastline polygons (osmdata.openstreetmap.de), being OSM-derived — plus **ESA
-  WorldCover landcover under CC BY 4.0 with the licence link and a "modified" indication, via
-  Daylight** (CC BY 4.0 §3(a)(1)(B) requires flagging modification — Daylight vectorised ESA's
-  raster; the ESA link goes to ESA's data-access page, and README carries the fuller "contains
-  modified Copernicus Sentinel data … processed by the ESA WorldCover consortium" acknowledgement),
-  and Natural Earth (public-domain; shown by owner decision). The exact ESA WorldCover vintage is not
-  pinned in the current build (parked — add the year at go-live). Note the dark flavor *defines* a `landcover` layer
-  but fades it to opacity 0 above z7, and the city-extent `maxBounds` (`NEXT_PUBLIC_MAP_BBOX`) keeps
-  the camera above z7 today, so those pixels do not paint at this extent — the ESA data is
-  nonetheless **bundled in the served pmtiles archive** regardless, and a wider extent (P4) could
-  drop the floor to where it paints, so the CC BY 4.0 credit is carried for the distribution either
-  way. The same credit string serves the public build.protomaps.com cut and this self-built archive,
-  since both bundle the same sources. (Basis: the public cut's PMTiles metadata declares a
-  `landcover` vector layer — the same 9 source-layers as the self-built archive — and the bbox
-  extract retains the z0–z7 tiles where that layer is opaque; both run the same protomaps/basemaps
-  profile. This is a schema + same-profile argument, not a per-feature decode.) (The basemap POI-icon sprite is Mapzen/`tangrams/icons`, MIT;
-  it is hot-linked from `protomaps.github.io` — referenced, not redistributed — but its MIT notice
-  is carried in README's Attribution section for good measure.) The owner decision was to SHOW the
-  credits, not to drop Daylight
-  landcover from the build. **Still open (parked, tracked for go-live):** the raw `.pmtiles` archive
-  served by `/api/tiles` embeds only OSM in its own TileJSON metadata — a direct archive download
-  (bypassing the map) would not carry the ESA/Natural-Earth credit; embedding the full notice in the
-  archive metadata is a build-pipeline change beyond this UI task.
-- **Basemap glyphs + sprite** are still fetched keyless from `protomaps.github.io`
-  (tracked polish item, `docs/PROVIDERS.md`) — only the tiles are self-hosted here.
+  (`src/features/map/map-setup.ts`) credits OpenStreetMap (ODbL), which also covers the ODbL
+  water/land coastline polygons (osmdata.openstreetmap.de, OSM-derived); **ESA WorldCover landcover
+  under CC BY 4.0 with the licence link and a "modified" indication, via Daylight** (CC BY 4.0
+  §3(a)(1)(B) requires flagging modification, and Daylight vectorised ESA's raster; the ESA link
+  goes to ESA's data-access page, and the README carries the fuller "contains modified Copernicus
+  Sentinel data … processed by the ESA WorldCover consortium" acknowledgement); and Natural Earth
+  (public domain, credited anyway). The credits are shown rather than dropping Daylight landcover
+  from the build. The dark flavor *defines* a `landcover` layer but fades it to opacity 0 above z7,
+  and the city-extent `maxBounds` (`NEXT_PUBLIC_MAP_BBOX`) keeps the camera above z7, so those pixels
+  do not paint at this extent; the ESA data is nonetheless **bundled in the served pmtiles
+  archive**, and a wider extent could drop the zoom floor to where it paints, so the CC BY 4.0
+  credit is carried for the distribution either way. The same credit string serves the public
+  build.protomaps.com cut and this self-built archive, since both bundle the same sources. (Basis:
+  the public cut's PMTiles metadata declares a `landcover` vector layer, the same 9 source-layers as
+  the self-built archive, and the bbox extract retains the z0–z7 tiles where that layer is opaque;
+  both run the same protomaps/basemaps profile. This is a schema + same-profile argument, not a
+  per-feature decode.) The basemap POI-icon sprite is Mapzen/`tangrams/icons`, MIT; it is
+  hot-linked from `protomaps.github.io` (referenced, not redistributed), but its MIT notice is
+  carried in the README's Attribution section anyway.
+  **Still open:** the exact ESA WorldCover vintage is not pinned in the build, so the credit
+  carries no year; and the raw `.pmtiles` archive served by `/api/tiles` embeds only OSM in its own
+  TileJSON metadata, so a direct archive download (bypassing the map) would not carry the
+  ESA/Natural Earth credit. Embedding the full notice in the archive metadata is a build-pipeline
+  change that has not been made.
+- **Basemap glyphs + sprite** are still fetched keyless from `protomaps.github.io` (an open item,
+  see `docs/PROVIDERS.md`, "Map tiles"); only the tiles are self-hosted here.
 - **Run imports one at a time.** Peak RAM, not disk, is the constraint on a small box.
 - **Reproducibility:** the extract md5, engine image digests, Photon jar sha256, and the
   resolved protomaps/basemaps commit are recorded in `docker/selfhost/run-manifest.md`
@@ -409,14 +415,15 @@ rm -rf data/osm data/selfhost                                        # reclaim d
   docker/selfhost/docker-compose.yml down -v` (drop the volumes) + re-import + re-run the Photon
   import + `build-tiles.sh`. THEN bump `PROVIDER_DATA_REVISION`; the superseded namespace's rows
   expire on their own TTL and are then reaped by the `deleteExpired` sweep (`npm run reap:cache`,
-  run hourly by cron — see below), or force it immediately with `DELETE FROM "ApiCache"`. Bumping
+  scheduled as below), or force it immediately with `DELETE FROM "ApiCache"`. Bumping
   the revision alone would cold the cache and refill it from the OLD graph/DB.
 
-**Cache reaper (cron).** The app never deletes expired `ApiCache` rows on the read path, so schedule
-the sweep on a cadence — e.g. hourly on the VPS:
+**Cache reaper (cron).** The app never deletes expired `ApiCache` rows on the read path, so run
+the sweep (`npm run reap:cache`) on a cadence on whatever host runs the app, e.g. hourly (adjust
+the paths):
 
 ```cron
-17 * * * * cd /srv/howfar && node --env-file=.env ./node_modules/.bin/tsx scripts/reap-cache.ts >> /var/log/howfar/reap.log 2>&1
+17 * * * * cd /path/to/howfar && node --env-file=.env ./node_modules/.bin/tsx scripts/reap-cache.ts >> /var/log/howfar/reap.log 2>&1
 ```
 
 It is an atomic conditional delete (safe to overlap; never removes a row a concurrent request just

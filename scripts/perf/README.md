@@ -3,7 +3,8 @@
 Re-runnable measurement scripts for the HowFar map flow. **Measurement only — these scripts
 never change app behavior.** They are isolated from the app: `scripts/perf/` has its own
 `package.json` and its own (gitignored) `node_modules`, so installing them does **not** touch
-the app's dependency tree or lockfile. The findings live in [`../../docs/PERF_AUDIT.md`](../../docs/PERF_AUDIT.md).
+the app's dependency tree or lockfile. The budgets and the latest numbers are in the README's
+[Performance budgets](../../README.md#performance-budgets) section.
 
 ## One-time setup
 
@@ -40,7 +41,11 @@ npm run api           # API latency (cold/warm p50/p95) vs budgets
 npm run all           # all of the above, then a combined summary
 ```
 
-Each writes JSON to `results/` and prints a summary with pass/fail vs the owner budgets.
+Each writes JSON to `results/` and prints a summary with pass/fail vs the budgets (`config.mjs`
+`BUDGETS`, plus each API endpoint's `budgetMs`).
+
+The API run requests the reach routes **without `?model`**, so its isochrone and car numbers time
+the parked legacy path, not the preset requests the UI makes.
 
 ### Knobs (env)
 
@@ -57,7 +62,7 @@ Each writes JSON to `results/` and prints a summary with pass/fail vs the owner 
 
 The same scripts run against a real phone over Chrome remote debugging — no emulation is
 applied (the device is the device). This is the authoritative re-measurement for every
-`[EMU]` number in the audit.
+emulated number in the README.
 
 On the phone: enable **Developer options → USB debugging**, connect USB, open Chrome. Then,
 with the prod server already serving on the host, **one command** validates the device, sets

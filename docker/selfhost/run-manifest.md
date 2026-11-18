@@ -63,7 +63,9 @@ with-flatnode answers, confirming a serve-only instance does not need it. Gettin
 ## Parity result (public providers vs self-hosted stack, 2026-08-25)
 
 - Origins: Unirii (central) / Grozăvești (river barrier) / Berceni (periphery). Ring pace `normal`;
-  car `preset=crowded` (pins the traffic slot so both legs send identical ranges).
+  car `preset=crowded` (pins the traffic slot so both legs send identical ranges). The harness
+  requests the reach routes without `?model`, so the rings are the parked legacy bands (walk
+  15/30/45, car 10/20/30), not the preset contours the UI requests.
 - Ring gate (per band, all enforced): FULL bearing coverage on both legs (`n === bins`, 24/24) AND
   median sector residual ≤10% AND worst sector ≤15% AND area ratio within ±21%. Residual = ray/polygon
   boundary distance at 24 bearings (density-independent — not vertex binning). The full-coverage gate
@@ -82,7 +84,7 @@ with-flatnode answers, confirming a serve-only instance does not need it. Gettin
   What DOES pin the local leg to the self-hosted engines is configuration, not output: the local app
   is keyless to a non-public `ORS_BASE_URL` (a public-ORS call would 403), with Nominatim/Photon base
   URLs likewise set to localhost. A fully airtight output-side proof needs request-level
-  instrumentation (a per-engine proxy/counter), parked.
+  instrumentation (a per-engine proxy/counter), which is not built.
 - **All 27 checks PASS** (`parity-check.mjs --public … --local …` exits 0):
   - **18/18 rings** — walk + car: median 0.0%, **worst sector ≤3.1%**, area 0.998–1.003.
   - **Geocode all ≤150 m** — Unirii (Piața Unirii) 0.0 m, Grozăvești (AFI Cotroceni) 0.0 m,
