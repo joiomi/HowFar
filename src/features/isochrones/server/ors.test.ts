@@ -134,7 +134,7 @@ describe("walkingIsochrone", () => {
     await expect(walkingIsochrone(44.4, 26.1)).rejects.toThrow(/request failed/i);
   });
 
-  it("rounds a high-precision origin to 5 decimals", async () => {
+  it("rounds a high-precision origin to 5 decimals in the returned origin", async () => {
     providerFetch.mockResolvedValue(orsResponse([poly(861), poly(1744), poly(2633)]));
     const result = await walkingIsochrone(44.426812345, 26.102534567);
     expect(result.origin).toEqual({ lat: 44.42681, lng: 26.10253 });
