@@ -677,12 +677,12 @@ describe("nearbyAmenities merges coincident transit stops (with per-band counts)
   });
 
   it("leaves a CAPPED band's transit total RAW, because its duplicates are unobservable", async () => {
-    // The "only adjust an uncapped band" gate is deliberate: in a capped band only the duplicates among the returned
-    // rows are observable, so subtracting them mixes two bases — part de-duplicated,
-    // part raw — into one number that cannot be described honestly. The gate is back:
-    // one basis per band. A capped band reports raw stop records (some of which may be
-    // the same physical place); the proper fix is merging before capping, which needs
-    // the coincident-stop rule inside SQL and is Parked.
+    // The "only adjust an uncapped band" gate is deliberate: in a capped band only the
+    // duplicates among the returned rows are observable, so subtracting them would mix
+    // two bases (part de-duplicated, part raw) into one number that cannot be described
+    // honestly. A capped band therefore reports raw stop records, some of which may be
+    // the same physical place; the proper fix is merging before capping, which needs the
+    // coincident-stop rule inside SQL.
     querySummary.mockResolvedValue({
       countsByBand: bandCounts({ 15: 200 }),
       amenities: coincident, // 2 rows returned against a band total of 200 ⇒ capped
