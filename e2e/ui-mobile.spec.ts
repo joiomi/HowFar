@@ -609,6 +609,9 @@ test("mobile shell: moving into the address bar right after the pill tap keeps f
   await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
   await expect(page.getByTestId("state-pill")).toBeVisible();
+  // The pick released the field (keyboard closed), so any focus it has below
+  // comes from the explicit move into the bar.
+  await expect(search).not.toBeFocused();
 
   await page.evaluate(() => {
     document.querySelector<HTMLElement>('[data-testid="state-pill"]')!.click();
@@ -620,4 +623,38 @@ test("mobile shell: moving into the address bar right after the pill tap keeps f
   await expect(search).toBeFocused();
   await search.fill("Unirii");
   await expect(page.getByRole("option", { name: "Piața Unirii, București" })).toBeVisible();
+});
+
+// The address bar never leaves the phone screen, so after a search the field must
+// give up focus: otherwise the on-screen keyboard stays up over the reach that was
+// just framed, and the next keystroke appends to the shown address.
+test("mobile: a search or a picked suggestion releases the address field so the keyboard closes", async ({
+  page,
+}) => {
+  await page.route("**/api/suggest**", (route) =>
+    route.fulfill({ json: { suggestions: [{ label: "Piața Unirii, București", lat: 44.4268, lng: 26.1025 }] } }),
+  );
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Romană, București" } }),
+  );
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  const field = page.getByRole("combobox");
+
+  // Enter submits the typed address.
+  await search(page, "Piata Romana");
+  await expect(map).toHaveAttribute("data-selection", "Piața Romană, București");
+  await expect(field).not.toBeFocused();
+
+  // A tapped suggestion.
+  await field.tap();
+  await expect(field).toBeFocused();
+  await field.fill("Unirii");
+  await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await expect(field).not.toBeFocused();
 });

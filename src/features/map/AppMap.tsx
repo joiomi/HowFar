@@ -49,6 +49,7 @@ import {
 import { createAmenitySpiderController } from "@/features/map/amenity-spider-controller";
 import { createAmenitiesController, type AmenityUi } from "@/features/map/amenities-controller";
 import { createCameraController, type CameraController } from "@/features/map/camera-controller";
+import { createClearAddressController, createOriginTracker } from "@/features/map/clear-address-controller";
 import { DOCK_BREAKPOINT_PX } from "@/features/map/camera";
 import { createHoverController } from "@/features/map/hover-controller";
 import { deriveShell, type ShellState } from "@/features/map/shell-state";
@@ -179,9 +180,9 @@ export default function AppMap() {
   // callback (below) — NOT in a [reachView] effect, which would lag a rotate/
   // resize by one tick and drop the dock padding.
   const reachActiveRef = useRef(false);
-  // Removes the drawn reach, the marker and the reach stash, for the address
-  // bar's ✕. Set by the map effect once the map exists.
-  const clearSelectionRef = useRef<(() => void) | null>(null);
+  // The address bar's ✕ (clear-address-controller). Set by the map effect once
+  // the map exists; the ✕ only shows for a resolved place, so it is always set then.
+  const clearAddressRef = useRef<(() => void) | null>(null);
 
   // Amenities: keyed by `amenityFetchKey` — origin + mode + effective pace + departure
   // context (NOT the selection token, which every recompute bumps). The
@@ -614,7 +615,7 @@ export default function AppMap() {
     // stale geometry.
     // Origin of the last RESOLVED selection — a recompute at the same origin
     // keeps the user's dock/sheet state (see renderSelectionStash).
-    let lastResolvedOrigin: { lat: number; lng: number } | null = null;
+    const origins = createOriginTracker();
     const renderSelectionStash = (origin: Origin, label: string, rings: Ring[], mode: Mode) => {
       // `dispatchSel({type:"resolved",…,car})` runs synchronously BEFORE this in
       // the controller, so `selRef.current.car` is the fresh basis for THIS
@@ -632,12 +633,7 @@ export default function AppMap() {
       // frames against already describe the collapsed shell — flipping this
       // after the flyTo would either frame against stale expanded-dock insets
       // or cancel the animation (setPadding→jumpTo→stop).
-      const isNewOrigin =
-        lastResolvedOrigin === null ||
-        Math.abs(lastResolvedOrigin.lat - origin.lat) > 1e-9 ||
-        Math.abs(lastResolvedOrigin.lng - origin.lng) > 1e-9;
-      lastResolvedOrigin = { lat: origin.lat, lng: origin.lng };
-      if (isNewOrigin) {
+      if (origins.note(origin)) {
         userDockOpenRef.current = false;
         userSheetExpandedRef.current = false;
         setUserDockOpen(false);
@@ -660,13 +656,17 @@ export default function AppMap() {
       reachRef.current = null;
       clearSelection();
     };
-    // The ✕ also forgets the last resolved origin, so choosing the same place
-    // again counts as a new origin: the bar shows its address and the phone
-    // dock collapses, as on any first selection.
-    clearSelectionRef.current = () => {
-      lastResolvedOrigin = null;
-      clearSelectionReach();
-    };
+    clearAddressRef.current = createClearAddressController({
+      abortRef,
+      dispatchSel,
+      pendingInputRef,
+      pendingSelectRef,
+      origins,
+      clearSelection: clearSelectionReach,
+      closeDirections: reachDirections.close,
+      cancelSuggest: () => suggestRef.current?.cancel(),
+      dispatchCombo,
+    }).clear;
     const selectFlow = createSelectFlowController({
       dispatchSel,
       selRef,
@@ -1049,7 +1049,7 @@ export default function AppMap() {
             amenityClustersRef.current = null;
             amenityClusterDisposeRef.current = null;
             reselectPresetRef.current = null;
-            clearSelectionRef.current = null;
+            clearAddressRef.current = null;
             selectRef.current = null;
             reachControllerRef.current = null;
           },
@@ -1087,6 +1087,17 @@ export default function AppMap() {
     suggestRef.current?.cancel();
     dispatchCombo({ type: "pick", suggestion: s });
     runUserSelect({ kind: "point", lat: s.lat, lng: s.lng, label: s.label });
+    releaseSearchField();
+  }
+
+  // On a phone the address bar stays on screen, so the field would keep focus
+  // after a search and its keyboard would cover the reach being framed. Let go
+  // of it once a selection starts. Wider screens keep focus in the field for
+  // keyboard users (no on-screen keyboard there).
+  function releaseSearchField() {
+    if (!isMobileShell) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.closest('[data-testid="top-bar"]')) active.blur();
   }
 
   // Route a user-initiated selection so it survives the deferred-map window: if the
@@ -1095,19 +1106,6 @@ export default function AppMap() {
   function runUserSelect(input: SelectInput) {
     if (selectRef.current) selectRef.current(input);
     else pendingSelectRef.current = input;
-  }
-
-  // The address bar's ✕: back to first open. Mode, pace and time stay as set.
-  function clearAddress() {
-    abortRef.current?.abort();
-    dispatchSel({ type: "clear" });
-    // Nothing left to re-issue on a pace/time change or to replay at map ready.
-    pendingInputRef.current = null;
-    pendingSelectRef.current = null;
-    clearSelectionRef.current?.();
-    reachControllerRef.current?.close();
-    suggestRef.current?.cancel();
-    dispatchCombo({ type: "queryChanged", value: "" });
   }
 
   function switchMode(next: Mode) {
@@ -1174,6 +1172,7 @@ export default function AppMap() {
     if (q) {
       closeSuggest();
       runUserSelect({ kind: "search", query: q });
+      releaseSearchField();
     }
   }
 
@@ -1263,7 +1262,7 @@ export default function AppMap() {
           onBlur={closeSuggest}
           onPick={pickSuggestion}
           onHover={(index) => dispatchCombo({ type: "hover", index })}
-          onClear={clearAddress}
+          onClear={() => clearAddressRef.current?.()}
         />
         {/* Mobile ring-meaning hint: the SelectionCard explainer is hidden by
             the default peek sheet, so first-time mobile users get this

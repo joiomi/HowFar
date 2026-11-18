@@ -78,7 +78,9 @@ describe("TopBar", () => {
     expect(html).toMatch(
       /data-testid="clear-address"[^>]*aria-label="Șterge adresa"|aria-label="Șterge adresa"[^>]*data-testid="clear-address"/,
     );
-    expect(html).toContain("size-11");
+    // The 44px target belongs to the clear button itself, not to anything else in the bar.
+    const clearButton = html.match(/<button[^>]*data-testid="clear-address"[^>]*>/)?.[0] ?? "";
+    expect(clearButton).toMatch(/class="[^"]*\bsize-11\b/);
     expect(html).toContain('value="Piața Unirii, București"');
   });
 
