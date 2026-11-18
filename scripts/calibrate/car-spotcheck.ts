@@ -3,16 +3,16 @@
  *
  * The car preset serves nested contours at 10/25 min. `carPresetRangeSetS(25)` =
  * [600, 1500] s NOMINAL FREE-FLOW ranges (minutes×60); the congestion factor is
- * applied DOWNSTREAM in serving (`car-traffic.ts`, unchanged from task 058), which
+ * applied DOWNSTREAM in serving (`car-traffic.ts`, unchanged), which
  * only SHRINKS the served reach below free-flow. So if the nominal free-flow reach
  * is accurate-to-conservative vs an independent ruler, the SERVED reach is at least
  * as conservative. This spot-check verifies exactly that on the shipped free-flow
- * ranges (rule 13 — measure the artifact, don't assert by inheritance from 056/058):
+ * ranges (measure the artifact, don't assert by inheritance):
  *
  *   - requests the ORS driving-car isochrone at the shipped free-flow [600,1500] s;
  *   - samples the boundary at 8 bearings per contour;
  *   - queries the public OSRM `driving` ruler (origin → boundary point) — the same
- *     independent car ruler the task-056 audit used — and reports the OSRM-measured
+ *     independent car ruler used for the earlier car audit — and reports the OSRM-measured
  *     drive minutes at each ORS boundary point.
  *
  * A boundary point that OSRM says takes ~T min (or MORE) to drive to is accurate or

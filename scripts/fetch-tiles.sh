@@ -8,7 +8,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # Pick up config from .env so "point at another city" is a single .env edit that
-# reaches the tile extract too (task 007). We read ONLY the two public knobs by
+# reaches the tile extract too. We read ONLY the two public knobs by
 # name — never `source` .env, which would execute secrets (a password with a
 # space or $(...) would break or run under `set -euo pipefail`). An already-set
 # environment variable wins over .env; absent → today's Bucharest default.

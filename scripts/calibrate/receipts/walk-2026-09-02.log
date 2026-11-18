@@ -48,7 +48,7 @@
   Berceni 20min (1090s): median 19.65 min, worst |resid| 6.1%  PASS
   Berceni 40min (2217s): median 42.72 min, worst |resid| 32.3%  FAIL
 
-SOME FAILED — receipt: /home/mihnea/Documents/Workspace/HowFarAI-v2/HowFar/scripts/calibrate/receipts/walk-2026-09-02.json
+SOME FAILED — receipt: scripts/calibrate/receipts/walk-2026-09-02.json
 # Walk reach calibration — 2026-09-02T07:28:23.781Z
 # ruler: MOTIS /api/v1/one-to-many withDistance (maxMatchingDistance=250m snap) street distance / 80 m/min anchor (corrected: earlier header mislabelled the endpoint; data is from one-to-many)
 # targets(min): 10, 20, 40  sweep(s): 480, 620, 780, 980, 1240, 1600, 2000, 2500
@@ -105,7 +105,7 @@ SOME FAILED — receipt: /home/mihnea/Documents/Workspace/HowFarAI-v2/HowFar/scr
   RESULT 20min (1090s): median 19.67 [ok]  over 0% vs bar 6% [ok]  PASS
   RESULT 40min (2073s): median 39.12 [ok]  over 6% vs bar 6% [ok]  PASS
 
-ALL PASS — receipt: /home/mihnea/Documents/Workspace/HowFarAI-v2/HowFar/scripts/calibrate/receipts/walk-2026-09-02.json
+ALL PASS — receipt: scripts/calibrate/receipts/walk-2026-09-02.json
 # Walk reach calibration — 2026-09-02T08:32:34.165Z
 # ruler: MOTIS /api/v1/one-to-many withDistance (maxMatchingDistance=250m snap) street distance / 80 m/min anchor (corrected: earlier header mislabelled the endpoint; data is from one-to-many)
 # targets(min): 10, 20, 40  sweep(s): 480, 620, 780, 980, 1240, 1600, 2000, 2500
@@ -171,4 +171,4 @@ ALL PASS — receipt: /home/mihnea/Documents/Workspace/HowFarAI-v2/HowFar/script
       Grozavesti: median 40.0 over 0% maxOver +2.7min
       Berceni: median 39.0 over 17% maxOver +13.1min  ⚠ per-origin over bar
 
-POOLED PASS (with per-origin barrier exceedances — see ⚠ above) — receipt: /home/mihnea/Documents/Workspace/HowFarAI-v2/HowFar/scripts/calibrate/receipts/walk-2026-09-02.json
+POOLED PASS (with per-origin barrier exceedances — see ⚠ above) — receipt: scripts/calibrate/receipts/walk-2026-09-02.json

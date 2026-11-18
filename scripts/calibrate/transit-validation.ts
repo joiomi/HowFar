@@ -5,7 +5,7 @@
  * WHY: the phone-first preset model serves transit reach at 20/40 min. This
  * validates those contours DIRECTLY on the shipped preset pipeline
  * (`transitPresetIsochrone`, thresholds [20,40], field kept at 45 for exact
- * invariance) — replacing the earlier by-inheritance argument (task 019 measured
+ * invariance) — replacing an argument by inheritance (the earlier measurement covered
  * only 15/30/45 and reasoned 20/40 a fortiori; a direct measurement is required
  * before the preset thresholds serve a user-facing claim).
  *
@@ -20,8 +20,8 @@
  * ACCEPTANCE (pre-declared): a boundary point OVER-claims when its best
  * journey is > T + 5 min (unsafe direction). CENTRAL origins (Unirii, Grozavesti)
  * must hold over-claim ≤ 6% (the shipped central profile was ~0%). Berceni
- * (periphery) has a KNOWN pre-existing field over-claim (task 019, parked) —
- * recorded and fed to the 2b honest-copy precondition, not a fresh hard-stop.
+ * (periphery) has a KNOWN pre-existing field over-claim —
+ * recorded and fed to the honest-copy precondition, not a fresh hard-stop.
  * FULL coverage is required (a dropped ray/journey fails the run). Exits non-zero
  * on a central breach OR a coverage gap so a re-run can't false-green.
  *
@@ -171,8 +171,8 @@ async function main() {
   // DIRECT measurement of the SERVED preset thresholds [20,40] on the SHIPPED
   // preset pipeline — not the legacy 15/30/45 by
   // inheritance. Central origins carry the pre-declared bar; Berceni (periphery)
-  // has a KNOWN pre-existing field over-claim (task 019, parked) — recorded, and it
-  // feeds the 2b honest-copy precondition, but is not a fresh hard-stop here.
+  // has a KNOWN pre-existing field over-claim — recorded, and it
+  // feeds the honest-copy precondition, but is not a fresh hard-stop here.
   const CENTRAL = new Set(["Unirii", "Grozavesti"]);
   const CENTRAL_OVER_BAR = 0.06; // shipped central profile was ~0%
   const byThreshold: Record<number, RingSample[]> = {};

@@ -25,4 +25,4 @@
   20min: median 18.0  over 0%  (n=32)
   40min: median 36.0  over 6%  (n=32)
 
-worst pooled over-claim 6% — central bar held, coverage complete — PASS — receipt: /home/mihnea/Documents/Workspace/HowFarAI-v2/HowFar/scripts/calibrate/receipts/transit-2026-09-03.json
+worst pooled over-claim 6% — central bar held, coverage complete — PASS — receipt: scripts/calibrate/receipts/transit-2026-09-03.json

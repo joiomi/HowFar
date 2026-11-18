@@ -24,7 +24,7 @@ export default defineConfig({
         // list tight — anything with branching logic belongs in a measured
         // feature module, not here.
         "src/features/map/AppMap.tsx", // MapLibre glue (e2e: smoke/isochrone/autocomplete/transit)
-        // AppMap split into single-responsibility controllers (task 045). Each is
+        // AppMap split into single-responsibility controllers. Each is
         // imperative MapLibre/network glue verified by the Playwright e2e suite;
         // their pure decision cores were extracted to MEASURED modules
         // (route-framing, ring-reveal stages, amenity-fetch classification,
@@ -33,10 +33,10 @@ export default defineConfig({
         "src/features/map/hover-controller.ts",
         "src/features/map/ring-reveal-controller.ts",
         "src/features/map/route-path-controller.ts",
-        "src/features/map/reach-journey-controller.ts", // task 054: MapLibre draw/stamp/hover glue; pure model in reach.ts is measured
+        "src/features/map/reach-journey-controller.ts", // MapLibre draw/stamp/hover glue; pure model in reach.ts is measured
         "src/features/map/popup-controller.ts",
         "src/features/map/amenities-controller.ts",
-        // task 061: sprite registration glue (`addImage` + decode retry); its
+        // sprite registration glue (`addImage` + decode retry); its
         // decisions live in the MEASURED amenity-icons.ts (icon shapes + SVG
         // serialisation, exhaustive over the category set), and the registration
         // itself is asserted by e2e (icons appear on pins at every zoom).
@@ -63,13 +63,13 @@ export default defineConfig({
         "src/features/map/SelectionCard.tsx",
         "src/features/map/AmenityPanel.tsx",
         "src/features/map/AttributionBadge.tsx",
-        // task 051: pace + time controls — presentation only; their logic lives
+        // pace + time controls — presentation only; their logic lives
         // in the tested pace.ts / time-context.ts / selection-flow reducer, and
         // their interaction (commit-once custom picker, absent-in-walk, keyboard)
         // is covered by e2e/pace-time.spec.ts.
         "src/features/map/PaceControl.tsx",
         "src/features/map/TimeContextControl.tsx",
-        // task 058: right-click directions panel — presentation only over the
+        // right-click directions panel — presentation only over the
         // decided ReachView; its state machine + fetch live in the MEASURED
         // reach-directions-controller.ts (NOT excluded), and its dock swap /
         // focus / step-hover / close are covered by e2e (reach + reach-journey).

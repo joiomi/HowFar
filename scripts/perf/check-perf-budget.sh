@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI initial-JS budget gate runner (task 017). Serves the PROD build with a PLAIN
+# CI initial-JS budget gate runner. Serves the PROD build with a PLAIN
 # `next start` — NO provider stack needed: the gate only measures the JS the browser pulls, and
 # a 404 on /api/tiles does not change the byte counts (the map engine chunk still downloads, so
 # lazy-detection still works). This is what makes the gate runnable in CI without Docker.
@@ -23,7 +23,7 @@ if [ ! -d "${SCRIPT_DIR}/node_modules/puppeteer-core" ]; then
   exit 1
 fi
 
-# ALWAYS rebuild before measuring (task 017 fix): the close verify contract runs `npm run check`
+# ALWAYS rebuild before measuring: the close verify contract runs `npm run check`
 # (no build) then this gate, so a "build only if .next missing" would grade a changed tree against
 # a STALE bundle left by an earlier build — a regression could then close green. A fresh build is
 # the only way "a regression blocks the close" is actually true. (Set PERF_BUDGET_SKIP_BUILD=1 to

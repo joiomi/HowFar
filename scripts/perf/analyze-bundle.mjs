@@ -1,16 +1,16 @@
 // Bundle analysis (deliverable 2). Authoritative source = what the browser actually pulls
 // over the wire for the map route, because Turbopack chunk names are hashed and Next 16's
-// build output no longer prints per-route sizes (verified task 017: no app-build-manifest.json,
+// build output no longer prints per-route sizes (verified: no app-build-manifest.json,
 // build-manifest.json `pages` is empty for the App Router — there is NO static route→chunk map).
 //
-// INITIAL vs LAZY is classified by an EXPLICIT lifecycle mark, not by network settling
-// (task 017). The eager shell emits `performance.mark('hf:interactive')` the
+// INITIAL vs LAZY is classified by an EXPLICIT lifecycle mark, not by network settling.
+// The eager shell emits `performance.mark('hf:interactive')` the
 // moment it is mounted + interactive and BEFORE it schedules the deferred map-engine import;
 // a JS chunk whose request STARTED before that mark is INITIAL (critical path), one that
 // started after is LAZY (deferred). This is provider-free and immune to the old trap where an
 // idle-triggered import fired inside the `networkidle0` window and was mis-counted as initial.
 //
-// Graceful fallback (rule 13 — one instrument, one rule, applied to before AND after): if the
+// Graceful fallback (one instrument, one rule, applied to before AND after): if the
 // page emits NO `hf:interactive` mark (e.g. the pre-defer baseline build), EVERY JS chunk is
 // classified INITIAL — which is the correct reading for a build with no deferral boundary. So
 // the number moving between before/after reflects the real architecture change, not a changed

@@ -91,7 +91,7 @@ async function main() {
     );
   }
 
-  // Cold-vs-warm sanity guard (task 017): the coord-jittered endpoints (reverse/isochrone/car/
+  // Cold-vs-warm sanity guard: the coord-jittered endpoints (reverse/isochrone/car/
   // amenities) must pay a real provider/PostGIS round trip on a genuinely cold key. If a fresh
   // cache namespace was NOT used (the deterministic coords repeat, so a re-run without bumping
   // PROVIDER_DATA_REVISION serves ApiCache HITS), their "cold" p50 collapses to a few ms — a warm
@@ -109,7 +109,7 @@ async function main() {
     }
   }
 
-  // IN-SESSION amenities cell (task 017) — a SEPARATE label, NOT a replacement for the
+  // IN-SESSION amenities cell — a SEPARATE label, NOT a replacement for the
   // cold-cold verdict above. The real flow draws the ring first, so here we GET /api/isochrone
   // at each origin (priming/coalescing the ORS ring) BEFORE timing /api/amenities at the same
   // origin — isolating the amenities-per-selection cost (warm ORS ring + PostGIS). Its value

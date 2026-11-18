@@ -149,7 +149,7 @@ function radialResidual(profA, profB) {
   return { median: median(rs), max: Math.max(...rs), mismatch, n: rs.length, bins };
 }
 
-// ── fixtures / self-test (rule 13: validate the instrument before trusting it) ─
+// ── fixtures / self-test (validate the instrument before trusting it) ─
 function selfTest() {
   const ref = 44.43;
   const proj = projector(ref);
@@ -313,7 +313,7 @@ const ENGINES = {
 // The provenance cross-check POSTs the app's foot-walking ranges to the local ORS
 // and queries the local Photon with the app's bbox/focus. These MUST track the app:
 // the ranges are the normal-pace ORS seconds (pace.ts) and the bbox is
-// NEXT_PUBLIC_MAP_BBOX — both overridable so a pace tune (task 064 did one) or a
+// NEXT_PUBLIC_MAP_BBOX — both overridable so a pace tune or a
 // different city doesn't make the preflight falsely abort.
 const PROV_ORS_RANGE = (process.env.PARITY_ORS_RANGE || "861,1744,2633").split(",").map(Number);
 const PROV_BBOX = process.env.NEXT_PUBLIC_MAP_BBOX || "25.8,44.2,26.4,44.7";

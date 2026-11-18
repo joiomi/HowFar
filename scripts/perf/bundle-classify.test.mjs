@@ -1,4 +1,4 @@
-// Unit tests for the pure bundle classifier (task 017). Runs with the built-in
+// Unit tests for the pure bundle classifier. Runs with the built-in
 // `node --test` — NO puppeteer/chrome, so it executes in the app's check:ci without the
 // isolated perf deps. Proves the INITIAL/LAZY split rule that both the measurement and the CI
 // budget gate depend on, so a regression in the rule fails a close (not just a measurement).
@@ -64,7 +64,7 @@ test("hasMapEngine detects maplibre or pmtiles buckets only", () => {
 });
 
 test("bucketOf: the ENGINE (shader source) is maplibre; app code that only names maplibre CSS classes is NOT", () => {
-  // Regression for the task-017 false positive: a 45 KB APP chunk that merely referenced the
+  // Regression for a false positive: a 45 KB APP chunk that merely referenced the
   // `.maplibregl-ctrl` CSS class was mis-bucketed "maplibre" by the old bare-substring match,
   // which would have made the CI laziness gate mis-fire on a correctly-deferred build.
   const dir = mkdtempSync(join(tmpdir(), "bundle-classify-"));

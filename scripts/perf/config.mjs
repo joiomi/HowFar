@@ -78,8 +78,8 @@ const COLD_SUGGEST = [
   "Calar", "Popan", "Labir", "Delea", "Basar", "Voievo", "Vasel", "Lizea", "Domnu", "Reinv",
 ];
 
-// Deterministic coord jitter (task 017: paired before/after must exercise the SAME
-// polygons or the comparison is not causal — rule 13). The street/suggest lists were
+// Deterministic coord jitter (paired before/after must exercise the SAME
+// polygons or the comparison is not causal). The street/suggest lists were
 // already fixed; only reverse/isochrone/car/amenities jittered, and they used Math.random(),
 // so two runs hit different coordinates. `PERF_JITTER_SEED` (default fixed) makes every
 // (endpoint, sampleIndex) map to a STABLE offset — same coords every run, still all-unique
@@ -117,7 +117,7 @@ export function endpointProbes({ lat, lng } = TEST_ORIGIN) {
 }
 
 // Matched (isochrone, amenities) URL pairs at the SAME deterministic origin, for the
-// in-session amenities cell (task 017): the real flow draws the ring first (/api/isochrone),
+// in-session amenities cell: the real flow draws the ring first (/api/isochrone),
 // then requests amenities — so the amenities call's ORS ring is already cached/coalesced. This
 // pair lets the harness measure "amenities cost with the ring already drawn" as a SEPARATE cell,
 // WITHOUT replacing the cold-cold verdict probe (which stays the same instrument before/after).

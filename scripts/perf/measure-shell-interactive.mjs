@@ -1,4 +1,4 @@
-// Shell-interactive vs map-visible measurement (task 017).
+// Shell-interactive vs map-visible measurement.
 //
 // Design note: the map loads UNPROMPTED (auto-load) — interaction-gating just to make Lighthouse
 // green is metric-gaming and this project does not do it. The Lighthouse TTI budget (≤2.5 s) is

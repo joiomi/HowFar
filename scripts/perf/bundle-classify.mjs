@@ -1,4 +1,4 @@
-// Pure, dependency-free bundle-classification helpers (task 017). Extracted from
+// Pure, dependency-free bundle-classification helpers. Extracted from
 // analyze-bundle.mjs so they can be unit-tested with the built-in node:test runner WITHOUT
 // pulling in puppeteer/chrome-launcher — which matters because the perf deps are deliberately
 // isolated from the app tree (scripts/perf/package.json) and are NOT installed in the app's
@@ -21,13 +21,13 @@ export function bucketOf(fileName, chunkDir) {
   // (`gl_Position` / `gl_FragColor` / `u_matrix` / `a_pos`). These survive minification (shaders
   // are strings) and appear ONLY in the engine — never in app code that merely references a
   // `.maplibregl-*` CSS class or a style-spec property name. A bare `maplibregl` substring match
-  // false-positived a 45 KB app chunk as "maplibre" (task 017), which would make the CI laziness
+  // false-positived a 45 KB app chunk as "maplibre", which would make the CI laziness
   // gate mis-fire; the engine bucket therefore requires a shader marker, not just the name.
   if (/gl_Position|gl_FragColor|\bu_matrix\b|\ba_pos\b/.test(txt)) return "maplibre";
   // The pmtiles LIBRARY carries its own internal identifiers (`EtagMismatch`, `TileType`,
   // `FileSource`, the `PMTiles` class). App code only ever names the `pmtiles://` protocol SCHEME
   // (lowercase, in the map style) — which the old `\bpmtiles\b` match false-positived as the
-  // library (task 017). Require a library internal, not the scheme string.
+  // library. Require a library internal, not the scheme string.
   if (/EtagMismatch|\bPMTiles\b|\bTileType\b|\bFileSource\b/.test(txt)) return "pmtiles";
   if (/react-dom|scheduler\.production|react\.production/.test(txt)) return "react";
   if (/@turf|booleanPointInPolygon|turf/.test(txt)) return "turf";
@@ -36,8 +36,8 @@ export function bucketOf(fileName, chunkDir) {
 }
 
 /**
- * Split JS resource-timing entries into INITIAL vs LAZY by an explicit interactive mark
- * (task 017). PURE — no I/O, no browser.
+ * Split JS resource-timing entries into INITIAL vs LAZY by an explicit interactive mark.
+ * PURE — no I/O, no browser.
  *
  * @param entries  [{ name, startTime, ... }] — startTime relative to navigation start
  * @param markTime number|null — time of `hf:interactive`; null ⇒ no deferral boundary emitted

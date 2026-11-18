@@ -1,4 +1,4 @@
-// CI initial-JS budget gate (task 017). The DETERMINISTIC half of the
+// CI initial-JS budget gate. The DETERMINISTIC half of the
 // perf enforcement: it asserts, on the real build, that MapLibre is deferred and the initial
 // (critical-path) JS is under the owner budget. It runs the validated bundle instrument
 // (analyze-bundle.mjs) against a live `next start` and asserts on its JSON report.

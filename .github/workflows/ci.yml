@@ -30,7 +30,7 @@ jobs:
       # Coverage thresholds (vitest.config.ts) gate the merge, not just tests.
       - run: npm run test:coverage
       - run: npm run build
-      # Perf budget (task 017): initial-route JS ≤ 350 KB gz with MapLibre deferred (lazy).
+      # Perf budget: initial-route JS ≤ 350 KB gz with MapLibre deferred (lazy).
       # The perf harness deps are intentionally isolated from the app tree, so install them
       # here; the runner's pre-installed Chrome serves chrome-launcher. Serves a PLAIN
       # `next start` (no provider stack) — a /api/tiles 404 does not change JS byte counts.
