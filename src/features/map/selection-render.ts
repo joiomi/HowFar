@@ -16,7 +16,7 @@ import type { Mode, Origin, Ring } from "@/features/map/selection-flow";
 
 /**
  * Paints (and clears) the phone-first PRESET reach + origin marker for a resolved
- * selection (phone-first). The client sends `?model=preset` (task 020's serving path),
+ * selection. The client sends `?model=preset`,
  * so a resolution carries BOTH calibrated contours (walk [10,20] / transit
  * [20,40] / car [10,25]); this renderer paints the selected preset as the
  * decorative light→dark shells + the honest contour lines (`preset-view.ts`),
@@ -76,9 +76,9 @@ export function createSelectionRender({
     // Deterministic oracle stamped from the ACTUALLY-BUILT features, NOT from the
     // client-side `presetContourMinutes(mode, chip)` constants — so if the served
     // set can't back the selection (a drifted server contract), nothing paints AND
-    // the read-back reflects that (rule 13: the instrument must bind to the render,
-    // not restate the request; the previous stamp would read "10,20" over a blank
-    // map — impl review). `data-reach-empty` is the explicit failed-render stamp.
+    // the read-back reflects that (the instrument must bind to the render,
+    // not restate the request; a stale stamp would read "10,20" over a blank
+    // map). `data-reach-empty` is the explicit failed-render stamp.
     if (contours.length === 0) {
       el.dataset.reachEmpty = "true";
       delete el.dataset.presetContours;
@@ -123,10 +123,10 @@ export function createSelectionRender({
     markerElement.append(aura, core);
     marker = new (mapGl().Marker)({ element: markerElement, anchor: "center" });
     // Pointer-transparent: the origin pin is display-only, so it must never
-    // swallow a click/hover meant for an amenity marker underneath (task 024
-    // — closes the exact-origin transit stop limitation parked in task 021).
+    // swallow a click/hover meant for an amenity marker underneath (so an
+    // exact-origin transit stop stays clickable).
     marker.getElement().style.pointerEvents = "none";
-    // Marker sits at the isochrone's rounded origin (T9) so it matches the rings.
+    // Marker sits at the isochrone's rounded origin so it matches the rings.
     marker.setLngLat([origin.lng, origin.lat]).addTo(map);
     // Padded so the selection centers in the map area the dock doesn't cover
     // (the SHARED contract with any fitBounds — see features/map/camera.ts).

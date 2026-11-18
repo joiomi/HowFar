@@ -131,7 +131,7 @@ describe("selectionReducer — mode snapshot & toggle", () => {
     expect(ok.label).toBe("B");
   });
 
-  it("resolved accepts, clears, and stale-ignores the car meta (task 058)", () => {
+  it("resolved accepts, clears, and stale-ignores the car meta", () => {
     const car = { basis: "estimate" as const, slotId: "am-peak", slotLabel: "weekday morning rush" };
     // Accept: a car resolution carries the basis + slot.
     const withCar = selectionReducer(start("car"), { type: "resolved", token: 1, origin: ORIGIN, label: "A", car });
@@ -230,7 +230,7 @@ describe("failureMessage", () => {
 });
 
 describe("pure helpers", () => {
-  it("modeWord / isochronePath key off the mode (incl. car, task 053)", () => {
+  it("modeWord / isochronePath key off the mode (incl. car)", () => {
     expect(modeWord("walk")).toBe("walking");
     expect(modeWord("transit")).toBe("transit");
     expect(modeWord("car")).toBe("driving");
@@ -253,7 +253,7 @@ describe("pure helpers", () => {
   });
 });
 
-describe("selectionReducer — setPace / setTimeContext (task 051)", () => {
+describe("selectionReducer — setPace / setTimeContext", () => {
   it("defaults are normal pace + crowded preset (byte-identical baseline)", () => {
     expect(initialSelectionState.pace).toBe("normal");
     expect(initialSelectionState.timeContext).toEqual({ kind: "preset", preset: "crowded" });
@@ -308,7 +308,7 @@ describe("selectionReducer — setPace / setTimeContext (task 051)", () => {
     expect(walk.departure).toBeNull();
   });
 
-  it("start clears a previously-resolved departure so a recompute-window right-click can't plan a stale ISO (task 060)", () => {
+  it("start clears a previously-resolved departure so a recompute-window right-click can't plan a stale ISO", () => {
     const resolved = selectionReducer(start("transit"), {
       type: "resolved",
       token: 1,
@@ -326,14 +326,14 @@ describe("selectionReducer — setPace / setTimeContext (task 051)", () => {
 });
 
 describe("sameTimeContext", () => {
-  it("compares the two presets (custom removed, task 059)", () => {
+  it("compares the two presets (custom removed)", () => {
     expect(sameTimeContext({ kind: "preset", preset: "crowded" }, { kind: "preset", preset: "crowded" })).toBe(true);
     expect(sameTimeContext({ kind: "preset", preset: "quiet" }, { kind: "preset", preset: "quiet" })).toBe(true);
     expect(sameTimeContext({ kind: "preset", preset: "crowded" }, { kind: "preset", preset: "quiet" })).toBe(false);
   });
 });
 
-describe("effectivePace (task 052 — pace is walk-only)", () => {
+describe("effectivePace (pace is walk-only)", () => {
   const PACES: Pace[] = ["slow", "normal"];
 
   it("walk keeps the chosen pace", () => {
@@ -371,7 +371,7 @@ describe("effectivePace (task 052 — pace is walk-only)", () => {
   });
 });
 
-describe("isochroneUrl (task 051 query contract)", () => {
+describe("isochroneUrl (query contract)", () => {
   // The phone-first client is preset-only: EVERY isochrone URL carries
   // `&model=preset` so the server serves the calibrated preset contours (walk
   // [10,20], transit [20,40], car [10,25]). The legacy 15/30/45 path is what a
@@ -389,10 +389,10 @@ describe("isochroneUrl (task 051 query contract)", () => {
       "/api/transit?lat=44.4268&lng=26.1025&pace=normal&preset=quiet&model=preset",
     );
   });
-  it("car carries the preset TIME + &model=preset but NEVER pace (task 058: time-aware for traffic, pace stays a walk concept)", () => {
+  it("car carries the preset TIME + &model=preset but NEVER pace (time-aware for traffic, pace stays a walk concept)", () => {
     // Even with a Slow pace left over from Walk, the car URL must not emit pace
     // (a walk concept /api/car doesn't accept) — but it DOES carry the preset so
-    // the traffic slot can be resolved (task 058) plus the preset reach model.
+    // the traffic slot can be resolved plus the preset reach model.
     const crowded = isochroneUrl("car", ORIGIN, "slow", { kind: "preset", preset: "crowded" });
     expect(crowded).toBe("/api/car?lat=44.4268&lng=26.1025&preset=crowded&model=preset");
     expect(crowded).not.toMatch(/pace/);

@@ -38,11 +38,11 @@ export interface CameraPadding {
  * resolved/error state reserves a bounded sheet footprint. Desktop always uses
  * the left-only rail model plus a small perimeter breathing room.
  *
- * `shell` (task 062) is the mobile dock/sheet state: a collapsed dock leaves
+ * `shell` is the mobile dock/sheet state: a collapsed dock leaves
  * only the header + state pill up top, and a peek sheet only a one-line bar at
  * the bottom, so the framed map area grows to match. Desktop branches ignore
  * it (shell-state is always expanded/expanded at `md+`). Defaults to the
- * expanded shell so pre-062 callers and tests keep their exact insets.
+ * expanded shell so callers and tests that omit it keep their exact insets.
  */
 export function cameraPadding(
   viewportWidthPx: number,

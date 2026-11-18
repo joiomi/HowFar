@@ -16,12 +16,12 @@ import type { LoadState } from "@/features/map/load-state";
 import { EMPTY_FC } from "@/features/map/map-setup";
 import { MARKER_PICK_PAD_PX } from "@/features/map/marker-pick";
 
-/** Client deadline on the route-path fetch behind a clicked line row (task 024)
+/** Client deadline on the route-path fetch behind a clicked line row
  * — the "never hang on loading" lesson. */
 const ROUTE_PATH_TIMEOUT_MS = 9000;
 
 /**
- * The selected transit line's drawn path (task 024). Fetched from the stop
+ * The selected transit line's drawn path. Fetched from the stop
  * popup: clicking a line row fetches the OSM route relation's track + stops and
  * paints them; clicking the active row again clears. One active line at a time.
  * The camera-fit corridor math and the stamp-retry rule are pure (tested in
@@ -152,7 +152,7 @@ export function createRoutePathController({
     // (which always advances) until a wall-clock deadline — NOT map.once("idle"):
     // after the permanent setPadding + fit easeTo settles, idle fires ONCE and
     // never again, so a retry that re-registered once("idle") would strand and the
-    // stamp never lands (the recurring CI flake, tasks 029/047). The drawGen guard
+    // stamp never lands (the recurring CI flake). The drawGen guard
     // makes a clear/replace/dispose kill the chain within one frame — the callback
     // returns without rescheduling — so no cancelAnimationFrame is needed.
     const drawGen = gen;

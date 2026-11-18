@@ -109,7 +109,7 @@ import { TIME_PRESETS, type TimeContext } from "@/features/isochrones/time-conte
 const BUCHAREST_CENTER: [number, number] = [26.1025, 44.4268];
 const SUGGEST_DEBOUNCE_MS = 250;
 
-// Mobile shell breakpoint (task 062): the stacked dock/sheet layout below `md`.
+// Mobile shell breakpoint: the stacked dock/sheet layout below `md`.
 // Shares `DOCK_BREAKPOINT_PX` with the camera-padding math so "which layout is
 // on screen" and "which insets frame the map" can never disagree.
 const MOBILE_SHELL_QUERY = `(max-width: ${DOCK_BREAKPOINT_PX - 0.02}px)`;
@@ -123,11 +123,10 @@ function readMobileShell(): boolean {
 }
 
 // Hover is a pointer concept: touch browsers synthesize mousemove on tap, which
-// would flash the cluster grow+preview underneath the click ladder (plan panel,
-// task 062) — so every hover affordance is gated on a real fine pointer.
+// would flash the cluster grow+preview underneath the click ladder — so every hover affordance is gated on a real fine pointer.
 const HOVER_CAPABLE_QUERY = "(hover: hover) and (pointer: fine)";
 
-/** What the cluster hover-preview panel renders (task 062) — a copy of the
+/** What the cluster hover-preview panel renders — a copy of the
  * hovered mark's own reconcile-time data plus its frozen screen anchor. */
 interface ClusterHoverPreview {
   key: string;
@@ -140,10 +139,10 @@ interface ClusterHoverPreview {
 }
 
 /** Shared result-surface predicate for the React shell and camera resize path.
- * The reach directions panel occupies the SAME result-sheet slot (task 058), so
+ * The reach directions panel occupies the SAME result-sheet slot, so
  * an active reach view is a result surface too — otherwise a pre-selection hint
  * or a reach view after an error-cleared selection would have no dock and the
- * resize padding would drop it (found in review). */
+ * resize padding would drop it. */
 function hasResultSurface(
   sel: Pick<SelectionState, "status" | "label" | "message">,
   amenityStatus: AmenityUi["status"],
@@ -163,17 +162,17 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
   // The most recent user SelectInput, so a pace/time change before the first
   // selection resolves can re-issue it rather than lose the change (finding G).
   const pendingInputRef = useRef<SelectInput | null>(null);
-  // A user selection made while the deferred map engine is still loading (task 017). The search
+  // A user selection made while the deferred map engine is still loading. The search
   // box is interactive in the eager shell before the map exists, so a submit before `selectRef`
   // is wired is buffered here and replayed once the map is ready — never dropped.
   const pendingSelectRef = useRef<SelectInput | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   // The rings + mode of the last resolved selection, stashed so a right-click
   // ("how do I get there?") can classify a clicked point against the EXACT
-  // geometry the map drew (task 052 D) — walk band client-side, transit via a
+  // geometry the map drew — walk band client-side, transit via a
   // /api/reach trip plan. Cleared on a new/failed selection.
   const reachRef = useRef<{ rings: Ring[]; mode: Mode; origin: Origin; car: CarMeta | null } | null>(null);
-  // The right-click directions view (task 058), mirrored from the reach-
+  // The right-click directions view, mirrored from the reach-
   // directions controller into React so the result-sheet dock can render it in
   // place of the amenity filters. A ref mirror lets the resize handler read it
   // without re-binding, and the controller ref lets render-scope handlers
@@ -183,16 +182,16 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
   // Mirrored so the resize handler (empty-deps effect) reads the latest active
   // flag without re-binding. Set SYNCHRONOUSLY in the controller's subscribe
   // callback (below) — NOT in a [reachView] effect, which would lag a rotate/
-  // resize by one tick and drop the dock padding (found in review).
+  // resize by one tick and drop the dock padding.
   const reachActiveRef = useRef(false);
 
   // Amenities: keyed by `amenityFetchKey` — origin + mode + effective pace + departure
-  // context (NOT the selection token, which every recompute bumps). Task 065 made the
-  // clip mode-dependent, so a Walk↔Transit or crowded↔quiet toggle now CLEARS and
+  // context (NOT the selection token, which every recompute bumps). The
+  // clip is mode-dependent, so a Walk↔Transit or crowded↔quiet toggle now CLEARS and
   // refetches; a generation guards stale responses. A transient failure auto-retries once
-  // (task 024: the public-Overpass race flakes and recovers seconds later), and
-  // the last origin is kept so the review's Retry button can refetch it.
-  // Kept so the review's Retry button (component scope) can refetch the last
+  // (the public-Overpass race flakes and recovers seconds later), and
+  // the last origin is kept so the Retry button
+  // Kept so the Retry button (component scope) can refetch the last
   // origin; the fetch's abort/gen/key/timer state is internal to the controller.
   const amenityOriginRef = useRef<Origin | null>(null);
   const clearAmenitiesRef = useRef<(() => void) | null>(null);
@@ -255,7 +254,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     reselectPresetRef.current?.();
   }
 
-  // --- Mobile shell state (task 062): dock pill + sheet peek. The user flags
+  // --- Mobile shell state: dock pill + sheet peek. The user flags
   // are mirrored in refs (same pattern as selRef) so the camera controller's
   // shell getter — called synchronously inside the selection flow, before the
   // flyTo — always reads the value the upcoming render will show.
@@ -273,12 +272,12 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     userSheetExpandedRef.current = expanded;
     setUserSheetExpanded(expanded);
   }
-  // Cluster hover preview (task 062): set only on key change, rendered
+  // Cluster hover preview: set only on key change, rendered
   // pointer-events-none, closed by mouseout/movestart/click/hover-loss.
   const [clusterPreview, setClusterPreview] = useState<ClusterHoverPreview | null>(null);
 
   // Deep-links from the peek chips: expand the sheet, then land on the control
-  // the chip summarizes (owner: state must show "where to change and how").
+  // the chip summarizes (the state must show "where to change and how").
   const refineBlockRef = useRef<HTMLDivElement | null>(null);
   const amenityBlockRef = useRef<HTMLDivElement | null>(null);
   function expandSheetTo(target: "refine" | "amenities") {
@@ -321,7 +320,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     return () => controller.dispose();
   }, []);
 
-  // Defer the MapLibre engine (327 KB gz) off the first-load critical path (task 017): the eager
+  // Defer the MapLibre engine (327 KB gz) off the first-load critical path: the eager
   // shell above (search, header, controls) is already interactive; only the map canvas waits.
   // `hf:interactive` marks the split the bundle instrument reads (JS requested AFTER it is LAZY);
   // the engine is dynamically imported on the first idle slot after that mark, so it lands in a
@@ -404,14 +403,14 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       // Pinned explicitly (MapLibre's default is also 22) so the amenity
       // clustering contract is anchored to a number this code owns: cluster
       // aggregation runs to exactly this zoom, and the "can this cluster split?"
-      // test compares `getClusterExpansionZoom` against it (task 061). Leaving it
+      // test compares `getClusterExpansionZoom` against it. Leaving it
       // implicit would silently decouple the two if MapLibre's default changed.
       maxZoom: MAP_MAX_ZOOM,
       maxBounds: LAUNCH_MAX_BOUNDS,
       attributionControl: { compact: false },
     });
     mapRef.current = map;
-    // Expose the map instance for e2e RENDERED-state assertions (task 054): the
+    // Expose the map instance for e2e RENDERED-state assertions: the
     // draw/declutter/highlight suites verify actual `queryRenderedFeatures` /
     // `querySourceFeatures` output, not just the code's own `data-*` stamps
     // (which can false-pass). Harmless in prod (a handle
@@ -432,7 +431,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       el,
       // Fresh shell from the synchronously-updated refs: padding committed just
       // before a selection flyTo already reflects the dock that is about to
-      // collapse (task 062 ordering contract — see renderSelectionStash).
+      // collapse (ordering contract — see renderSelectionStash).
       shell: () =>
         deriveShell({
           isMobile: readMobileShell(),
@@ -461,13 +460,13 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     const { applyRingFilter, cancelRingReveal } = ring;
     const route = createRoutePathController({ map, el, loadState, reducedMotion, applyCameraPadding });
     const { hitsActiveRoutePath } = route;
-    // The right-click journey draw (task 054). Created before the popup (no popup
+    // The right-click journey draw. Created before the popup (no popup
     // dep); the popup drives it. Amenity declutter is wired via a holder AFTER the
     // amenities controller exists (it is created after the popup), breaking the
-    // popup↔amenities construction cycle (found in review).
+    // popup↔amenities construction cycle.
     const reachJourney = createReachJourneyController({ map, el, loadState, reducedMotion });
     const reachDeclutter: { set: (on: boolean) => void } = { set: () => {} };
-    // Spiderfy (task 061 W20). Created BEFORE the popup because the popup's cluster
+    // Spiderfy. Created BEFORE the popup because the popup's cluster
     // ladder ends in `spider.open`, and its own declutter is wired through a holder
     // AFTER the amenities controller exists — the same cycle-breaking pattern as
     // `reachDeclutter` right above.
@@ -478,7 +477,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       onActiveChange: (active) => spiderDeclutter.set(active),
     });
     // The directions controller and the popup controller are mutually-exclusive
-    // "active map surfaces" (found in review). Each must be able to close the other,
+    // "active map surfaces". Each must be able to close the other,
     // so the popup's `closeStopPopup` is injected into the directions controller
     // through a holder (the popup is created just after), breaking the cycle.
     const closeStopPopupHolder: { current: () => void } = { current: () => {} };
@@ -490,7 +489,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       closeStopPopup: () => closeStopPopupHolder.current(),
     });
     reachControllerRef.current = reachDirections;
-    // Mirror the active flag SYNCHRONOUSLY (found in review) — the resize handler
+    // Mirror the active flag SYNCHRONOUSLY — the resize handler
     // reads reachActiveRef, and a rotate/resize before React's effect ran would
     // otherwise drop the dock's camera padding for a reach-only (hint) surface.
     reachDirections.subscribe((v) => {
@@ -543,15 +542,14 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     // Donut clusters are created AFTER the amenities controller (they read its
     // source) and handed back through the holder, so the controller's single
     // visibility chokepoint can hide them along with the WebGL layers.
-    // Cluster hover preview glue (task 062). The panel state is React's, the
+    // Cluster hover preview glue. The panel state is React's, the
     // grow is the controller's; this layer only decides WHEN. `suppressedKey`
     // implements "the panel yields to an explicit interaction": clicking a mark
     // closes its preview and keeps it closed while the pointer stays on that
     // same mark, so it never floats over the list popup the click just opened.
     // Declared BEFORE the cluster controller so `onHoverLost` routes through
     // the SAME bookkeeping — bypassing it left `previewKey` stale, and a
-    // same-key mark rebuilt under a still pointer re-grew without its panel
-    // (found in review).
+    // same-key mark rebuilt under a still pointer re-grew without its panel.
     const hoverCapable = window.matchMedia(HOVER_CAPABLE_QUERY);
     let previewKey: string | null = null;
     let suppressedKey: string | null = null;
@@ -590,7 +588,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       onAbsorbedChange: () => amenities.reapplyFilter(),
       // The hovered mark vanished under a still pointer (reconcile/recluster/
       // clear) — the preview must never outlive its mark, and the glue's own
-      // key bookkeeping must reset with it (task 062, found in review).
+      // key bookkeeping must reset with it.
       onHoverLost: () => closeClusterPreview(),
     });
     amenityClustersRef.current = clusters;
@@ -615,7 +613,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     reselectPresetRef.current = reselectPreset;
     // Stash the rendered rings+mode+origin for the right-click reach popup, and
     // clear them whenever the selection is dropped, so a right-click never reads
-    // stale geometry (task 052 D).
+    // stale geometry.
     // Origin of the last RESOLVED selection — a recompute at the same origin
     // keeps the user's dock/sheet state (see renderSelectionStash).
     let lastResolvedOrigin: { lat: number; lng: number } | null = null;
@@ -626,11 +624,11 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       // stash so a right-click car band names the traffic it was computed for.
       reachRef.current = { rings, mode, origin, car: selRef.current.car };
       // A NEW-origin resolution re-collapses the mobile dock and resets the
-      // sheet to peek (task 062). A same-origin recompute (pace/time/mode
+      // sheet to peek. A same-origin recompute (pace/time/mode
       // change) keeps the user's surfaces exactly as they are — resetting on
       // every resolution snapped the sheet shut mid-comparison (tap "Slow"
       // from the expanded sheet → sheet collapsed, focus dropped to body) and
-      // re-collapsed a deliberately reopened dock (found in review). Refs
+      // re-collapsed a deliberately reopened dock. Refs
       // FIRST, then state: renderSelection commits its padding via the camera
       // controller's shell getter on the next line, so the insets the flyTo
       // frames against already describe the collapsed shell — flipping this
@@ -648,13 +646,13 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
         setUserSheetExpanded(false);
       }
       renderSelection(origin, label, rings, mode);
-      // Camera-race guard (task 060, review): a cross-mode right-click
+      // Camera-race guard: a cross-mode right-click
       // fires switchMode("transit"), whose recompute lands here and flyTo's the
       // origin — which could clip an already-drawn right-click journey if the
       // isochrone resolves AFTER the MOTIS plan. Re-fit the journey so its frame
       // stays authoritative. No-op when nothing is drawn. (If that transit
       // recompute instead FAILS, the drawn journey stays and Back reveals the
-      // standard error card — accepted low-likelihood degradation, review-parked.)
+      // standard error card — accepted low-likelihood degradation.)
       reachDirections.reframe();
     };
     const clearSelectionReach = () => {
@@ -675,7 +673,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       renderSelection: renderSelectionStash,
     });
     selectRef.current = selectFlow.select;
-    // Replay a selection the user made while the engine was still loading (task 017): the shell's
+    // Replay a selection the user made while the engine was still loading: the shell's
     // search was interactive before this point, so an early submit was buffered — apply it now.
     // load-state's pre-`load` replay buffer handles rendering if the style hasn't settled yet.
     if (pendingSelectRef.current) {
@@ -694,18 +692,18 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       // for the byte-identical non-preset serving path + migrated e2e).
       addPresetReachLayers(map);
       addRoutePathLayers(map);
-      addReachPathLayers(map); // task 054: between the OSM route path and the markers
+      addReachPathLayers(map); // between the OSM route path and the markers
       addAmenityLayers(map);
       // On top of the amenity layers: a fan replaces what it expands, so it must
       // never be drawn under it.
       addAmenitySpiderLayers(map);
       // Icons must be registered before the icon layer paints, or pins render
-      // blank for a frame (task 061). Fire-and-forget: the layer declares
+      // blank for a frame. Fire-and-forget: the layer declares
       // `icon-optional`, so a slow decode degrades to the coloured circle rather
       // than dropping the marker.
       // `.catch` and a disposal guard: the decode can finish AFTER unmount, and touching a
       // removed map (or leaving the rejection unhandled) is the late-write class the
-      // dispose contract exists to prevent (found in review).
+      // dispose contract exists to prevent.
       void registerAmenityIcons(map)
         .then(() => {
           if (mapRef.current !== map) return;
@@ -715,7 +713,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
 
       // Runtime-added images do not survive a style reload, and an icon layer whose
       // sprite is gone paints bare dots. This handler was DOCUMENTED here but never
-      // actually registered (found in review) — the comment claimed a safety
+      // actually registered — the comment claimed a safety
       // net that did not exist. `registerAmenityIcons` is idempotent, so re-running it
       // on demand is safe.
       map.on("styleimagemissing", (e) => {
@@ -746,11 +744,11 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       reachJourney.flushPending(); // replay a right-click journey that raced `load`
       // A journey replayed from a pre-load right-click was buffered without a
       // camera fit — reframe it now so the path isn't left off-screen with the
-      // dock open (review/review). No-op when nothing was drawn.
+      // dock open. No-op when nothing was drawn.
       reachDirections.reframe();
       el.dataset.mapLoaded = "true";
       setMapReady(true); // cover + hide the first-paint placeholder
-      // Symmetric with `hf:interactive` (task 017): marks when the deferred engine has finished
+      // Symmetric with `hf:interactive`: marks when the deferred engine has finished
       // loading and the map is visible unprompted — the perf harness reports both, so shell-
       // interactive vs map-visible are separable on the emulator AND a real device.
       if (typeof performance !== "undefined" && performance.mark) performance.mark("hf:map-ready");
@@ -773,7 +771,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       // A route is a user-selected subject, not disposable camera state. Refit
       // it after every responsive shell change so orientation never clips it.
       if (route.hasActiveBounds()) requestAnimationFrame(() => route.refit(0));
-      // Same for a drawn right-click journey (task 057): reframe it (instant) so a
+      // Same for a drawn right-click journey: reframe it (instant) so a
       // rotation / responsive change never clips the path. No-op when none is drawn.
       requestAnimationFrame(() => reachDirections.reframe());
     };
@@ -790,10 +788,10 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     };
     document.addEventListener("keydown", onKeyDown);
 
-    // Right-click / long-press "how do I get there?" — task 060: ONE action in
+    // Right-click / long-press "how do I get there?" — ONE action in
     // every mode. Right-clicking anywhere means "get me there by public
     // transport": auto-switch to transit (from walk/car) and draw the journey +
-    // path in the directions dock (owner ask). The walk/car band answers are
+    // path in the directions dock The walk/car band answers are
     // gone. Deliberately does NOT defer to pickAmenity (unlike the left-click):
     // the reach question is "how do I get to THIS point", answerable anywhere —
     // including over a marker.
@@ -802,25 +800,25 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       const coords: [number, number] = [lngLat.lng, lngLat.lat];
       // No resolved origin yet (true first-load): explain what to do. Guard on
       // lastSelection ONLY — a right-click DURING a transit recompute still has a
-      // stable origin and must open directions, not fall to the hint (found in review).
+      // stable origin and must open directions, not fall to the hint.
       if (!sel.lastSelection) {
         return void reachDirections.open({ kind: "hint", coords });
       }
       // Snapshot everything the request needs BEFORE switchMode (which nulls the
       // ring stash + starts an async recompute) so the URL is built from stable
-      // values (found in review). The band is the point's transit ring band when the
+      // values. The band is the point's transit ring band when the
       // stash already holds transit rings, else the 45-min transit max — ALWAYS a
       // number so the honesty copy never renders "undefined", and it bounds the
-      // planner's within-band ranking cross-mode (found in review).
+      // planner's within-band ranking cross-mode.
       const origin = sel.lastSelection;
       const departureIso = sel.departure?.iso;
       const preset = sel.timeContext.preset;
       const stash = reachRef.current;
-      // The reach CEILING the trip is framed against (task 057). It must be the
+      // The reach CEILING the trip is framed against. It must be the
       // reach the map ACTUALLY DRAWS — the SELECTED transit preset — not a hidden
       // larger contour: the client paints only the selected chip, so a point beyond
       // it is "beyond your ~{selected}-min reach", never framed against the 40-min
-      // contour when the 20 chip is showing (impl review). When transit rings are
+      // contour when the 20 chip is showing. When transit rings are
       // already drawn, refine to the point's own band within the DRAWN set. Always
       // a number, so the honesty copy never renders "undefined".
       const transitSelectedMin = presetMinFor("transit", presetIndexRef.current);
@@ -835,14 +833,14 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
         fromLng: String(origin.lng),
         toLat: String(lngLat.lat),
         toLng: String(lngLat.lng),
-        // Prefer a within-band trip over a faster over-band detour (task 057).
+        // Prefer a within-band trip over a faster over-band detour.
         maxMinutes: String(band),
       });
       // Prefer the selection's resolved departure (exact match to the rings on
-      // screen once transit resolves); else the preset (preset-only since 059).
+      // screen once transit resolves); else the preset (preset-only).
       if (departureIso) params.set("departure", departureIso);
       else params.set("preset", preset);
-      // Release the shared popup slot unconditionally (found in review).
+      // Release the shared popup slot unconditionally.
       // `switchMode` only tears the popup down when the mode actually changes, so a
       // right-click while ALREADY in transit left a POI/cluster popup floating over the
       // drawn journey — two "mutually exclusive" surfaces coexisting. Called before
@@ -867,7 +865,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     // Desktop right-click. On a touch device the long-press recognizer owns the
     // gesture, so we skip the contextmenu path there (Android also emits
     // contextmenu mid-press) — this avoids double-handling and the trailing-click
-    // selection bug (impl T7). preventDefault always stops the browser menu.
+    // selection bug. preventDefault always stops the browser menu.
     map.on("contextmenu", (e) => {
       e.originalEvent?.preventDefault?.();
       if (touchActive) return;
@@ -890,7 +888,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       if (longPress.end()) suppressNextClick = true;
     });
     // An OS-interrupted touch (system UI, gesture takeover) emits touchcancel,
-    // not touchend — kill the pending timer so no ghost popup fires (impl T3).
+    // not touchend — kill the pending timer so no ghost popup fires.
     map.on("touchcancel", () => {
       touchActive = false;
       longPress.cancel();
@@ -904,8 +902,8 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
         return;
       }
       // ANY amenity click opens its popup and does NOT start a selection (no
-      // geocode/reverse/isochrone) — the owner's ask: inspecting a marker must
-      // never recompute the address (task 024). A click on the active drawn
+      // geocode/reverse/isochrone) — inspecting a marker must
+      // never recompute the address. A click on the active drawn
       // route is a no-op (viewing, not reselecting). Only a click hitting
       // neither falls through to the normal selection.
       // An open fan owns the map: its leaves and hub are the only amenity marks
@@ -915,11 +913,11 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
         const hit = spider.resolveClick(e.point);
         if (hit.kind === "hub") return void spider.close();
         if (hit.kind === "leaf") {
-          // Collapse the fan before opening the place's detail (review
-          // reviewers, reversing an earlier decision of mine to keep it open as "context").
+          // Collapse the fan before opening the place's detail
+          // (keeping it open as "context" would be worse).
           // Leaving it open leaves every OTHER amenity hidden behind `spiderView` while
           // the user reads one card — which reads as "the amenities vanished", the kind
-          // of hidden state this task exists to remove.
+          // of hidden state to avoid.
           spider.close();
           return void inspectAmenity(hit.leaf);
         }
@@ -929,14 +927,14 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       // `pointer-events: none` (so it cannot swallow map gestures), which means the
       // map handler is what resolves a click on it.
       // Touch gets the 44px target; a mouse gets the drawn ring plus a small margin, so
-      // clicking bare map between donuts still picks a new address (found in review).
+      // clicking bare map between donuts still picks a new address.
       const coarsePointer = (e.originalEvent as PointerEvent | undefined)?.pointerType === "touch";
       const clusterHit = clusters.pickAt(e.point, coarsePointer);
       // Individual-pin hits are resolved FIRST so a donut cannot steal a click that
       // landed visibly inside a pin. The donut's tap target is widened to the 44px
       // contract, and the no-overlap guarantee only makes footprints non-intersecting —
       // so the widened target can reach over a neighbouring pin's disc. Nearest centre
-      // wins between the two (found in review).
+      // wins between the two.
       const pinHits = pickAmenitiesAt(e.point);
       const nearestPin = pinHits.length
         ? Math.min(
@@ -949,24 +947,24 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       if (clusterHit && clusterHit.distance <= nearestPin) {
         // The click supersedes the hover preview: close it and keep it closed
         // while the pointer stays on this mark, so it never floats over the
-        // list popup the click opens (task 062).
+        // list popup the click opens.
         closeClusterPreview(true);
         // `pinIds` MUST be forwarded: an absorbed pin is hidden from the pin layer,
         // so if the pointer path drops it the place becomes completely unreachable —
-        // the exact defect this task exists to remove (found in review).
+        // the exact defect to avoid.
         return void popup.openClusterPopup(
           clusterHit.ids,
           clusterHit.coords,
           clusterHit.total,
           clusterHit.pinIds,
           // The absorbed pins' own data, snapshotted when the mark was built, so
-          // resolving them never depends on a second source query (found in review).
+          // resolving them never depends on a second source query.
           clusterHit.pins,
         );
       }
       // Multiple unclustered markers inside the pick pad ⇒ offer the choice
       // instead of silently resolving to the nearest, which used to leave a
-      // clumped marker permanently unclickable (task 061). Clustering handles the
+      // clumped marker permanently unclickable. Clustering handles the
       // dense case; this covers sub-pad near-misses among individual pins.
       const hits = pinHits;
       if (hits.length > 1) return void openAmenityChoicePopup(hits, e.lngLat.toArray() as [number, number]);
@@ -974,12 +972,12 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       // A donut is on screen here but its ids are momentarily stale (mid-recluster), so
       // `pickAt` refused it. Swallow the click rather than fall through: recomputing the
       // whole address because the user clicked a visible marker is precisely what this
-      // app promises never to do (found in review).
+      // app promises never to do.
       if (clusters.covers(e.point, coarsePointer)) return;
       if (hitsActiveRoutePath(e.point)) return;
       // A click on the drawn right-click journey (a leg line or a used-stop dot)
       // is a no-op, not a new selection — mirrors the OSM route-path guard so
-      // inspecting the journey never moves the origin (task 054, review).
+      // inspecting the journey never moves the origin.
       if (reachJourney.hitsActiveJourney(e.point)) return;
       selectRef.current?.({ kind: "click", lat: e.lngLat.lat, lng: e.lngLat.lng });
     });
@@ -989,10 +987,9 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       // cannot see them: the most prominent mark in a dense district gave no feedback while
       // a click on it opened a list. The donut hint is passed INTO the hover controller
       // rather than written here — writing the cursor directly was immediately overwritten
-      // by the controller's own cursor logic, so the affordance never appeared
-      // (found in review).
+      // by the controller's own cursor logic, so the affordance never appeared.
       // Hover grow + preview only for a real fine pointer (touch synthesizes
-      // mousemove on tap — plan panel); the cursor hint works for both.
+      // mousemove on tap); the cursor hint works for both.
       const pick = hoverCapable.matches ? clusters.hoverAt(e.point) : clusters.pickAt(e.point);
       if (hoverCapable.matches) updateClusterPreview(pick);
       scheduleAmenityHover(e.point, pick !== null);
@@ -1086,7 +1083,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     runUserSelect({ kind: "point", lat: s.lat, lng: s.lng, label: s.label });
   }
 
-  // Route a user-initiated selection so it survives the deferred-map window (task 017): if the
+  // Route a user-initiated selection so it survives the deferred-map window: if the
   // map engine has not finished loading yet, `selectRef` is null — buffer the input and replay it
   // on map-ready (effect above) instead of dropping the user's search.
   function runUserSelect(input: SelectInput) {
@@ -1115,7 +1112,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
   // Recompute the current point after a pace / departure-context change, exactly
   // like switchMode: abort any in-flight request, snapshot the new setting via
   // the reducer (which bumps the token), then re-issue. A pace change re-runs rings AND
-  // amenities; since task 065 a TIME change re-runs the amenities too (the clip is the
+  // amenities; a TIME change re-runs the amenities too (the clip is the
   // mode's reach area at that departure context, so crowded↔quiet changes which places
   // are in range — `amenityFetchKey` includes the preset). With no resolved selection yet, a
   // still-loading first request is re-issued from its pending input so the
@@ -1140,7 +1137,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     if (sameTimeContext(next, selRef.current.timeContext)) return;
     abortRef.current?.abort();
     dispatchSel({ type: "setTimeContext", timeContext: next });
-    // Departure affects transit AND car (task 058: car reach is time-aware for
+    // Departure affects transit AND car (car reach is time-aware for
     // traffic realism). In walk mode just record it for when the user switches
     // to a time-aware mode (no recompute needed).
     if (selRef.current.mode !== "walk") recomputeCurrent();
@@ -1183,11 +1180,11 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
   // never disagree with the painted contour.
   const selectedMin = presetMinFor(sel.mode, presetIndex);
   const reachActive = reachView !== null;
-  // The reach directions dock counts as a result surface (task 058): the sheet
+  // The reach directions dock counts as a result surface: the sheet
   // renders — and camera padding holds — whenever there's a selection OR reach.
   const hasResults = hasResultSurface(sel, amenity.status, reachActive);
   const showFirstRun = !hasResults && sel.lastSelection === null;
-  // Mobile shell (task 062): same derivation the camera's shell getter uses,
+  // Mobile shell: same derivation the camera's shell getter uses,
   // fed from render state instead of the ref mirrors — the two can only differ
   // within a single commit, in the direction the next paint will show.
   const shell: ShellState = deriveShell({
@@ -1201,15 +1198,15 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
   const sheetPeek = shell.sheet === "peek" && hasResults;
   const closeReachPanel = () => {
     reachControllerRef.current?.close();
-    // Return focus to the map container (the review took it on open) — the div is
-    // tabIndex=-1 so it can receive focus (found in review).
+    // Return focus to the map container (the panel took it on open) — the div is
+    // tabIndex=-1 so it can receive focus.
     containerRef.current?.focus();
   };
 
   // Re-commit padding when the shell changes shape WITHOUT its own camera move
   // (pill tap, sheet peek/expand, reach open/close, breakpoint cross). The safe
   // variant defers to `moveend` when an animation is in flight — `setPadding`
-  // runs `jumpTo`, which `stop()`s whatever is animating (task-060 trap).
+  // runs `jumpTo`, which `stop()`s whatever is animating.
   // Selection resolutions don't need this: their padding is committed inside
   // the selection flow before the flyTo starts.
   useEffect(() => {
@@ -1224,7 +1221,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       // `-z-10` stays WITHIN this shell (above the shell's transparent backdrop,
       // below the static map canvas) instead of escaping to the page's isolated
       // <main> and painting behind its opaque background — where it was invisible
-      // during MapLibre load (impl review).
+      // during MapLibre load.
       className="hf-map-shell absolute inset-0 isolate"
       data-has-results={hasResults ? "true" : "false"}
       data-dock-state={shell.dock}
@@ -1244,7 +1241,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
           // flips sel.mode + selectedMin immediately then recomputes (loading), and a
           // failed recompute leaves status="error" with lastSelection retained and the
           // reach cleared — the copy must appear only over a successfully drawn reach
-          // (impl review: the honesty rider must never float over an empty map).
+          // (the honesty rider must never float over an empty map).
           active={isMobileShell && sheetPeek && !reachActive && sel.lastSelection !== null && sel.status !== "loading" && sel.status !== "error"}
         />
         <div className="hf-command-dock absolute inset-x-3 top-[4.7rem] z-30 sm:inset-x-4 sm:top-[5.25rem] md:bottom-auto md:left-4 md:right-auto md:top-[5.15rem] md:w-[388px]">
@@ -1349,11 +1346,11 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
             className="hf-result-sheet pointer-events-auto absolute inset-x-3 bottom-[max(2.8rem,calc(env(safe-area-inset-bottom)+2.3rem))] z-20 max-h-[min(30dvh,14.5rem)] overflow-y-auto overscroll-contain rounded-[1.5rem] border border-white/[.11] bg-[#0d110e]/94 p-2.5 shadow-[0_24px_70px_rgba(0,0,0,.4)] backdrop-blur-2xl sm:inset-x-4 md:bottom-auto md:left-4 md:right-auto md:top-[21.3rem] md:max-h-[calc(100dvh-22.3rem)] md:w-[388px] md:p-3"
           >
             {/* Right-click directions REPLACE the selection card + filters while
-                active (task 058, owner item 2). The selection block stays MOUNTED
-                but hidden + inert (found in review) so the AmenityPanel keeps its
+                active. The selection block stays MOUNTED
+                but hidden + inert so the AmenityPanel keeps its
                 open Browse list / text filter — unmounting it would wipe that and
                 "restore" would feel broken. */}
-            {/* Peek/expand handle (task 062, mobile only): the sheet opens as a
+            {/* Peek/expand handle (mobile only): the sheet opens as a
                 one-line bar so the map keeps the screen; the bar names the
                 place and its chips deep-link to the control they summarize.
                 Directions force the sheet expanded (shell-state), so the bar
@@ -1362,8 +1359,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
             <div className="flex items-center gap-1.5 md:hidden">
               {/* During directions the sheet is FORCED expanded (shell-state),
                   so the toggle would be a dead control promising collapse —
-                  it becomes a plain label until the directions close
-                  (found in review). */}
+                  it becomes a plain label until the directions close. */}
               <button
                 type="button"
                 data-testid="sheet-toggle"
@@ -1424,9 +1420,9 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
                 car={sel.car}
               />
               {/* Reach refinements live WITH the result they adjust. The two
-                  controls are gated INDEPENDENTLY (found in review): PaceControl
-                  is strictly Walk (pace is a walking concept, task 052 P4);
-                  TimeContextControl is transit OR car (task 058 — car reach is
+                  controls are gated INDEPENDENTLY PaceControl
+                  is strictly Walk (pace is a walking concept);
+                  TimeContextControl is transit OR car (car reach is
                   time-aware for traffic realism). They are never merged into one
                   non-walk wrapper (that would resurrect pace in car). Exactly one
                   control renders per mode, so the bordered cluster is never empty.
@@ -1447,14 +1443,13 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
         ) : null}
       </div>
 
-      {/* Cluster hover preview (task 062): what's inside the hovered donut,
+      {/* Cluster hover preview: what's inside the hovered donut,
           rendered synchronously from the mark's own reconcile-time counts —
           zero source queries, pointer-transparent, and closed the moment the
           camera moves or the mark disappears. Names stay one click away in
           the list popup (deliberate scope line). z-30: a transient
           pointer-anchored tooltip floats ABOVE the shell chrome — at z-10 it
-          rendered invisibly BEHIND the dock/sheet for marks hovered near them
-          (found in review). */}
+          rendered invisibly BEHIND the dock/sheet for marks hovered near them. */}
       {clusterPreview ? (
         <div
           data-testid="cluster-preview"
@@ -1493,7 +1488,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
 
       {/* First-paint realistic map placeholder (phone-first design): sits behind the map
           canvas so no state ever shows a dark void; covered + hidden once MapLibre
-          mounts. Inline SVG, no network/JS on the critical path (task-017 contract). */}
+          mounts. Inline SVG, no network/JS on the critical path. */}
       <MapPlaceholder hidden={mapReady} />
 
       {/* Kept after the command UI in DOM order so keyboard navigation starts
@@ -1503,13 +1498,12 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
         ref={containerRef}
         data-testid="app-map"
         aria-label="Interactive map of travel reach and nearby places in Bucharest"
-        // tabIndex -1 so directions can return focus here on close (panel
-        // review): the map container is otherwise not focusable.
+        // tabIndex -1 so directions can return focus here on close: the map container is otherwise not focusable.
         tabIndex={-1}
         className="h-full w-full outline-none"
       />
 
-      {/* Deferred map engine failed to load (task 017): rather than leave the headline canvas
+      {/* Deferred map engine failed to load: rather than leave the headline canvas
           silently blank we surface an actionable message. The dominant cause is a stale client
           whose cached HTML points at a hashed chunk a redeploy has purged — for that case a same-
           session re-import just replays the bundler's cached rejection, so the manual recovery is

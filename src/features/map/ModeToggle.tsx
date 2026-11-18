@@ -7,7 +7,7 @@ import type { Mode } from "@/features/map/selection-flow";
  * presentation — the recompute/abort semantics live in AppMap's switchMode.
  *
  * Data-driven over `MODES` (not a hardcoded pair) and the grid column count is
- * derived from `MODES.length`, so a third mode (car, task 053) slots in without
+ * derived from `MODES.length`, so a third mode (car) slots in without
  * a layout rewrite. Icon-over-label so a long label ("Public transport") wraps
  * inside the narrow command-dock column instead of overflowing.
  */
@@ -24,8 +24,7 @@ interface ModeDef {
   /** Active-state classes (per-mode accent so a toggle reads instantly). */
   active: string;
   /** Grid column weight — "Public transport" needs more width than "Walk"/"Car"
-   * in the 388px desktop dock or its second line clips to "anspo" (task 062,
-   * found in live inspection). */
+   * in the 388px desktop dock or its second line clips to "anspo". */
   weight: number;
 }
 

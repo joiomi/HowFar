@@ -2,7 +2,7 @@ import type { Mode } from "@/features/map/selection-flow";
 import { MODE_LABELS } from "@/features/map/ModeToggle";
 
 /**
- * Collapsed command dock (task 062): a one-line, always-current summary of
+ * Collapsed command dock: a one-line, always-current summary of
  * what is selected — address · travel mode · time budget — that IS the way
  * back into the full dock. Renders only below `md` and only for a resolved
  * selection (shell-state guarantees `label` is present, so the pill can never

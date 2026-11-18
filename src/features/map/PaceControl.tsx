@@ -1,12 +1,11 @@
 import { PACES, PACE_MODEL, type Pace } from "@/features/isochrones/pace";
 
 /**
- * Walking-pace selector (task 051; cut to two in 059): Slow / Normal. Each
- * button carries a COMPACT per-option meaning (owner: "a short description of
- * what it means") so the choice is legible without selecting; the aria-live line
+ * Walking-pace selector: Slow / Normal. Each
+ * button carries a COMPACT per-option meaning so the choice is legible without selecting; the aria-live line
  * below only surfaces the honesty qualifier for Slow (a non-normal, estimated
  * reach). Pure presentation; the recompute/abort semantics live in AppMap's
- * `setPace`. Walk-only (task 052 `effectivePace`), neutral accent.
+ * `setPace`. Walk-only (see `effectivePace`), neutral accent.
  */
 
 interface PaceControlProps {
@@ -45,7 +44,7 @@ export default function PaceControl({ pace, onSelect }: PaceControlProps) {
                 {model.label}
               </span>
               {/* Per-option meaning — visible on BOTH buttons so the user can
-                  compare without selecting (owner ask / plan panel E). Dims on
+                  compare without selecting. Dims on
                   the inactive button but stays readable. */}
               <span
                 data-testid={`pace-blurb-${p}`}
@@ -57,8 +56,8 @@ export default function PaceControl({ pace, onSelect }: PaceControlProps) {
           );
         })}
       </div>
-      {/* Honesty qualifier — Slow is a non-normal, calibrated-approximation reach
-          (G6). Announced to screen readers; blank (reserved height) for Normal so
+      {/* Honesty qualifier — Slow is a non-normal, calibrated-approximation reach.
+          Announced to screen readers; blank (reserved height) for Normal so
           the layout doesn't jump. */}
       <p
         data-testid="pace-hint"

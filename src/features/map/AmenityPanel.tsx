@@ -26,7 +26,7 @@ interface AmenityPanelProps {
   status: "idle" | "loading" | "ready" | "error";
   counts: AmenityCounts | null;
   /** Which area these places cover — follows the SHADED bands, not the fetched clip
-   * (task 065). Passed in so the panel stays presentational and the phrase has one
+   * Passed in so the panel stays presentational and the phrase has one
    * source (`amenityScopeLabel`). */
   scopeLabel: string;
   items: Amenity[];
@@ -38,7 +38,7 @@ interface AmenityPanelProps {
 
 /**
  * Category glyph, rendered from the shared `AMENITY_ICONS` source of truth so the
- * panel and the map sprite can never drift apart (task 061). Shapes are data, not
+ * panel and the map sprite can never drift apart. Shapes are data, not
  * markup, so this stays a normal React tree with no `dangerouslySetInnerHTML`.
  */
 function CategoryIcon({ category, className = "size-4" }: { category: AmenityCategoryKey; className?: string }) {
@@ -81,7 +81,7 @@ export default function AmenityPanel({
   );
   // The cap note describes the SELECTED categories only — both sides of its
   // The cap note must be scoped the same way, or hiding a category leaves the
-  // note quoting places the user cannot see (found in review). The text query is
+  // note quoting places the user cannot see. The text query is
   // deliberately excluded: the note is about what the server returned versus what
   // is in range, not about the list's current search.
   const selectedItems = useMemo(
@@ -201,15 +201,15 @@ export default function AmenityPanel({
               );
             })}
           </div>
-          {/* Truncation honesty (task 061), shown BESIDE THE CHIPS rather than inside the
+          {/* Truncation honesty, shown BESIDE THE CHIPS rather than inside the
               browser panel. The chips report the server's TRUE pre-cap totals for the
               SHADED bands while the payload is capped per (category, band), so donut sums
               are legitimately smaller. Hiding the explanation behind "Browse places" left
               the default view showing chips that claim hundreds against donuts covering
-              only the capped set, with no way to know why (found in review).
+              only the capped set, with no way to know why.
 
-              Task 065 corrected the WORDING: it used to say the map shows "the nearest of
-              them", which stopped being true when admission became distance-stratified
+              The wording deliberately avoids "the nearest of them": admission is
+              distance-stratified
               (`AMENITY_DISTANCE_STRATA` round-robin). Under the cap the map holds a
               spread across the whole area, deliberately including far places, so
               "nearest" would be exactly the kind of quiet inaccuracy this note exists to

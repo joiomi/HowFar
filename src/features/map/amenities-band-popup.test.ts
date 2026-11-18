@@ -6,12 +6,12 @@ import { createAmenitiesController, type AmenityUi } from "@/features/map/amenit
 import { createLoadState } from "@/features/map/load-state";
 
 /**
- * Narrowing the ring filter must close a popup whose place is no longer shaded (task 065).
+ * Narrowing the ring filter must close a popup whose place is no longer shaded.
  *
- * Asserted PER PATH rather than generically, because the first version of this feature set
- * the band only on the POI path: a transit-stop popup — the category most likely to sit far
- * out, and the one that matters most in transit mode — stayed open over unshaded map. A
- * single generic test would not have distinguished the paths.
+ * Asserted PER PATH rather than generically, because every popup path must set the
+ * band: a transit-stop popup — the category most likely to sit far
+ * out, and the one that matters most in transit mode — would otherwise stay open over unshaded map. A
+ * single generic test would not distinguish the paths.
  */
 
 const READY: AmenityUi = { status: "ready", counts: null, countsByBand: null, items: [] };

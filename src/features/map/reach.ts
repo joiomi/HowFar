@@ -4,8 +4,7 @@ import type { Feature, MultiPolygon, Polygon } from "geojson";
 import type { ReachLeg, ReachPlan, ReachPoint } from "@/features/isochrones/server/transit-plan";
 
 /**
- * Pure helpers for the right-click "how do I get there?" directions (task 052 D;
- * unified to public-transport-only in task 060): client-side reachability banding
+ * Pure helpers for the right-click "how do I get there?" directions (public-transport only): client-side reachability banding
  * (point-in-polygon on the SAME transit rings the map drew) and the display
  * formatting of a MOTIS trip into human steps. Kept pure + unit-tested so the
  * directions controller only does DOM + fetch.
@@ -20,7 +19,7 @@ interface RingLike {
  * The smallest-minutes ring whose polygon contains `point` ([lng, lat]), or null
  * if none does. Runs against the rings the client already rendered (post speck
  * filter, post walk-union, at the displayed pace), so the answer can never
- * disagree with what the user sees (plan-panel P2). Bad/empty geometry is
+ * disagree with what the user sees. Bad/empty geometry is
  * skipped, not thrown.
  */
 export function reachBand(point: [number, number], rings: RingLike[]): number | null {
@@ -68,7 +67,7 @@ function stopLabel(name: string): string {
 }
 
 /**
- * What a right-click asks the directions controller to render (task 060: always
+ * What a right-click asks the directions controller to render (always
  * public transport). Built in AppMap (which holds the selection + stashed rings)
  * and consumed by the controller (DOM + the `/api/reach` fetch). `transit`
  * carries a ready-built URL; `band` is the transit reach ceiling the trip time is
@@ -102,7 +101,7 @@ export function buildReachSteps(legs: ReachLeg[]): ReachStep[] {
     return {
       primary: `${label}${line}${headsign}`,
       // Show BOTH endpoints — the rider needs to know where to get off, not only
-      // where to board (impl-panel: board/alight emphasis).
+      // where to board.
       secondary: `Board ${stopLabel(leg.fromName)} → alight ${stopLabel(leg.toName)} · ${leg.minutes} min`,
     };
   });
@@ -115,11 +114,11 @@ export function buildReachSteps(legs: ReachLeg[]): ReachStep[] {
  * keep one import site. */
 export { hasTransitLeg } from "@/features/isochrones/transit-classify";
 
-// --- Drawable journey model (task 054) ------------------------------------
+// --- Drawable journey model ------------------------------------
 // Pure derivation of what the map draws for a right-click transit journey: the
 // leg lines and the stops the rider actually uses (board → transfer(s) →
 // alight). Kept here (unit-tested) rather than in the coverage-excluded draw
-// controller (plan-panel: the classification must have a pure home). The step
+// controller (the classification must have a pure home). The step
 // list from `buildReachSteps` is 1:1 with `legs`, so a popup step's index maps
 // straight to `journeyLegs(...).index` for the hover→highlight link.
 

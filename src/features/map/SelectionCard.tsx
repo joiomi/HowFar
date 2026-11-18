@@ -11,9 +11,9 @@ import type { CarMeta, Mode } from "@/features/map/selection-flow";
  * and honest copy, or the failure message. Pure presentation of the selection
  * machine's state. The legend + explainer derive from the SELECTED preset minute
  * (walk 10/20, transit 20/40, car 10/25), so they can never claim a reach the map
- * isn't drawing (phone-first). The honesty caveat (owner honesty requirement) states that the reach
+ * isn't drawing (phone-first). The honesty caveat states that the reach
  * is a typical-street estimate that can overstate near barriers — a BINDING
- * release blocker, reviewed for overstatement in neither direction.
+ * release blocker, checked for overstatement in neither direction.
  */
 
 interface SelectionCardProps {
@@ -24,10 +24,10 @@ interface SelectionCardProps {
   selectedMin: number;
   loading: boolean;
   /** Transit only: the resolved representative departure + summary, so we can
-   * honestly qualify the reach (schedule-based, no live traffic — task 051). */
+   * honestly qualify the reach (schedule-based, no live traffic). */
   departure?: { iso: string; summary: string } | null;
   /** Car only: the resolved reach basis + traffic slot, so the note can name
-   * WHICH traffic the estimate assumed (task 058). */
+   * WHICH traffic the estimate assumed. */
   car?: CarMeta | null;
 }
 

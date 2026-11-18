@@ -1,4 +1,4 @@
-// Lazy holder for the MapLibre runtime (task 017 — keep the 327 KB gz engine off the
+// Lazy holder for the MapLibre runtime (keep the 327 KB gz engine off the
 // first-load critical path). AppMap dynamically `import("maplibre-gl")`s the engine on idle,
 // AFTER the shell is interactive, then calls `setMapGl` with the loaded module; the map
 // controllers reach the runtime constructors (`Marker`, `Popup`, …) through `mapGl()`.

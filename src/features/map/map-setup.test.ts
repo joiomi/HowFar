@@ -66,8 +66,8 @@ describe("createMapStyle", () => {
     // landcover (via Daylight) is credited because that data is BUNDLED in the
     // served pmtiles archive (the dark flavor defines a landcover layer but fades
     // it to opacity 0 above z7, so it does not paint at this map's zoom range —
-    // credit is for the distribution, not the render); Natural Earth is shown by
-    // owner decision. One string serves both the public cut and the self-built
+    // credit is for the distribution, not the render); Natural Earth is credited
+    // by design. One string serves both the public cut and the self-built
     // archive (same bundled sources).
     const attribution = protomaps.attribution ?? "";
     // Pin the OSM credit as an anchor with the RIGHT href↔text pairing, not a loose
@@ -94,7 +94,7 @@ describe("createMapStyle", () => {
     // The same credit fact lives in several places (this style string, tests,
     // README, docs). It is easy for a copy to lag the shipped credit. This makes
     // the README copy a CHECKED invariant: every source URL the shipped attribution
-    // links must also appear in README, so a future source/extent change (P4) that
+    // links must also appear in README, so a future source/extent change (multi-city support) that
     // updates the map but forgets the README fails here.
     const sources = createMapStyle("http://localhost/api/tiles").sources as Record<
       string,
@@ -333,8 +333,8 @@ describe("addAmenityLayers", () => {
   it("uses only ONE zoom-based subexpression per paint property", () => {
     // MapLibre rejects a paint property containing more than one zoom-based
     // interpolate/step, and `addLayer` THROWS — which silently drops the whole
-    // layer. The first cut of this layer used
-    // `["case", hover, <interpolate>, <interpolate>]` and every pin vanished; the
+    // layer. A layer built with
+    // `["case", hover, <interpolate>, <interpolate>]` makes every pin vanish; the
     // shape-only assertions above all still passed. Hence this test, and the
     // validator test below.
     const { host, layerSpecs } = recorder();
@@ -406,7 +406,7 @@ describe("addAmenityLayers", () => {
   it("collision-manages fanned names, because pin separation is NOT label separation", () => {
     // The fan's geometry proof covers its PINS (25px apart), not their names: a long
     // POI name is far wider, so allowing overlap here reproduced exactly the text mud
-    // the owner reported (reviewers). A dropped name is the lesser
+    // seen before. A dropped name is the lesser
     // harm — the pin still draws, the hub enumerates every member, and the list is one
     // keystroke away — and the sort key makes WHICH name drops deterministic.
     const { host, layerSpecs } = recorder();
@@ -437,8 +437,8 @@ describe("addAmenityLayers", () => {
     expect(icons.minzoom).toBeUndefined();
 
     // ...but names must be collision-managed, or they overprint into the
-    // "GG"/"+G+" mud the owner reported. The retired glyph layer had BOTH of
-    // these set to true, which is exactly why it produced that.
+    // "GG"/"+G+" mud a glyph layer produced when BOTH of
+    // these were true.
     expect(labels.layout["text-allow-overlap"]).toBe(false);
     expect(labels.layout["text-ignore-placement"]).toBe(false);
     expect(labels.minzoom).toBe(AMENITY_LABEL_MINZOOM);

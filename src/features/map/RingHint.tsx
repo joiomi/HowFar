@@ -6,7 +6,7 @@ import type { Mode } from "@/features/map/selection-flow";
 /**
  * Mobile-only, dismissible one-liner explaining what the shaded reach areas
  * MEAN. The SelectionCard carries the same sentence, but the mobile shell
- * (task 062) collapses to a one-line peek bar once a selection resolves — so a
+ * collapses to a one-line peek bar once a selection resolves — so a
  * first-time mobile user, the exact audience that doesn't yet know what the
  * teal/violet/blue areas are, would never see it. This floats over the map just
  * above the sheet: the 44px peek-bar geometry and the camera padding stay
@@ -64,8 +64,7 @@ export default function RingHint({ mode, selectedMin, active }: RingHintProps) {
     >
       {/* The barrier caveat rides HERE on the mobile peek surface — the SelectionCard
           that also carries it is `hidden` while the sheet is peeked (the phone-first
-          default), so without this the honesty rider would never reach a phone user
-          (impl review). */}
+          default), so without this the honesty rider would never reach a phone user. */}
       <p className="min-w-0 flex-1 text-[0.68rem] leading-4 text-[#c9d3cc]">
         {presetReachExplainer(mode, selectedMin)}
         {presetReachCaveat(mode) ? (

@@ -13,7 +13,7 @@ import { MODES, type Mode } from "@/features/map/selection-flow";
  * full mode label. A failed mode is flagged on its icon (the degraded state) via
  * `failedMode`.
  *
- * Custom is HIDDEN (owner-deferred) — the chip row is the two presets only.
+ * Custom is HIDDEN (deferred) — the chip row is the two presets only.
  */
 
 interface ModePresetBarProps {

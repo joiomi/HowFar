@@ -1,6 +1,6 @@
 /**
  * A pure touch long-press recognizer for the right-click reachability popup on
- * mobile (task 052 D / plan-panel P15). Desktop uses MapLibre's `contextmenu`
+ * mobile. Desktop uses MapLibre's `contextmenu`
  * (which also fires on Android Chrome's long-press), but iOS Safari never emits
  * `contextmenu`, so touch devices need this: hold a single finger still for
  * `thresholdMs` → fire, treating it like a right-click. Movement beyond

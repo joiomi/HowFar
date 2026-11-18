@@ -71,7 +71,7 @@ describe("reach-directions-controller — synchronous views + destination pin", 
     expect(controller.isActive()).toBe(false);
   });
 
-  it("transit: drops a destination pin for the clicked point (task 060)", () => {
+  it("transit: drops a destination pin for the clicked point", () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(reachablePlan) })) as never);
     const { controller, journey } = makeController({ drawReturns: true });
     controller.open({ kind: "transit", coords: [26.1, 44.4], band: 30, url: "/api/reach?x=1" });
@@ -88,7 +88,7 @@ describe("reach-directions-controller — mutual exclusivity", () => {
     expect(closeStopPopup).toHaveBeenCalledTimes(2);
   });
 
-  it("open() self-invalidates the prior journey even when closeStopPopup is a no-op (panel review/review)", async () => {
+  it("open() self-invalidates the prior journey even when closeStopPopupis a no-op", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(reachablePlan) })) as never);
     const { controller, journey } = makeController({ drawReturns: true });
     controller.open({ kind: "transit", coords: [26.1, 44.4], band: 30, url: "/api/reach?x=1" });
@@ -133,7 +133,7 @@ describe("reach-directions-controller — transit fetch", () => {
     expect(v.steps).toHaveLength(2);
   });
 
-  it("a walk-only direct plan → 'No public-transport route' (task 060: no walk-band answer), NO draw", async () => {
+  it("a walk-only direct plan → 'No public-transport route' (no walk-band answer), NO draw", async () => {
     const walkOnly = { reachable: true, totalMinutes: 12, transfers: 0, legs: [{ mode: "WALK", line: "", headsign: "", fromName: "START", toName: "END", minutes: 12 }] };
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(walkOnly) })) as never);
     const { controller, journey, reachDeclutter, views } = makeController();
@@ -192,8 +192,8 @@ describe("reach-directions-controller — transit fetch", () => {
     expect(views.at(-1)?.detail).toContain("a little beyond");
   });
 
-  it("a short vehicle hop with long access walks DRAWS — its walk steps carry the honesty (review reversal)", async () => {
-    // Real captures contain owner-approved best trips like a 3-min tram between
+  it("a short vehicle hop with long access walks DRAWS — its walk steps carry the honesty", async () => {
+    // Real captures contain best trips like a 3-min tram between
     // long walks; a walk-share threshold would misreport those as "no route",
     // so the drawable line is strictly "has a transit leg".
     const shortHop = {
@@ -224,7 +224,7 @@ describe("reach-directions-controller — transit fetch", () => {
     expect(views.at(-1)?.detail).not.toContain("a little beyond");
   });
 
-  it("a bike-direct fallback (no transit leg) → 'No public-transport route', text-only (task 060)", async () => {
+  it("a bike-direct fallback (no transit leg) → 'No public-transport route', text-only", async () => {
     const bikeDirect = { reachable: true, totalMinutes: 14, transfers: 0, legs: [{ mode: "BIKE", line: "", headsign: "", fromName: "START", toName: "END", minutes: 14 }] };
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(bikeDirect) })) as never);
     const { controller, journey, views } = makeController();

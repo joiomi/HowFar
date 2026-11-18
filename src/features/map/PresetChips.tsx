@@ -3,7 +3,7 @@ import { PRESET_MIN_BY_MODE, type Mode, type PresetIndex } from "@/features/isoc
 /**
  * Phone-first preset chip row (phone-first design): the active mode's TWO
  * calibrated presets — walk 10/20, transit 20/40, car 10/25 — as a compact
- * segmented control. Custom stays HIDDEN (owner-deferred: an arbitrary minute has
+ * segmented control. Custom stays HIDDEN (deferred: an arbitrary minute has
  * no fitted calibration point), so there is no `[Custom…]` chip and no `?minute=`
  * param. The chip is pure client-side visibility: the route returned BOTH
  * contours, so selecting a chip repaints locally with no refetch.

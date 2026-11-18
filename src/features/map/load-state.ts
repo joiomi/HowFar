@@ -3,8 +3,7 @@ import type { ReachLeg } from "@/features/isochrones/server/transit-plan";
 import type { Mode, Origin, Ring } from "@/features/map/selection-flow";
 
 /**
- * Shared lifecycle cell for the map effect (plan panel round-2 Critical, 3×
- * convergent): the style-load flag plus the buffers that replay a selection /
+ * Shared lifecycle cell for the map effect: the style-load flag plus the buffers that replay a selection /
  * amenities response which arrived before MapLibre's `load`. Held in ONE object
  * threaded into every controller so they read the SAME state — a per-factory
  * `let styleLoaded` captured at create-time (before `load`) would stay false
@@ -14,7 +13,7 @@ export interface LoadState {
   styleLoaded: boolean;
   pending: { origin: Origin; label: string; rings: Ring[]; mode: Mode } | null;
   pendingAmenities: { items: Amenity[]; countsByBand: AmenityCountsByBand } | null;
-  /** A right-click journey whose draw arrived before `load` (task 054); replayed
+  /** A right-click journey whose draw arrived before `load`; replayed
    * once the reach-path source exists. Cleared on draw/clear. */
   pendingJourney: ReachLeg[] | null;
 }

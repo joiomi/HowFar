@@ -8,7 +8,7 @@ import { createLoadState } from "@/features/map/load-state";
  * The hover pick (`pickAmenity`) hit-tests the amenity source every frame, which
  * races the amenity-source `setData` swap: MapLibre can throw
  * `feature index out of bounds` when the render index and the source data
- * momentarily disagree (task 018 — the owner saw this repeatedly in the console).
+ * momentarily disagree (seen repeatedly in the console).
  * The pick must degrade to "nothing under the cursor", never crash.
  */
 function makeHover(queryImpl: () => maplibregl.MapGeoJSONFeature[]) {

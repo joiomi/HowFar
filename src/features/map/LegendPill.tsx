@@ -89,7 +89,7 @@ export default function LegendPill({ mode, selectedMin }: LegendPillProps) {
           the two calibrated contours can't back a colour→minute scale), so the ramp
           carries a QUALITATIVE "Sooner → Later" label and NO minute numbers. The
           minutes live only on the calibrated contour-LINE swatches below — the honest
-          world-claims (impl review). */}
+          world-claims. */}
       <div className="mt-2 h-2.5 rounded-full ring-1 ring-white/10" style={{ background: gradient }} />
       <div className="mt-1.5 flex items-center justify-between text-[0.62rem] font-medium text-[#9ca9a0]">
         <span>Sooner</span>

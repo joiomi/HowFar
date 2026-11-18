@@ -1,7 +1,7 @@
 /**
- * Pure nearest-marker pick decision for map clicks and hovers (task 024). The
- * owner's complaint was hit-testing: a 5px circle demanded pixel-precise
- * clicks, and a near-miss silently reselected the map point (full recompute).
+ * Pure nearest-marker pick decision for map clicks and hovers. A 5px
+ * circle would demand pixel-precise clicks, and a near-miss would silently
+ * reselect the map point (full recompute).
  * This helper gives every amenity marker one generous, deterministic target —
  * shared by the click handler AND the hover handler, so the hover affordance
  * (grown circle, pointer cursor) always predicts exactly what a click will do.
@@ -18,9 +18,9 @@ export const MARKER_PICK_PAD_PX = 12;
 /**
  * The pick pad to use at a given zoom.
  *
- * Task 061 made pins zoom-scaled, and the fixed 12px pad silently stopped covering
+ * Pins are zoom-scaled, so a fixed 12px pad would stop covering
  * them: at z19 a hovered pin renders out to ~20.7px, so its visible outer ring could
- * be clicked and ignored (found in review). The pad now tracks the rendered
+ * be clicked and ignored. The pad now tracks the rendered
  * footprint, and never shrinks below the historical floor — so low zooms keep exactly
  * the generous target they had, and high zooms stop under-reaching the mark. Bare-map
  * clicking is unaffected in the dense case, because dense areas cluster into donuts
@@ -60,14 +60,14 @@ export function pickNearestWithin<T extends PickPoint>(
 }
 
 /**
- * EVERY candidate inside the pad box, nearest first (task 061).
+ * EVERY candidate inside the pad box, nearest first.
  *
  * `pickNearestWithin` answers "which one did they mean?", which silently discards
  * the others — so in a tight clump some markers were unreachable by pointer at
  * all: the cursor could never get closer to them than to a neighbour. This
  * returns the whole set so the caller can offer a choice instead of guessing.
  *
- * Display-level clustering (task 061) already prevents most of these, since
+ * Display-level clustering already prevents most of these, since
  * anything closer than `CLUSTER_RADIUS_PX` becomes one donut with its own leaves
  * list. This covers the remaining sub-pad near-misses among *unclustered* pins.
  *

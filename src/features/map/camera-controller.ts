@@ -5,7 +5,7 @@ import { EXPANDED_SHELL, type ShellState } from "@/features/map/shell-state";
 import type { EdgeInsets } from "@/features/map/route-framing";
 
 /**
- * Owns the map's permanent edge padding (task 024/027): the insets that keep a
+ * Owns the map's permanent edge padding: the insets that keep a
  * selection centred in the map area the docks don't cover. Split out of `AppMap`
  * as the first leaf controller — it depends only on the map and its container.
  * `cameraPadding` (the pure size→inset math) stays unit-tested in `camera.ts`;
@@ -13,12 +13,12 @@ import type { EdgeInsets } from "@/features/map/route-framing";
  * suite asserts. No timers/listeners, so `dispose` is a no-op (kept for the
  * uniform factory contract).
  *
- * `shell` (task 062) reports the live mobile dock/sheet state. It is a getter,
+ * `shell` reports the live mobile dock/sheet state. It is a getter,
  * not a value: AppMap mirrors the derived shell into a ref during render, and
  * the selection flow updates state synchronously before `renderSelection` runs,
  * so the padding committed immediately before the selection flyTo already
- * reflects the dock that is ABOUT to collapse — the required ordering (found
- * in review: framing must never run against stale expanded-dock insets).
+ * reflects the dock that is ABOUT to collapse — the required ordering
+ * (framing must never run against stale expanded-dock insets).
  */
 export function createCameraController({
   map,
@@ -50,7 +50,7 @@ export function createCameraController({
 
   // A user shell flip (pill tap, sheet peek/expand) can land mid-flyTo, and
   // `map.setPadding` internally runs `jumpTo`, which unconditionally `stop()`s
-  // whatever camera animation is in flight (the documented task-060 trap that
+  // whatever camera animation is in flight (the documented trap that
   // once killed every search's zoom). Selection framing applies its padding
   // BEFORE starting the flyTo, so this deferred variant is only for flips that
   // do not come with their own camera move: apply now when the camera is at

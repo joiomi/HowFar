@@ -4,7 +4,7 @@
  * very first frame — so no state ever shows the forbidden dark void — until the
  * deferred MapLibre engine mounts and its opaque canvas covers it. It is an inline
  * SVG (blocks, arterials, a river, a park), a few hundred bytes with ZERO network
- * and ZERO JavaScript on the critical path, so the task-017 deferred-load
+ * and ZERO JavaScript on the critical path, so the deferred-load
  * performance contract is fully preserved (no map bundle is pulled forward).
  *
  * It carries the dark map palette (map base `#0e130f`) so the live map

@@ -60,16 +60,15 @@ export function createMapStyle(tilesUrl: string): maplibregl.StyleSpecification 
         //    (@protomaps/basemaps base_layers), and the city-extent `maxBounds`
         //    (NEXT_PUBLIC_MAP_BBOX) keeps the camera above z7 today, so those pixels
         //    do not paint at this extent — BUT the ESA data is BUNDLED in the pmtiles
-        //    archive we serve regardless, and a wider extent (P4) could drop the
+        //    archive we serve regardless, and a wider extent (multi-city support) could drop the
         //    floor to where it paints. Either way the credit is carried for the
-        //    distribution (owner: SHOW it). CC BY 4.0 requires indicating the data
+        //    distribution (deliberately shown). CC BY 4.0 requires indicating the data
         //    was modified — Daylight vectorised ESA's raster, so the credit says
         //    "modified". ESA's fuller "Contains modified Copernicus Sentinel data …"
         //    acknowledgement + the exact WorldCover vintage live in README/docs and
         //    at the linked data-access page; the vintage is not pinned in our build
         //    (parked), so it is NOT asserted here.
-        //  - Natural Earth — public-domain ("crediting unnecessary"); shown by owner
-        //    decision.
+        //  - Natural Earth — public-domain ("crediting unnecessary"); shown by design.
         // Mapzen POI-icon sprite (MIT) is hot-linked from protomaps.github.io
         // (glyphs/sprite above), i.e. referenced not redistributed; its MIT notice is
         // carried in README for good measure (docs/SELFHOST.md explains the basis).
@@ -119,7 +118,7 @@ export function addIsochroneLayers(map: LayerHost): void {
 }
 
 /**
- * PRESET reach layers (phone-first, task 022) — ADDITIVE, alongside the legacy
+ * PRESET reach layers (phone-first) — ADDITIVE, alongside the legacy
  * `iso-*` band layers (which stay byte-identical). Two sources:
  *  - `preset-reach-fill`: the DECORATIVE gradient shells (`buildPresetShellFeatures`), each a
  *    flat translucent fill carrying its own ramp `fillColor`; stacked in source order they read
@@ -170,12 +169,12 @@ export function addPresetReachLayers(map: LayerHost): void {
   });
 }
 
-/** Highlighted transit-route color (task 024): near-white reads as "figure" on
+/** Highlighted transit-route color: near-white reads as "figure" on
  * the dark basemap and collides with no category hue or mode ramp. */
 export const ROUTE_PATH_COLOR = "#fafafa";
 const ROUTE_PATH_CASING = "#09090b";
 
-/** Selected transit line (task 024): dark casing under a bright line, plus the
+/** Selected transit line: dark casing under a bright line, plus the
  * route's stops as casing-colored dots ringed in the line color. One GeoJSON
  * source; the layers split track from stops by geometry type. Added BETWEEN
  * the isochrone fills and the amenity markers, so a drawn path never covers
@@ -235,7 +234,7 @@ export function addRoutePathLayers(map: LayerHost): void {
   });
 }
 
-/** Right-click journey draw palette (task 054). Walk legs = the walk-mode teal
+/** Right-click journey draw palette. Walk legs = the walk-mode teal
  * (dashed), transit legs = the transit violet, matching the isochrone ramp so
  * the drawn trip reads in the same visual language as the rings. Board/alight
  * dots are emphasized; transfers are a quieter hollow dot; the highlight layers
@@ -245,7 +244,7 @@ export const REACH_TRANSIT_COLOR = "#a78bfa"; // --hf-transit
 const REACH_CASING = "#09090b";
 const REACH_HIGHLIGHT = "#fafafa";
 
-/** The journey a right-click drew (task 054): one GeoJSON source holds the leg
+/** The journey a right-click drew: one GeoJSON source holds the leg
  * LineStrings (props `kind:"leg"`, `legIndex`, `isWalk`) and the used-stop Points
  * (props `kind:"stop"`, `stopKind`, `stopIndex`, `name`). Two `*-hl` layers stay
  * filtered to nothing until a popup step is hovered. Added BETWEEN the OSM
@@ -293,11 +292,10 @@ export function addReachPathLayers(map: LayerHost): void {
     layout: round,
     paint: { "line-color": REACH_HIGHLIGHT, "line-width": 6, "line-opacity": 0.9 },
   });
-  // The reach-path source also carries a single `kind:"destination"` pin (task
-  // 058) — the point the user asked "how do I get there?" about. The stop layers
+  // The reach-path source also carries a single `kind:"destination"` pin — the point the user asked "how do I get there?" about. The stop layers
   // below are scoped to `kind:"stop"` so the pin never renders as a transit stop
-  // or gets a stop label (review/review/review — atomic source, one
-  // owner, kind-scoped layers).
+  // or gets a stop label (atomic source, one
+  // writer, kind-scoped layers).
   const isStop = ["all", isPoint, ["==", ["get", "kind"], "stop"]] as maplibregl.FilterSpecification;
   // Used stops: board/alight are big filled violet dots; transfers a smaller
   // hollow dot. White stroke gives figure/ground pop on the dark basemap.
@@ -346,7 +344,7 @@ export function addReachPathLayers(map: LayerHost): void {
       "text-halo-width": 1.5,
     },
   });
-  // Destination pin (task 058): the point the user asked about. A near-white
+  // Destination pin: the point the user asked about. A near-white
   // filled dot with a dark halo + a small inner core — deliberately unlike the
   // violet transit stops, so it reads as "here's the place" for every reach kind
   // (walk/car band answers too, which draw no journey). One dot per feature.
@@ -385,7 +383,7 @@ function hoverCase(
 }
 
 /**
- * Amenity layers (task 061 — display-level aggregation).
+ * Amenity layers (display-level aggregation).
  *
  * The source **clusters**, and `clusterMaxZoom` is pinned to the map's own
  * maximum so aggregation never dissolves: any two amenities closer than
@@ -409,7 +407,7 @@ function hoverCase(
  * need opposite overlap policies: the icon must stay glued to its pin
  * (`icon-allow-overlap`), while names must be collision-managed so they thin
  * instead of overprinting into mud (the previous letter-glyph layer disabled
- * collisions outright, which is what produced the owner's `GG`/`+G+` screenshot).
+ * collisions outright, which produced `GG`/`+G+` text mud).
  */
 export function addAmenityLayers(map: LayerHost): void {
   map.addSource("amenities", {
@@ -430,7 +428,7 @@ export function addAmenityLayers(map: LayerHost): void {
   // NOTE: there is deliberately NO WebGL layer for clusters. An earlier "halo" circle
   // was painted per SOURCE cluster, but donuts are merged in SCREEN space, so after a
   // merge the halos stayed at the un-merged positions and visibly reintroduced exactly
-  // the overlap this task removes (found in review). The donut SVG draws its own dark seat,
+  // the overlap. The donut SVG draws its own dark seat,
   // so the halo was redundant as well as wrong.
   // Individual places. Radius now scales with zoom (a fixed 7px at every zoom was
   // one of the three causes of the original crowding complaint); the cap in
@@ -462,14 +460,14 @@ export function addAmenityLayers(map: LayerHost): void {
     source: "amenities",
     filter: IS_SINGLE,
     // No minzoom: the map opens at 11.5, and an isolated pin down there was drawn as a
-    // bare coloured dot with no category encoding at all (found in review). `icon-size`
+    // bare coloured dot with no category encoding at all. `icon-size`
     // already shrinks the glyph at low zoom, so there is nothing to gate.
     layout: {
       "icon-image": amenityIconImageExpression() as unknown as maplibregl.DataDrivenPropertyValueSpecification<maplibregl.ResolvedImageSpecification>,
-      // Calibrated against real screenshots at the W7 checkpoint: the first pass
-      // (0.32/0.42/0.55) rendered legible-but-faint icons inside the pin, so each
+      // Calibrated against real screenshots: sizes of
+      // (0.32/0.42/0.55) render legible-but-faint icons inside the pin, so each
       // stop is nudged up to fill more of the disc without touching its edge.
-      // Task 062: stops scaled with the PIN_RADIUS_STOPS legibility bump (icons
+      // Stops scaled with the PIN_RADIUS_STOPS legibility bump (icons
       // track their pin's disc — mid-zoom +~22%, top +~10%).
       "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.36, 12.5, 0.42, 15, 0.56, 18, 0.68],
       "icon-allow-overlap": true,
@@ -518,7 +516,7 @@ export const SPIDER_ICON_LAYER = "amenity-spider-icons";
 export const SPIDER_LABEL_LAYER = "amenity-spider-labels";
 
 /**
- * Spiderfy layers (task 061 W20) — the fan that makes coincident places
+ * Spiderfy layers — the fan that makes coincident places
  * individually visible.
  *
  * Added AFTER the amenity layers so the fan draws on top of everything it
@@ -531,12 +529,10 @@ export const SPIDER_LABEL_LAYER = "amenity-spider-labels";
  * 2. Reusing the pin paint here means a fanned leaf looks exactly like an ordinary
  *    place — same colour, same icon sprite, same label style — so nothing has to be
  *    re-learned when a mark fans out.
- * 3. Labels are COLLISION-MANAGED, like the main map's. The first cut set
- *    `text-allow-overlap: true` on the reasoning that a fan is at most
- *    `SPIDER_MAX_LEAVES` provably separated marks — but two reviewers pointed
- *    out that the proof covers the PINS (25px apart), not their names: a 10em POI name
+ * 3. Labels are COLLISION-MANAGED, like the main map's. `text-allow-overlap: true` would be tempting, since a fan is at most
+ *    `SPIDER_MAX_LEAVES` provably separated marks — but the proof covers the PINS (25px apart), not their names: a 10em POI name
  *    is far wider than that, so long names in a full fan reproduced exactly the text
- *    mud the owner reported. Thinning a name is the lesser harm — the pin is always
+ *    mud. Thinning a name is the lesser harm — the pin is always
  *    drawn, the hub's `aria-label` enumerates every member, and the leaves list is one
  *    keystroke away — so `text-optional` lets a name drop rather than overprint, and
  *    `symbol-sort-key` makes which one drops deterministic instead of arbitrary.
@@ -577,7 +573,7 @@ export function addAmenitySpiderLayers(map: LayerHost): void {
     filter: ["==", ["geometry-type"], "Point"],
     layout: {
       "icon-image": amenityIconImageExpression() as unknown as maplibregl.DataDrivenPropertyValueSpecification<maplibregl.ResolvedImageSpecification>,
-      // Tracks the task-062 pin-icon bump (fan leaves reuse the pin paint).
+      // Tracks the pin-icon size (fan leaves reuse the pin paint).
       "icon-size": 0.56,
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,

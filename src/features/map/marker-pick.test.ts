@@ -126,10 +126,11 @@ describe("pickAllWithin", () => {
 });
 
 describe("markerPickPad", () => {
-  // Task 061 made pins zoom-scaled while the pad stayed a fixed 12px, so at high zoom
-  // the visible outer ring of a pin could be clicked and ignored (found in review).
+  // Pins are zoom-scaled, so a fixed 12px pad would leave the visible outer ring of a
+  // pin at high zoom clickable-but-ignored; the pad tracks the footprint. The
+  // visible outer ring of a pin could be clicked and ignored.
   it("never shrinks below the historical floor, so low zooms keep their generous target", () => {
-    // z13 left this list in task 062: its hovered footprint (13px) now exceeds
+    // z13 is not in this list: its hovered footprint (13px) exceeds
     // the 12px floor on its own, which is the OTHER test's regime.
     for (const zoom of [11, 12]) {
       expect(markerPickPad(pinFootprintRadius(zoom, true))).toBe(MARKER_PICK_PAD_PX);

@@ -9,24 +9,24 @@ import type { ReachJourneyController } from "@/features/map/reach-journey-contro
 import type { EdgeInsets } from "@/features/map/route-framing";
 
 /**
- * The right-click "how do I get there?" directions flow (task 058), extracted
- * from the popup controller (task 052/054/057). It no longer renders a
- * map-anchored MapLibre popup — the directions now live in the RESULT-SHEET DOCK
- * (owner item 2: "replace the useless filters with this so it doesn't cover the
- * map"). This controller owns the STATE + side effects only; a React panel
+ * The right-click "how do I get there?" directions flow, extracted
+ * from the popup controller. It no longer renders a
+ * map-anchored MapLibre popup — the directions now live in the RESULT-SHEET DOCK,
+ * replacing the amenity filters so it doesn't cover the
+ * map. This controller owns the STATE + side effects only; a React panel
  * (`ReachPanel`) renders whatever `subscribe` reports.
  *
  * Responsibilities (ported verbatim from the popup version — the race handling
- * below was panel-caught and must not regress):
+ * below must not regress):
  *   - the reach view state machine (hint / outside / none / loading / error /
- *     transit-with-steps) — public-transport only since task 060;
+ *     transit-with-steps) — public-transport only;
  *   - the `/api/reach` fetch under ONE generation + abort + REACH_TIMEOUT_MS deadline, with
  *     the "invalidate gen BEFORE abort" and "late-json guard" fixes;
  *   - orchestrating the drawn journey, amenity declutter, destination pin, and
  *     the camera frame;
  *   - the `data-reach-state` e2e stamp.
  *
- * Mutual exclusivity (found in review): directions and the stop/POI popup are the
+ * Mutual exclusivity: directions and the stop/POI popup are the
  * two "active map surfaces" and never coexist. `open()` closes any stop/POI
  * popup via the injected `closeStopPopup`; the popup controller's
  * `closeStopPopup` calls back into `close()` here — so every funnel that clears
@@ -37,8 +37,8 @@ import type { EdgeInsets } from "@/features/map/route-framing";
  * assert the server's end-to-end plan budget (PLAN_BUDGET_MS) stays strictly
  * below it — the server must answer or fail while the client is still
  * listening, or a slow success gets cached after the client gave up and the
- * next click "heals". Task 018 raised it to 15s to sit a ≥2s heal-loop margin
- * above the raised PLAN_BUDGET_MS (12s, one modestly-long attempt); a ceiling
+ * next click "heals". It is 15s to sit a ≥2s heal-loop margin
+ * above PLAN_BUDGET_MS (12s, one modestly-long attempt); a ceiling
  * test caps it at 15s so the pair can't drift up and make every genuine phone
  * failure slower. */
 export const REACH_TIMEOUT_MS = 15000;
@@ -50,7 +50,7 @@ export interface ReachStepView {
 }
 
 /** What `ReachPanel` renders. `state` drives the `data-reach-state` stamp and
- * the review's test hooks; `steps` is present only for a drawn transit journey. */
+ * the test hooks; `steps` is present only for a drawn transit journey. */
 export interface ReachView {
   state: "hint" | "outside" | "none" | "loading" | "error" | "transit";
   title: string;
@@ -106,7 +106,7 @@ export function createReachDirectionsController({
   }
 
   function open(req: ReachRequest) {
-    // Self-contained invalidation (review/review): abort any in-flight
+    // Self-contained invalidation: abort any in-flight
     // fetch, bump the gen so a late response can't draw, and tear down the prior
     // journey/pin/declutter — WITHOUT relying on the arbiter callback. A `hint`
     // open (or a re-open) otherwise leaves an in-flight transit fetch able to
@@ -132,7 +132,7 @@ export function createReachDirectionsController({
       return;
     }
 
-    // Task 060: every right-click is a public-transport directions request (any
+    // Every right-click is a public-transport directions request (any
     // mode auto-switches to transit in AppMap first). loading → fetch → journey /
     // none / error, under one generation. `band` frames the trip time against the
     // visible reach (the point's ring band, or the 45-min transit max cross-mode).
@@ -146,7 +146,7 @@ export function createReachDirectionsController({
       if (gen === reachGen) {
         // Invalidate this generation BEFORE aborting: a res.json() that resolved
         // just before the abort could otherwise still pass the gen check and
-        // draw/declutter after we gave up (panel-caught race).
+        // draw/declutter after we gave up.
         reachGen += 1;
         setView({ state: "error", title: "Couldn’t plan this trip", detail: "The routing service is slow — please try again." });
       }
@@ -168,7 +168,7 @@ export function createReachDirectionsController({
           return void setView({ state: "none", title: "No public-transport route", detail: "No trip was found for this departure time." });
         }
         // A plan with no transit leg is a walk-only (or bike-direct) fallback —
-        // task 060: the owner rejected the walk/car band answers as useless, so a
+        // walk/car band answers are not useful here, so a
         // right-click that yields no public-transport leg is reported as "no
         // public-transport route" (same as an unreachable result), NOT an "On
         // foot" walk-band. No draw, no declutter. The prior draw was torn down by
@@ -192,7 +192,7 @@ export function createReachDirectionsController({
           reachDeclutter.set(true);
           journey.frame(applyCameraPadding(true));
         }
-        // Band honesty (task 057, precision from review): "a little beyond" only
+        // Band honesty: "a little beyond" only
         // while the overshoot is small (≤4/3 of the band); a 60-min trip against
         // a 15-min band is plainly "beyond".
         const detail =
@@ -225,7 +225,7 @@ export function createReachDirectionsController({
     highlight: (index: number | null) => journey.highlight(index),
     /** Reframe the drawn journey (resize/orientation) — no-op if none drawn. */
     /**
-     * Re-fit a drawn journey (task 058/060's camera-race guard).
+     * Re-fit a drawn journey (camera-race guard).
      *
      * The `canFrame()` check must come FIRST. `applyCameraPadding` commits
      * `map.setPadding`, which internally calls `jumpTo`, and `jumpTo`

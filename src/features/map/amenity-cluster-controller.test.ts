@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Unit coverage for the donut controller's reconcile pass (found in review).
+ * Unit coverage for the donut controller's reconcile pass.
  *
  * Why this file exists. The pure geometry (`amenity-cluster.ts`) was well tested
  * and the rendered result was covered by `e2e/amenity-legibility.spec.ts`, but the
  * layer BETWEEN them — reading the source, choosing a tile generation, feeding
  * unclustered pins into the collision pass, diffing the absorbed set, keying and
- * reusing marker entries — had none. That gap was not theoretical: the review
- * proved that deleting the pin-participation wiring (the the absorbed-pin case fix) left every
+ * reusing marker entries — had none. That gap was not theoretical: deleting the
+ * pin-participation wiring (the absorbed-pin case fix) left every
  * existing test green, including the adversarial e2e fixture written for it. The
  * first test below is the one that goes red.
  *
@@ -28,7 +28,7 @@ interface FakeNode {
   type: string;
   textContent: string;
   children: FakeNode[];
-  /** The hover path scales the inner SVG via `firstElementChild` (task 062). */
+  /** The hover path scales the inner SVG via `firstElementChild`. */
   readonly firstElementChild: FakeNode | null;
   listeners: Record<string, ((event: unknown) => void)[]>;
   setAttribute: (name: string, value: string) => void;
@@ -81,8 +81,8 @@ class FakeMarker {
   }
 }
 
-// The controller reaches the MapLibre runtime through the lazy `mapGl()` holder (task 017 —
-// the engine is dynamically imported off the critical path), so the test installs a fake runtime
+// The controller reaches the MapLibre runtime through the lazy `mapGl()` holder
+// (the engine is dynamically imported off the critical path), so the test installs a fake runtime
 // via setMapGl rather than mocking the maplibre-gl module.
 const { setMapGl } = await import("./map-runtime");
 setMapGl({ Marker: FakeMarker } as unknown as import("./map-runtime").MapGl);
@@ -268,7 +268,7 @@ describe("unclustered pins take part in the collision pass (the absorbed-pin cas
     expect(controller.count()).toBe(1);
     expect(controller.absorbedPinIds()).toEqual([7, 8]);
     // Pin-only marks must still be openable — they are hidden from the pin layer,
-    // so a mark that carried no ids at all was an unreachable place (an earlier pass).
+    // so a mark that carried no ids at all was an unreachable place.
     const picked = controller.pickAt({ x: 100, y: 104 });
     expect(picked?.ids).toEqual([]);
     expect(picked?.pinIds).toEqual([7, 8]);
@@ -301,7 +301,7 @@ describe("reading the clustered source", () => {
 
   it("keeps ONE tile generation, so a mid-zoom double report cannot double the count", () => {
     // The same 8 places, reported by the retained z13 tiles AND the incoming z14
-    // tiles. Merging across them paints "16 places" where there are 8 (F3).
+    // tiles. Merging across them paints "16 places" where there are 8.
     const { tick } = setup({
       zoom: 14,
       clusters: [
@@ -369,7 +369,7 @@ describe("marker entry reuse", () => {
 
   it("gives two pin-only groups distinct identities", () => {
     // Both carry an empty supercluster id list, so keying on ids alone collided
-    // them onto one entry and the second group vanished (an earlier pass).
+    // them onto one entry and the second group vanished.
     const { controller, tick } = setup({
       clusters: [],
       pins: [pin(1, 100, 100), pin(2, 100, 108), pin(3, 400, 400), pin(4, 400, 408)],
@@ -389,8 +389,8 @@ describe("hit-testing", () => {
   });
 
   it("stays inert until a reconcile has actually SEEN the new data", () => {
-    // The distinction review caught. `setData` re-indexes on a worker, measured at
-    // 35-41ms (W2), while the recovery frame runs in ~16ms — so the frame that
+    // The distinction matters. `setData` re-indexes on a worker, measured at
+    // 35-41ms, while the recovery frame runs in ~16ms — so the frame that
     // `invalidateMarks` schedules for itself can reconcile the OLD tiles. Clearing the
     // guard there rebuilt the same marks with stale ids and reopened the exact
     // wrong-list race the flag exists to close. Recovery must therefore require the
@@ -645,7 +645,7 @@ describe("defensive paths", () => {
     expect(one?.element.attrs["aria-label"]).toContain("1 place here");
     expect(one?.element.attrs["aria-label"]).not.toContain("1 places");
     // A three-digit count needs the smaller glyph to stay inside the ring
-    // (task 062 bumped the pair to 12/11 for legibility).
+    // (the pair is 12/11 for legibility).
     const text = many?.element.children[0]?.children.at(-1);
     expect(text?.attrs["font-size"]).toBe("11");
   });
@@ -745,12 +745,12 @@ describe("defensive paths", () => {
   });
 });
 
-describe("absorbed pins carry their own data (found in review)", () => {
+describe("absorbed pins carry their own data", () => {
   // Resolving an absorbed pin used to mean a SECOND `querySourceFeatures` at click
   // time. If that query missed an id — viewport edge, mid-recluster, source race — the
   // popup got zero leaves and returned with no UI at all: the mark that hid those pins
-  // became a dead click, i.e. "on screen but unreachable", the defect this task exists
-  // to remove. The mark now carries what it swallowed.
+  // became a dead click, i.e. "on screen but unreachable", the defect to avoid.
+  // The mark now carries what it swallowed.
   it("hands the pick a snapshot of every pin it absorbed", () => {
     const { controller, tick } = setup({
       clusters: [cluster(1, 100, 100, { groceries: 3 })],
@@ -795,7 +795,7 @@ describe("absorbed pins carry their own data (found in review)", () => {
   });
 });
 
-describe("pins are partitioned by tile generation too (found in review)", () => {
+describe("pins are partitioned by tile generation too", () => {
   it("does not absorb an old-generation pin into a new-generation donut", () => {
     // Mid-zoom the same POI can be a member of a new-tiling cluster while a retained
     // old tile still reports it as an unclustered single. Absorbing that single would
@@ -841,7 +841,7 @@ describe("hit target by pointer kind", () => {
     // The 44px target is for fingers. Applied to a mouse it blanketed the map: donuts can
     // render TANGENT, so with any pad at all their targets overlap and no point between
     // them is free — clicking bare map to choose a new address became impossible in a
-    // dense field (found in review).
+    // dense field.
     const { controller, tick } = setup({ clusters: [cluster(1, 100, 100, { groceries: 3 })] });
     tick();
     const drawn = clusterFootprintRadius(3);
@@ -853,7 +853,7 @@ describe("hit target by pointer kind", () => {
     // Near-tangent is the worst case the invariant permits, so it decides whether
     // click-to-select survives in a dense field. (At EXACTLY tangent the single shared
     // point belongs to both marks and nearest-centre picks one — measure-zero, and not
-    // worth contorting the geometry over.) Since task 062 the merge pass reserves the
+    // worth contorting the geometry over.) The merge pass reserves the
     // HOVER-grown donut footprint, so "almost touching but legally separate" means
     // clear of the hovered tangency, not the resting one.
     // +2 (not more): the midpoint must stay inside the 22px touch target while
@@ -873,8 +873,7 @@ describe("hit target by pointer kind", () => {
   });
 
   it("gives an ambiguous tap to the nearest mark", () => {
-    // Spacing derived from the merge boundary (hover-grown footprints since task
-    // 062) so the two marks are the CLOSEST pair that legally stays separate.
+    // Spacing derived from the merge boundary (hover-grown footprints) so the two marks are the CLOSEST pair that legally stays separate.
     const sep = Math.ceil(2 * clusterFootprintRadius(3) * DONUT_HOVER_SCALE) + 2;
     const { controller, tick } = setup({
       clusters: [cluster(1, 100, 100, { groceries: 3 }), cluster(2, 100 + sep, 100, { groceries: 3 })],
@@ -885,10 +884,10 @@ describe("hit target by pointer kind", () => {
   });
 });
 
-describe("hover grow + preview data (task 062)", () => {
+describe("hover grow + preview data", () => {
   // The hover is CONTROLLER-owned: reconcile rebuilds donut elements every
   // camera frame, so an externally-applied transform dies on the next pan.
-  // These tests pin the ownership contract the plan panel required.
+  // These tests pin the ownership contract.
   it("hoverAt grows the inner SVG of the mark under the point and returns its counts", () => {
     const { controller, tick } = setup({ clusters: [cluster(1, 100, 100, { groceries: 2, parks: 1 })] });
     tick();

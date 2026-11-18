@@ -122,9 +122,9 @@ describe("leavesToAmenities", () => {
   });
 
   it("bounds the requested leaf count above the server's OWN ceiling, not a guessed number", () => {
-    // Was `> 150`, which a cap of 151 would satisfy while a real cluster can hold
-    // MAX_PER_CATEGORY_PER_BAND x every category x every band = 1500 (task 065; review: the absorbed-pin paging fix was
-    // protected by an assertion that could not fail). Tied to the two constants
+    // A fixed `> 150` would be satisfied by a cap of 151 while a real cluster can hold
+    // MAX_PER_CATEGORY_PER_BAND x every category x every band = 1500, so such an
+    // assertion could not fail. Tied to the two constants
     // that actually decide the ceiling, so raising either fails here instead of
     // silently truncating a list.
     expect(MAX_CLUSTER_LEAVES).toBeGreaterThanOrEqual(
@@ -212,8 +212,7 @@ describe("collectClusterLeaves", () => {
 describe("dedupeAmenities", () => {
   // The mark's leaves and its absorbed-pin snapshot are concatenated, and mid-zoom one
   // POI can be reported in BOTH roles (clustered in the new tiling, unclustered in the
-  // retained old one) — so the same place could appear twice in one list
-  // (found in review).
+  // retained old one) — so the same place could appear twice in one list.
   const place = (name: string, osmId?: number, lat = 44, lng = 26) => ({
     name,
     category: "groceries" as const,
@@ -237,7 +236,7 @@ describe("dedupeAmenities", () => {
   it("NEVER drops a place it cannot positively identify", () => {
     // OSM identity is optional by contract, so its absence means "cannot prove these are
     // the same", not "assume they are" — two unnamed kiosks at one coordinate are two
-    // places, and hiding one is the defect this task exists to remove. Showing a
+    // places, and hiding one is the defect to avoid. Showing a
     // duplicate row is the safer error.
     const out = dedupeAmenities([place("Kiosk"), place("Kiosk"), place("Kiosk", undefined, 44.001)]);
     expect(out).toHaveLength(3);
@@ -258,8 +257,8 @@ describe("dedupeAmenities", () => {
 });
 
 describe("decideMarkAction — the whole resolution ladder", () => {
-  // Two round-review converged on this from different angles: the composed condition
-  // was the last untested decision in the task (its pieces were tested, the composition
+  // The composed condition
+  // was the last untested decision (its pieces were tested, the composition
   // was not), it lived in a coverage-excluded file, and the e2e that tried to cover it
   // could only measure the fan's DECORATIVE coordinates and passed with zero fans — so
   // removing the coincidence wiring would have left it green. Tested here directly.
@@ -290,7 +289,7 @@ describe("decideMarkAction — the whole resolution ladder", () => {
   });
 
   it("REFUSES to fan places that are not really at the same spot", () => {
-    // The round-6 Critical: a merged mark's leaves keep different real coordinates, so a
+    // A merged mark's leaves keep different real coordinates, so a
     // fan would draw pins where no place is and clicking one would fly the camera away.
     expect(decideMarkAction({ ...base, coincident: false }).kind).toBe("list");
   });

@@ -37,7 +37,7 @@ export interface ShellInputs {
 export const EXPANDED_SHELL: ShellState = { dock: "expanded", sheet: "expanded" };
 
 /**
- * Derivation rules (task 062):
+ * Derivation rules:
  * - Desktop: always expanded/expanded — zero behavior change at `md+`.
  * - Dock collapses only when a selection HAS resolved (`hasSelection` — the
  *   pill can never render blank; `start` may clear the label but preserves
@@ -50,7 +50,7 @@ export const EXPANDED_SHELL: ShellState = { dock: "expanded", sheet: "expanded" 
  *   FORCE it expanded (a journey answer must never hide behind a peek bar).
  *   An error forces it expanded too: the SelectionCard inside is the only
  *   surface that renders the failure message, and a peek bar reading
- *   "Result" over a hidden alert is a silent failure (found in review).
+ *   "Result" over a hidden alert is a silent failure.
  */
 export function deriveShell(i: ShellInputs): ShellState {
   if (!i.isMobile) return EXPANDED_SHELL;

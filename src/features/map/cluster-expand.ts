@@ -8,7 +8,7 @@ import { SPIDER_MAX_LEAVES } from "@/features/amenities/amenity-spider";
 import { LEGEND_BANDS } from "@/features/isochrones/bands";
 
 /**
- * Pure decisions for expanding an amenity cluster (task 061).
+ * Pure decisions for expanding an amenity cluster.
  *
  * Kept MapLibre-free so the two things most likely to go wrong — deciding whether
  * a cluster can be split by zooming, and turning cluster leaves back into
@@ -24,7 +24,7 @@ export type ClusterAction =
  * Fly-to-split, or show the leaves list?
  *
  * `getClusterExpansionZoom` returns a ZOOM, never an "unsplittable" flag — a
- * subtlety review had to point out, because "if it cannot split" reads
+ * subtlety, because "if it cannot split" reads
  * like a boolean exists. Since clustering is pinned to the map's maximum zoom, a
  * cluster of genuinely coincident places reports an expansion zoom ABOVE that
  * maximum: unreachable, so zooming would silently do nothing and the user would
@@ -41,11 +41,10 @@ export function decideClusterAction(expansionZoom: number, maxZoom: number): Clu
 
 /**
  * What activating a mark should do, once its leaves are known — the whole
- * resolution ladder as ONE pure decision (found in review).
+ * resolution ladder as ONE pure decision.
  *
- * Extracted from the popup controller because review made the same point from
- * different directions: the composed condition was the only untested decision left in
- * this task (its sub-pieces were unit-tested, the composition was not), and it lives
+ * Extracted from the popup controller because the composed condition was the only untested decision left
+ * (its sub-pieces were unit-tested, the composition was not), and it lives
  * in a coverage-excluded file — the exact rationale used to un-exclude the cluster
  * controller. The e2e that tried to cover it could only measure the fan's DECORATIVE
  * coordinates and passed with zero fans, so it would have stayed green if the
@@ -71,7 +70,7 @@ export type MarkAction =
  * - **Not a keyboard activation.** Fanned leaves are WebGL geometry with no focusable
  *   affordance, and opening a fan removes the donut button the keyboard user was
  *   standing on — so for them the fan is a dead end and the list is the answer
- *   (reviewers). Pointer users get the fan.
+ *   Pointer users get the fan.
  */
 export function decideMarkAction({
   expansionZoom,
@@ -183,8 +182,7 @@ export function leavesToAmenities(leaves: readonly LeafFeature[]): Amenity[] {
  * The caller concatenates two sources — the cluster's own leaves and the snapshot of
  * pins absorbed into the same mark — and mid-zoom the source can briefly report one
  * POI in both roles (clustered in the new tiling, unclustered in the retained old
- * one), so the same place could appear twice in one list (review,
- * review). Identity is the OSM pair when present, else the coordinate + name, which
+ * one), so the same place could appear twice in one list. Identity is the OSM pair when present, else the coordinate + name, which
  *
  * Order-preserving, so the nearest-first sort above survives.
  */
@@ -192,9 +190,9 @@ export function dedupeAmenities(items: readonly Amenity[]): Amenity[] {
   const seen = new Set<string>();
   const out: Amenity[] = [];
   for (const item of items) {
-    // Unidentifiable ⇒ NEVER dropped. An earlier version fell back to coordinate + name,
-    // which would collapse two genuinely distinct unnamed POIs sharing a coordinate —
-    // hiding a place, the exact defect this task exists to remove (found in review).
+    // Unidentifiable ⇒ NEVER dropped. Falling back to coordinate + name
+    // would collapse two genuinely distinct unnamed POIs sharing a coordinate —
+    // hiding a place, the exact defect to avoid.
     // OSM identity is optional by contract, so its absence means "cannot prove these are
     // the same", not "assume they are"; showing a duplicate row is the safer error.
     if (!item.osmType || typeof item.osmId !== "number") {
@@ -214,9 +212,8 @@ export function dedupeAmenities(items: readonly Amenity[]): Amenity[] {
  * guard. The unit test asserts it against the server constants rather than a
  * hand-written number, so raising a cap cannot silently reintroduce truncation.
  *
- * Task 065 re-derived it: the server cap became per (category, BAND), so the
- * ceiling gained a ×3 factor (5 categories × 3 bands × 100 = 1500, up from 150 × 5
- * = 750) and the old 800 would have started cutting the leaves list — quietly
+ * The server cap is per (category, BAND), so the ceiling is
+ * 5 categories × 3 bands × 100 = 1500; a smaller number would cut the leaves list — quietly
  * breaking the "every place in this mark is reachable" guarantee the resolution
  * ladder makes. Derived from the constants, not restated, precisely so the next cap
  * change fails the test instead of the user. */
@@ -233,9 +230,8 @@ export const CLUSTER_LEAF_PAGE = 200;
  * Walk every page of every cluster in a merged mark.
  *
  * Extracted from the popup controller so the loop that makes the "every place in
- * this mark is reachable" claim true is unit-testable (review: the only
- * coverage was an assertion that the cap constant exceeded 150, which a cap of 151
- * would also satisfy while a real cluster holds up to 750).
+ * this mark is reachable" claim true is unit-testable (an assertion that the cap constant exceeds 150 would be
+ * satisfied by a cap of 151 while a real cluster holds up to 750).
  *
  * `stillCurrent` is checked after every await: the caller's generation may have
  * been superseded by an Escape, a new address, or a recluster, and a superseded

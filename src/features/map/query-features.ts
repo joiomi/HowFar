@@ -8,7 +8,7 @@ import type maplibregl from "maplibre-gl";
  * path, the drawn reach journey), so they all go through this guard: a throw
  * means "nothing under the point right now", never a crash.
  *
- * Task 018 — the owner saw repeated `Uncaught Error: feature index out of bounds`
+ * MapLibre can throw repeated `Uncaught Error: feature index out of bounds`
  * from the hover pick (`hover-controller.ts`) racing the amenity-source swap; the
  * click path (`pickAmenitiesAt`) already caught it, but the sibling hit-tests did
  * not. This is the single shared guard so the whole class stays fixed.
@@ -29,7 +29,7 @@ export function safeQueryRenderedFeatures(
  * Fail-CLOSED variant for a CLICK GUARD — "is a feature under the point, so this
  * click should be SWALLOWED (skip starting a new selection)?" On a source-swap
  * throw, return `true`: an indeterminate result must NOT let the click fall
- * through and reset the user's selection (task 018 — returning `[]` here would
+ * through and reset the user's selection (returning `[]` here would
  * be fail-open and silently drop the selection). Distinct from
  * `safeQueryRenderedFeatures`, whose `[]`-on-throw is correct for hover/pick
  * (nothing highlighted), but wrong as a guard predicate.
@@ -54,7 +54,7 @@ export function hitTestHasFeature(
  * so an indeterminate "no layers" state must still swallow the click rather than
  * fall through to a selection reset; (2) delegates to `hitTestHasFeature`, which
  * returns `true` on a source-swap throw. One shape shared by the route-path and
- * reach-journey guards (task 018 G5/H5, rule 5).
+ * reach-journey guards.
  */
 export function activeGuardHasFeature(
   map: maplibregl.Map,
@@ -71,8 +71,8 @@ export function activeGuardHasFeature(
  * source `setData` swap as `queryRenderedFeatures` does. The rAF stamp polls
  * (`route-path` / `reach-path`) call it every frame on the very source they just
  * swapped, so an unguarded throw is an Uncaught Error in a rAF callback (the
- * owner's reported symptom) that also strands the poll. Returns `[]` on a throw —
- * the caller re-polls next frame once the swap settles (task 018).
+ * reported symptom) that also strands the poll. Returns `[]` on a throw —
+ * the caller re-polls next frame once the swap settles.
  */
 export function safeQuerySourceFeatures(
   map: maplibregl.Map,

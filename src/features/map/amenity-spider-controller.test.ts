@@ -3,14 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Amenity } from "@/features/amenities/amenities";
 
 /**
- * Unit coverage for the spiderfy controller (task 061 W20).
+ * Unit coverage for the spiderfy controller.
  *
- * Deliberately NOT excluded from coverage as "MapLibre glue". A reviewer
- * made that criticism stick for the donut controller, and it applies here for the
- * same reason: this module decides when the fan owns the map, what its leaves' screen
+ * Deliberately NOT excluded from coverage as "MapLibre glue". As with the
+ * donut controller, it is covered here because this module decides when the fan owns the map, what its leaves' screen
  * positions are after a camera move, and which leaf a click resolved to — decisions
  * whose failure modes (a stale fan, a fan that cannot be clicked, marks that never
- * come back) are exactly the class this task exists to eliminate.
+ * come back) are exactly the class of defect to avoid.
  *
  * Same fake-DOM/`Marker` approach as `amenity-cluster-controller.test.ts`: the
  * `node` environment plus ~40 lines of fake beats adding a DOM dependency.
@@ -68,7 +67,7 @@ class FakeMarker {
   }
 }
 
-// The controller reaches the MapLibre runtime through the lazy `mapGl()` holder (task 017),
+// The controller reaches the MapLibre runtime through the lazy `mapGl()` holder,
 // so install a fake runtime via setMapGl rather than mocking the maplibre-gl module.
 const { setMapGl } = await import("./map-runtime");
 setMapGl({ Marker: FakeMarker } as unknown as import("./map-runtime").MapGl);
@@ -285,7 +284,7 @@ describe("following the camera", () => {
 describe("resolving clicks", () => {
   it("resolves the hub, honouring the 44px tap contract rather than the drawn ring", () => {
     // A hub is 26-34px drawn; on touch that demanded near-pixel precision, and a miss
-    // used to DESTROY the fan (reviewers).
+    // used to DESTROY the fan.
     const { controller } = setup();
     const leaves = [place("A"), place("B"), place("C")];
     controller.open(HUB, leaves);
@@ -295,8 +294,8 @@ describe("resolving clicks", () => {
     // Outside the ring but inside the tap target — probed straight DOWN, the
     // max-clearance direction for 3 leaves (top/30°/150°). Probing along +x sat
     // near-equidistant to the 30° leaf and the nearest-centre arbitration
-    // (which is the CONTRACT for genuinely ambiguous points) flipped it when
-    // task 062 grew the marks — the old pass margin was 0.4px.
+    // (which is the CONTRACT for genuinely ambiguous points) flipped it with
+    // the larger marks — the old pass margin was 0.4px.
     expect(controller.resolveClick({ x: HUB[0], y: HUB[1] + r + 2 }).kind).toBe("hub");
   });
 

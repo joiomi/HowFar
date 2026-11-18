@@ -25,8 +25,8 @@ import type { EdgeInsets } from "@/features/map/route-framing";
 import type { RoutePathController } from "@/features/map/route-path-controller";
 
 /** Client-side deadline on the stop-lines fetch so a degraded Overpass can't
- * leave the popup on "Finding lines…" for the server's full host budget (task
- * 021 — the "never hang on loading" lesson). */
+ * leave the popup on "Finding lines…" for the server's full host budget
+ * (the "never hang on loading" lesson). */
 const STOP_LINES_TIMEOUT_MS = 9000;
 
 /** Category → swatch colour for the cluster list rows. */
@@ -35,7 +35,7 @@ const AMENITY_COLOR_BY_KEY = Object.fromEntries(
 ) as Record<AmenityCategoryKey, string>;
 
 /**
- * The shared popup slot (task 021/024): one MapLibre popup at a time, routing a
+ * The shared popup slot: one MapLibre popup at a time, routing a
  * picked amenity to either the transit stop-lines list or the generic POI info
  * card, plus the keyboard-accessible `inspectAmenity` companion to the WebGL
  * markers. DOM is built with `textContent` only (OSM names/headsigns are
@@ -44,11 +44,11 @@ const AMENITY_COLOR_BY_KEY = Object.fromEntries(
  * draw the line. `dispose` aborts the in-flight stop-lines fetch and removes the
  * popup. Reads route state only through its exposed getter, never private fields.
  *
- * The right-click "how do I get there?" DIRECTIONS moved out of here (task 058)
+ * The right-click "how do I get there?" DIRECTIONS moved out of here
  * into `reach-directions-controller` + the result-sheet dock; this controller
  * keeps only the stop/POI popups. The two are mutually exclusive "active map
  * surfaces": `closeStopPopup` calls the injected `closeReach` so closing a stop
- * popup (or any funnel that does) also ends directions (found in review).
+ * popup (or any funnel that does) also ends directions.
  */
 export function createPopupController({
   map,
@@ -66,12 +66,12 @@ export function createPopupController({
   applyCameraPadding: (hasResults: boolean) => EdgeInsets;
   /** Ends the directions view (the other active map surface) — arbiter. */
   closeReach: () => void;
-  /** Fan a non-splittable mark's members out as individual marks (task 061 W20). */
+  /** Fan a non-splittable mark's members out as individual marks. */
   spiderfy: (hub: [number, number], leaves: readonly Amenity[]) => void;
 }) {
   let currentPopup: maplibregl.Popup | null = null;
   let popupCategory: AmenityCategoryKey | null = null;
-  // The ring band of the place an open POI popup describes (task 065). Tracked for the
+  // The ring band of the place an open POI popup describes. Tracked for the
   // same reason as `popupCategory`: when the user narrows the ring filter, a popup for a
   // place in a now-unshaded band must close, or it describes somewhere outside the area
   // the map is claiming to show. Null for surfaces that are not one banded place
@@ -104,8 +104,8 @@ export function createPopupController({
   }
 
   // Build the popup DOM from the pure model. A row whose line carries a
-  // relationId becomes a BUTTON that draws the line's full path + stops (task
-  // 024); rows without one stay informational.
+  // relationId becomes a BUTTON that draws the line's full path + stops;
+  // rows without one stay informational.
   function renderStopPopup(model: StopPopupModel, anchor: [number, number]): HTMLElement {
     const root = document.createElement("div");
     root.className = "hf-stop-popup";
@@ -167,7 +167,7 @@ export function createPopupController({
     return root;
   }
 
-  // Generic amenity info popup (task 024): name + category for any marker that
+  // Generic amenity info popup: name + category for any marker that
   // is not an identifiable transit stop. Same XSS posture (textContent only).
   // This is the mounting point for per-place details (e.g. reviews) later.
   function renderPoiPopup(name: string, category: string): HTMLElement {
@@ -211,7 +211,7 @@ export function createPopupController({
   }
 
   // The transit stops a picked feature resolves to: a merged marker carries its
-  // absorbed stops in `members` (task 047, string prop on a WebGL feature or a
+  // absorbed stops in `members` (string prop on a WebGL feature or a
   // raw array on the keyboard synthetic feature); an ordinary marker resolves to
   // its own single OSM identity. Empty ⇒ no usable identity to look up lines.
   function transitStopsOf(
@@ -230,8 +230,8 @@ export function createPopupController({
   }
 
   // Popup title for a stop or merged cluster: a single stop keeps its name; a
-  // merge (task 047) shows its distinct member names so a fused marker never
-  // presents one member's name over another's lines (review finding F1).
+  // merge shows its distinct member names so a fused marker never
+  // presents one member's name over another's lines.
   function stopPopupTitle(stops: TransitStopMember[], fallback: string): string {
     if (stops.length <= 1) return fallback;
     const distinct: string[] = [];
@@ -246,7 +246,7 @@ export function createPopupController({
 
   // Route a picked amenity to its popup: an identifiable transit stop (or merged
   // cluster) gets the line list; everything else — including a transit stop with
-  // no usable OSM identity — gets the generic info popup (never silence, task 024).
+  // no usable OSM identity — gets the generic info popup (never silence).
   function openAmenityPopup(feature: maplibregl.MapGeoJSONFeature, coords: [number, number]) {
     const props = (feature.properties ?? {}) as Record<string, unknown>;
     const name = typeof props.name === "string" ? props.name : "";
@@ -263,7 +263,7 @@ export function createPopupController({
   }
 
   /**
-   * "N places here" — the FLOOR of the resolution ladder (task 061).
+   * "N places here" — the FLOOR of the resolution ladder.
    *
    * Because clustering never dissolves, genuinely coincident places (mall units, a
    * school and its kindergarten) are a cluster at *every* zoom and can never be
@@ -360,20 +360,17 @@ export function createPopupController({
     if (!source || (clusterIds.length === 0 && pinIds.length === 0)) return;
     const gen = ++clusterGen;
 
-    // Absorbed pins come from the snapshot the CONTROLLER took when it built the mark
-    // (found in review). Two rounds of fixes went through this line: first
-    // it re-queried the source after the cluster API resolved (so a zoom mid-await
-    // dropped the place), then before the await (better, but still a second
-    // `querySourceFeatures` that can miss an id at a viewport edge or mid-recluster —
-    // and a miss made the mark a DEAD CLICK, the "on screen, unreachable" defect this
-    // task exists to remove). The mark itself knows what it swallowed, so absorbed
-    // reachability no longer depends on any re-query. `featuresByIds` remains only as
+    // Absorbed pins come from the snapshot the CONTROLLER took when it built the mark.
+    // Re-querying the source (before or after the cluster API resolves) can miss an id
+    // at a viewport edge or mid-recluster, and a miss makes the mark a DEAD CLICK, the
+    // "on screen, unreachable" defect. The mark itself knows what it swallowed, so
+    // absorbed reachability does not depend on any re-query. `featuresByIds` remains only as
     // a fallback for a caller that has ids but no snapshot.
-    // Snapshot FIRST, then fill any gap by re-query (found in review): the
+    // Snapshot FIRST, then fill any gap by re-query: the
     // mark builds `pins` with a `.filter(Boolean)`, so it can legitimately be SHORTER
     // than `pinIds` — and the absorbed-pin layer filter hides the full `pinIds` set, so
     // a member missing from the snapshot would be hidden AND unlistable. Preferring the
-    // snapshot wholesale, as the first cut did, made that gap permanent.
+    // snapshot wholesale would make that gap permanent.
     const snapshotById = new Map(pinSnapshot.map((p) => [p.id, p]));
     const missingIds = pinIds.filter((id) => !snapshotById.has(id));
     const absorbedFeatures: LeafFeature[] = [
@@ -413,8 +410,7 @@ export function createPopupController({
     });
     if (zoomAction.kind === "zoom") {
       const action = zoomAction;
-      // The shared popup slot must be released here as well (review: three
-      // reviewers). Every other branch closes it, so clicking a splittable donut while a
+      // The shared popup slot must be released here as well. Every other branch closes it, so clicking a splittable donut while a
       // POI popup was open used to leave that stale detail card floating over a map
       // that had zoomed somewhere else.
       closeStopPopup();
@@ -429,7 +425,7 @@ export function createPopupController({
 
     let leaves: Amenity[] = [];
     try {
-      // PAGED (found in review): one `getClusterLeaves` call returns at most
+      // PAGED: one `getClusterLeaves` call returns at most
       // `CLUSTER_LEAF_PAGE` leaves, but a cluster can legally hold up to
       // `MAX_CLUSTER_LEAVES` (cap x 5 categories x 3 bands). Fetching a single page
       // silently made later leaves
@@ -450,22 +446,22 @@ export function createPopupController({
     }
     if (gen !== clusterGen) return;
     if (leaves.length === 0) {
-      // A visible mark must never be a silent no-op (found in review): the
+      // A visible mark must never be a silent no-op: the
       // pins it represents are hidden by the absorbed filter, so "nothing happened" is
-      // indistinguishable from the unreachable-place defect this task removes. Say so
+      // indistinguishable from the unreachable-place defect. Say so
       // instead, with the count we do know.
       openClusterErrorPopup(coords, total);
       return;
     }
     // A cluster of one resolves straight to its detail — no point making the user click
-    // through a list of length 1. Guarded on `total === 1` (found in review): if leaf
+    // through a list of length 1. Guarded on `total === 1`: if leaf
     // resolution dropped members, this shortcut would show ONE place with no hint that the
     // mark held more, which is the one disclosure the rest of the ladder always makes.
     if (leaves.length === 1 && total <= 1) {
       inspectAmenity(leaves[0]);
       return;
     }
-    // The resolution ladder's middle rung (task 061 W20): a mark that cannot be
+    // The resolution ladder's middle rung: a mark that cannot be
     // split by zooming FANS its members out, so they are seen on the map rather than
     // only read in a list. Four conditions, every one of them about honesty — a fan
     // draws its members at DECORATIVE offsets, so it may only be used where those
@@ -475,7 +471,7 @@ export function createPopupController({
     //   centroids merely collided in SCREEN space (see `agglomerateClusters`); their
     //   leaves keep different real coordinates, so fanning one drew pins where no
     //   place is, and clicking a leaf flew the camera away from it because
-    //   `inspectAmenity` centres on the true coordinate (found in review).
+    //   `inspectAmenity` centres on the true coordinate.
     // - Genuinely coincident. The direct property, independent of HOW the mark formed:
     //   a cluster that cannot split at the map maximum holds members within about a
     //   metre, so anything wider than `SPIDER_MAX_SPAN_M` is two different places and
@@ -485,7 +481,7 @@ export function createPopupController({
     // - `leaves.length >= total`: fan only what we could actually enumerate. If a
     //   leaf was dropped (unusable geometry, unknown category) the fan would silently
     //   show fewer places than the hub counts, and a mark that under-reports is the
-    //   defect this task exists to remove. The list says "N of M" instead.
+    //   defect to avoid. The list says "N of M" instead.
     const action = decideMarkAction({
       expansionZoom,
       maxZoom: map.getMaxZoom(),
@@ -566,7 +562,7 @@ export function createPopupController({
     el.dataset.amenityClusterList = String(leaves.length);
     popup.on("close", () => delete el.dataset.amenityClusterList);
 
-    // Keyboard parity with `inspectAmenity` (found in review): a keyboard
+    // Keyboard parity with `inspectAmenity`: a keyboard
     // user who activated a donut had focus left on a button that the recluster is about
     // to rebuild, and Escape did nothing. The list is also the rung keyboard
     // activations are routed to, so it is the one that MUST be operable.
@@ -624,7 +620,7 @@ export function createPopupController({
         // Band must survive the keyboard/Browse path too, or a popup opened from the list
         // cannot be closed when the ring filter narrows past its band.
         ...(item.band === undefined ? {} : { band: item.band }),
-        // Merged transit marker (task 047): pass members through so the keyboard
+        // Merged transit marker: pass members through so the keyboard
         // path unions the same lines as a WebGL-marker click. Raw array here;
         // parseAmenityMembers accepts array or the WebGL JSON string alike.
         members: item.members,
@@ -688,15 +684,15 @@ export function createPopupController({
   // Tear down the stop/POI popup AND invalidate its in-flight fetch (bumping the
   // gen so a late response can't repaint a removed popup). Called on a new stop
   // click and at the start of any new selection. Also ends any directions view
-  // via the arbiter, so the two active map surfaces never coexist (found in review)
+  // via the arbiter, so the two active map surfaces never coexist
   // and every selection/mode/dispose funnel that clears the popup also clears the
   // drawn journey + declutter + destination pin (they live in the directions
-  // controller now, task 058).
+  // controller now).
   function closeStopPopup() {
     stopLinesAbort?.abort();
     stopLinesGen += 1;
     // Also invalidates any in-flight cluster expansion, so a slow
-    // getClusterLeaves cannot repaint a list after this teardown (task 061).
+    // getClusterLeaves cannot repaint a list after this teardown.
     clusterGen += 1;
     closeReach();
     currentPopup?.remove();
@@ -719,11 +715,11 @@ export function createPopupController({
     return (Array.isArray(data.lines) ? data.lines : []) as StopLine[];
   }
 
-  // Open the transit line popup for one or more stops. A merged marker (task
-  // 047) fans out over its members under ONE batch deadline / abort / generation
+  // Open the transit line popup for one or more stops. A merged marker
+  // fans out over its members under ONE batch deadline / abort / generation
   // and renders the UNION of the members that responded — the popup errors only
   // if EVERY member fails, and flags a partial union when some did. A single
-  // stop is just the one-member case (behaviour unchanged from task 021).
+  // stop is just the one-member case (unchanged behaviour).
   function openStopPopup(
     stops: TransitStopMember[],
     title: string,
@@ -733,7 +729,7 @@ export function createPopupController({
     closeStopPopup();
     // No usable identity ⇒ can't look up lines. Bail with no popup — but the
     // caller has ALREADY decided this is a transit hit, so we never fall through
-    // to a reselection that would wipe the user's markers (task 021).
+    // to a reselection that would wipe the user's markers.
     if (stops.length === 0) return;
     // Set AFTER `closeStopPopup()` above, which nulls it.
     popupBand = band;
@@ -798,7 +794,7 @@ export function createPopupController({
       clusterGen += 1;
       // EVERY cluster-derived popup, not just the list: the failure card reports a
       // cluster total too, so leaving it open after a recluster lets it keep describing
-      // places that are no longer shown (found in review).
+      // places that are no longer shown.
       if (
         el.dataset.amenityClusterList !== undefined ||
         el.dataset.amenityClusterError !== undefined

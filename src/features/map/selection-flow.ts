@@ -19,14 +19,13 @@ export type Mode = "walk" | "transit" | "car";
 export const MODES = ["walk", "transit", "car"] as const;
 
 /**
- * Parse a travel mode from a query string — fail-loud, and **required** (task 065).
+ * Parse a travel mode from a query string — fail-loud, and **required**.
  *
  * Unlike `parsePaceStrict`, an ABSENT value is rejected rather than defaulted. The
  * amenity clip is now mode-dependent, so a missing `mode` from an un-updated client
- * would silently reproduce exactly the pre-065 walk-clip bug this task removes: a
+ * would silently reproduce exactly the walk-clip bug: a
  * transit map with markers covering only a 15-minute walk, and nothing anywhere
- * reporting a problem. A 400 makes that impossible to miss. Same house rule as task
- * 059's retired pace/preset ids — no live users, so no silent-alias shim.
+ * reporting a problem. A 400 makes that impossible to miss. Same house rule as for retired pace/preset ids — no live users, so no silent-alias shim.
  */
 export function parseModeStrict(raw: string | null | undefined): Mode | null {
   if (raw === null || raw === undefined || raw === "") return null;
@@ -52,7 +51,7 @@ export type SelectInput =
   | { kind: "click"; lat: number; lng: number }
   | { kind: "point"; lat: number; lng: number; label: string };
 
-/** Honest car-reach metadata echoed by /api/car (task 058): the basis is always
+/** Honest car-reach metadata echoed by /api/car: the basis is always
  * "estimate" (typical-congestion adjustment, not live traffic), plus the traffic
  * slot the rings were computed for so the UI can say WHICH traffic it assumed. */
 export interface CarMeta {
@@ -68,14 +67,14 @@ export interface SelectionState {
   mode: Mode;
   /** Active walking pace — snapshotted per request; drives ORS ranges + amenity radius (both modes). */
   pace: Pace;
-  /** Active departure context — snapshotted per request; used by transit AND car (task 058). */
+  /** Active departure context — snapshotted per request; used by transit AND car. */
   timeContext: TimeContext;
   status: SelectionStatus;
   label: string | null;
   message: string | null;
   /** The resolved transit departure (ISO) + a short summary, surfaced so the UI can qualify the claim. */
   departure: { iso: string; summary: string } | null;
-  /** The resolved car-reach basis + traffic slot (task 058) — car-only, else null. */
+  /** The resolved car-reach basis + traffic slot — car-only, else null. */
   car: CarMeta | null;
   /** The last successfully-resolved origin+label, so a mode/pace/time change recomputes it with no geocode. */
   lastSelection: { lat: number; lng: number; label: string } | null;
@@ -143,14 +142,14 @@ export function isochronePath(mode: Mode): string {
 }
 
 /**
- * Pace is a WALKING concept (task 052): it scales the walk isochrone and the
+ * Pace is a WALKING concept: it scales the walk isochrone and the
  * amenity clip radius. In any non-walk mode the user never sets a pace (the
  * control is walk-only), so every request in a non-walk mode behaves as Normal —
  * regardless of a pace the user picked earlier in Walk (which we remember, to
  * restore when they switch back). This is the SINGLE source of that rule: the
  * isochrone URL, the amenity fetch, the amenity dedupe key, the manual retry,
  * and the AmenityPanel remount key all derive their pace through here, so they
- * can never disagree (plan-panel P4).
+ * can never disagree.
  */
 export function effectivePace(mode: Mode, pace: Pace): Pace {
   return mode === "walk" ? pace : "normal";
@@ -158,18 +157,18 @@ export function effectivePace(mode: Mode, pace: Pace): Pace {
 
 /** Build the isochrone request URL for a mode + pace + departure context.
  * Walk carries only `pace`; transit carries `pace` + time; car carries time but
- * NO pace (task 058 — car is time-aware for traffic realism, but pace is a
- * walking concept that must never leak into a car request, plan-panel C-E).
+ * NO pace (car is time-aware for traffic realism, but pace is a
+ * walking concept that must never leak into a car request).
  *
  * The phone-first client is PRESET-ONLY: every request carries
  * `&model=preset`, so the server serves the calibrated preset contours (walk
  * [10,20] / transit [20,40] / car [10,25]) instead of the legacy 15/30/45 bands.
  * The `model` param is APPENDED to every mode's URL — the legacy path stays
- * byte-identical for any caller that omits it (task 020's additive serving).
+ * byte-identical for any caller that omits it (additive serving).
  * Pure + exported so the exact query contract is unit-testable. */
 export function isochroneUrl(mode: Mode, origin: Origin, pace: Pace, timeContext: TimeContext): string {
   const coords = `?lat=${origin.lat}&lng=${origin.lng}`;
-  // Preset-only since task 059 (Custom weekday/time was removed).
+  // Preset-only.
   const withTime = (base: string) => `${base}&preset=${timeContext.preset}`;
   const withModel = (base: string) => `${base}&model=preset`;
   // Car: time params only, NO pace (a Slow pace left over from Walk can
@@ -216,8 +215,8 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
         // starts: a right-click DURING the recompute must not plan against a
         // stale ISO (e.g. Crowded→Not-crowded then right-click before the new
         // transit rings land). `handleReach` falls back to the CURRENT preset
-        // until the fresh transit response re-sets `departure` (task 060 impl
-        // panel: stale-departure race, codex×3).
+        // until the fresh transit response re-sets `departure` (avoids a
+        // stale-departure race).
         departure: null,
         lastSelection: action.preserveLast ? state.lastSelection : null,
       };
@@ -282,7 +281,7 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
 }
 
 /** Structural equality for a TimeContext (avoids a no-op recompute + fetch).
- * Preset-only since task 059 (Custom weekday/time was removed). */
+ * Preset-only. */
 export function sameTimeContext(a: TimeContext, b: TimeContext): boolean {
   return a.preset === b.preset;
 }

@@ -92,7 +92,7 @@ export const ROUTE_STAMP_DEADLINE_MS = 10_000;
  * always advances) — NOT `map.once("idle")`, which after the permanent
  * `setPadding` + fit `easeTo` settles fires once and then never again,
  * stranding a retry that re-registered it and leaving `data-route-path` unset
- * (the recurring CI flake, tasks 029/047). Deadline (not a frame count) so the
+ * (the recurring CI flake). Deadline (not a frame count) so the
  * give-up is wall-clock, independent of display refresh rate and CPU jitter.
  */
 export function nextStampAction(
@@ -126,7 +126,7 @@ export interface StampPollDeps {
 /**
  * Poll until the route source holds queryable features, then stamp — retrying via
  * the injected `schedule` (rAF), giving up only past a wall-clock deadline. This
- * is the fix for the CI flake (tasks 029/047/048): the old retry re-registered
+ * is the fix for the CI flake: the old retry re-registered
  * `map.once("idle")`, which never re-fires once the fit ease settles, stranding
  * the stamp. rAF always advances, so the poll can't strand.
  */

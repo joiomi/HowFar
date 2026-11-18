@@ -4,7 +4,7 @@ import { AMENITY_CATEGORIES, type AmenityCategoryKey } from "@/features/amenitie
 import { amenityIconImageId, amenityIconSvg } from "@/features/amenities/amenity-icons";
 
 /**
- * Registers the per-category amenity icons as MapLibre sprite images (task 061).
+ * Registers the per-category amenity icons as MapLibre sprite images.
  *
  * The icon symbol layer references these by id, so they must exist BEFORE it
  * first paints or pins render blank — and they must be re-registered whenever the
@@ -27,10 +27,7 @@ export const AMENITY_ICON_COLOR = "#08100d";
 /**
  * Value of the `data-amenity-encoding` stamp.
  *
- * Was `"color+glyph"` while category was encoded as a single ASCII letter. Task
- * 061 replaced those letters with real per-category icons, so the stamp changes
- * with them — a deliberate contract change (e2e pins this value), not a cosmetic
- * edit. It is only set once every icon image is actually registered, so it
+ * Pinned by e2e. It is only set once every icon image is actually registered, so it
  * asserts the encoding is really available rather than merely intended.
  */
 export const AMENITY_ENCODING = "color+icon";

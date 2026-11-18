@@ -15,7 +15,7 @@ describe("SelectionCard (phone-first — preset legend + honest reach copy)", ()
     expect(html).toContain("20-minute walk"); // the explainer names the served minute
   });
 
-  it("carries the barrier caveat for walk + transit (owner honesty requirement), NOT for car", () => {
+  it("carries the barrier caveat for walk + transit (honesty requirement), NOT for car", () => {
     const walk = renderToStaticMarkup(
       <SelectionCard label="X" message={null} mode="walk" selectedMin={10} loading={false} />,
     );

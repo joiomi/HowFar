@@ -11,7 +11,7 @@ export interface AmenityPick {
 }
 
 /**
- * Amenity hover + pick (task 024/042). The padded nearest-marker decision lives
+ * Amenity hover + pick. The padded nearest-marker decision lives
  * in the pure, unit-tested `pickNearestWithin`; this controller only projects
  * the rendered features into pixel space and drives MapLibre feature-state +
  * the `data-amenity-hover` stamp. Hover hit-tests are coalesced to one
@@ -51,7 +51,7 @@ export function createHoverController({
   }
 
   /**
-   * EVERY unclustered marker under the cursor's pad, nearest first (task 061).
+   * EVERY unclustered marker under the cursor's pad, nearest first.
    *
    * `pickAmenity` returns only the nearest, which meant a marker in a tight clump
    * could be permanently unclickable — the pointer could never get closer to it
@@ -86,7 +86,7 @@ export function createHoverController({
   // DOM markers with `pointer-events:none`, so this controller's own hit-test cannot see
   // them — the map handler passes the hint in. It has to be folded into THIS function
   // because it is the single writer of the cursor; setting the cursor at the call site was
-  // simply overwritten here a moment later (found in review).
+  // simply overwritten here a moment later.
   let overDonut = false;
   function applyCursor() {
     map.getCanvas().style.cursor = hoveredAmenityId !== null || overDonut ? "pointer" : "";

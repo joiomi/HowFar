@@ -13,7 +13,7 @@ describe("PresetChips (phone-first — the two calibrated presets, Custom hidden
     ] as const) {
       const html = renderToStaticMarkup(<PresetChips mode={mode} value={0} onSelect={() => {}} />);
       for (const m of mins) expect(html).toContain(`${m} min`);
-      // No Custom chip, no free-minute input — Custom is owner-deferred.
+      // No Custom chip, no free-minute input — Custom is deferred.
       expect(html.toLowerCase()).not.toContain("custom");
       expect(html).not.toContain("<input");
       // Exactly two chips.

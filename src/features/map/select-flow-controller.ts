@@ -30,7 +30,7 @@ function departureInfo(
   return { iso: departureIso, summary: timeContextSummary(timeContext) };
 }
 
-/** The honest car-reach basis echoed by /api/car (task 058) — only for car
+/** The honest car-reach basis echoed by /api/car — only for car
  * selections that actually returned it; walk/transit carry null (cleared). */
 function carInfo(mode: Mode, car: CarMeta | undefined): CarMeta | null {
   if (mode !== "car" || !car) return null;
@@ -45,17 +45,17 @@ interface IsoResponse {
 }
 
 /**
- * The selection orchestrator (tasks 006/007/012/020/024): resolves an address
+ * The selection orchestrator: resolves an address
  * (search / picked suggestion / map click) into an origin + label, then fetches
  * the isochrone in parallel with amenities, guarding every await against a
  * superseded run via the reducer's token. Invariants preserved verbatim:
  *  - the travel **mode is captured ONCE at entry** (`selRef.current.mode`) and
  *    threaded through the whole run, so a mid-flight toggle can't split this
- *    response's endpoint/colors/legend (mind map [13]);
+ *    response's endpoint/colors/legend;
  *  - a map click's reverse 422 is **fatal** — no rings, no amenities (out of
  *    area); reverse ∥ isochrone so the label RTT never blocks ring start;
  *  - amenity markers **never** render without rings (every failed reach clears
- *    amenities); since task 065 a mode/time recompute CHANGES the amenity fetch key, so
+ *    amenities); a mode/time recompute CHANGES the amenity fetch key, so
  *    it clears and refetches rather than preserving the markers (the clip is that
  *    mode's reach area). A recompute that lands on the same key still keeps them.
  * The mode/endpoint decision (`isochronePath`) and the fatal-reverse rule
@@ -94,7 +94,7 @@ export function createSelectFlowController({
     // guarantee): this response's rings, amenity radius and departure copy all
     // agree even if the user changes pace/time mid-flight. Pace is passed through
     // `effectivePace` so a non-walk request is Normal even if the user left a
-    // Slow pace set in Walk (task 052 P4 — single source for isochrone
+    // Slow pace set in Walk (single source for isochrone
     // URL AND amenity fetch, which is why it lives at this one snapshot point).
     const pace = effectivePace(mode, selRef.current.pace);
     const timeContext = selRef.current.timeContext;
@@ -110,9 +110,8 @@ export function createSelectFlowController({
     // (mode/pace/time change) does not clear here — `maybeFetchAmenities` clears only
     // when the fetch key actually changes, so a recompute that lands on the same key
     // keeps its markers, while one that changes the clip drops them before the new
-    // request. Task 065 retired the old blanket "a mode toggle leaves them so they
-    // persist across Walk↔Transit": the clip now follows the mode, so those markers
-    // would describe an area the user is no longer looking at.
+    // request. A mode toggle does not blanketly leave them in place: the clip follows
+    // the mode, so those markers would describe an area the user is no longer looking at.
     if (!opts?.recompute) clearAmenities();
 
     try {

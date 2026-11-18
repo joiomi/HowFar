@@ -6,8 +6,8 @@ import { createReachJourneyController } from "@/features/map/reach-journey-contr
 
 // The controller is imperative MapLibre glue (coverage-excluded), but its
 // click-guard (`hitsActiveJourney`) and draw/declutter contract (`draw` returns
-// whether it drew) are correctness-bearing logic the impl panel flagged as
-// untested — so we exercise them against a stub map + fake element, no real
+// whether it drew) are correctness-bearing logic that need
+// direct tests — so we exercise them against a stub map + fake element, no real
 // MapLibre. The pure journey model is separately tested in reach.test.ts.
 
 type FakeLayer = string;
@@ -101,7 +101,7 @@ describe("reach-journey-controller", () => {
     expect(ctrl.hitsActiveJourney({ x: 1, y: 1 } as never)).toBe(false);
   });
 
-  it("hitsActiveJourney fails CLOSED — returns true (does not throw, does not reset selection) when queryRenderedFeatures throws mid source-swap (task 018 F4)", () => {
+  it("hitsActiveJourney fails CLOSED — returns true (does not throw, does not reset selection) when queryRenderedFeatures throws mid source-swap", () => {
     const el = { dataset: {} as Record<string, string> } as unknown as HTMLElement;
     const loadState = createLoadState();
     loadState.styleLoaded = true;
@@ -119,7 +119,7 @@ describe("reach-journey-controller", () => {
     expect(ctrl.hitsActiveJourney({ x: 100, y: 100 } as never)).toBe(true);
   });
 
-  it("setDestination writes a kind:'destination' pin and stamps data-reach-pin (task 058)", () => {
+  it("setDestination writes a kind:'destination' pin and stamps data-reach-pin", () => {
     const { ctrl, el, fm } = make();
     ctrl.setDestination([26.12, 44.44]);
     expect(el.dataset.reachPin).toBe("true");

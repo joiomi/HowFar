@@ -11,7 +11,7 @@ import {
 /**
  * Unit coverage for the selection orchestrator — pure over injected callbacks +
  * fetch (no MapLibre), so its moved must-not-regress invariants are tested
- * directly rather than only via e2e: mode frozen at entry (plan round-2 grok#5),
+ * directly rather than only via e2e: mode frozen at entry,
  * reverse-422-fatal → no rings/amenities, isochrone-fail → clearAmenities,
  * and stale-token drops.
  */
@@ -93,7 +93,7 @@ describe("select() — mode frozen at entry", () => {
   });
 });
 
-describe("select() — effective pace (task 052: pace is walk-only)", () => {
+describe("select() — effective pace (pace is walk-only)", () => {
   it("a transit select requests Normal for BOTH the isochrone URL and amenities, even with a Slow pace left from Walk", async () => {
     const h = makeHarness("transit");
     // User had picked Slow in Walk; it's remembered in state but must not leak
@@ -119,7 +119,7 @@ describe("select() — effective pace (task 052: pace is walk-only)", () => {
     expect(h.maybeFetchAmenities.mock.calls[0][1]).toBe("slow");
   });
 
-  it("a CAR select threads the /api/car `car` block (basis + slot) into resolved state (task 058, panel grok-4)", async () => {
+  it("a CAR select threads the /api/car `car` block (basis + slot) into resolved state", async () => {
     const h = makeHarness("car");
     fetchImpl = (url) => {
       fetchedUrls.push(url);
@@ -136,7 +136,7 @@ describe("select() — effective pace (task 052: pace is walk-only)", () => {
     expect(h.selRef.current.car).toEqual({ basis: "estimate", slotId: "am-peak", slotLabel: "weekday morning rush" });
   });
 
-  it("carInfo is mode-gated: a WALK select ignores any stray car block (task 058)", async () => {
+  it("carInfo is mode-gated: a WALK select ignores any stray car block", async () => {
     const h = makeHarness("walk");
     fetchImpl = (url) => {
       fetchedUrls.push(url);

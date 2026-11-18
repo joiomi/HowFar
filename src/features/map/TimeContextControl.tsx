@@ -8,10 +8,9 @@ import {
 } from "@/features/isochrones/time-context";
 
 /**
- * Departure/time selector (tasks 051/058; cut to two in 059): two one-tap
+ * Departure/time selector: two one-tap
  * options — **Crowded** (weekday rush) / **Not crowded** (off-peak midday). The
- * four old presets and the free-form Custom day/time editor are gone (owner:
- * least-necessary UI). Rendered in transit AND car mode (car reach is
+ * four old presets and the free-form Custom day/time editor are gone (least-necessary UI). Rendered in transit AND car mode (car reach is
  * time-aware for traffic realism); the `mode` prop only changes the labels/hint
  * (transit = departure service; car = the traffic the drive estimate assumes).
  * PaceControl stays a SEPARATE walk-only control.

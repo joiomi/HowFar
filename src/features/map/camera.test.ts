@@ -54,9 +54,9 @@ describe("cameraPadding", () => {
     expect(cameraPadding(844, 390, false).bottom).toBe(48);
   });
 
-  // Task 062: a collapsed dock / peeked sheet leaves far less chrome on screen,
+  // A collapsed dock / peeked sheet leaves far less chrome on screen,
   // so the framed map area must grow to match — otherwise the subject stays
-  // squeezed into the old expanded-layout box (plan-panel finding).
+  // squeezed into the old expanded-layout box.
   it("shrinks the mobile top inset when the dock is collapsed to the state pill", () => {
     expect(cameraPadding(390, 844, true, { dock: "collapsed", sheet: "expanded" })).toEqual({
       top: MOBILE_CAMERA_PAD_TOP_COLLAPSED_PX,

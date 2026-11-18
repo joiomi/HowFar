@@ -2,10 +2,10 @@ import { bandMinutes, RING_FILTER_OPTIONS, type RingFilter } from "@/features/is
 import type { Mode } from "@/features/map/selection-flow";
 
 /**
- * Time-band selector (task 024): which of the fetched ring bands the map
+ * Time-band selector: which of the fetched ring bands the map
  * displays. Pure presentation — the layer-visibility application lives in
  * AppMap; the option list and default in isochrone-view. The band ids are fixed
- * (15/30/45) but the LABEL is per-mode (car reads 10/20/30, task 053), so the
+ * (15/30/45) but the LABEL is per-mode (car reads 10/20/30), so the
  * label comes from `bandMinutes(mode, band)`, not the band id.
  */
 

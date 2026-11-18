@@ -42,7 +42,7 @@ describe("createCameraController shell wiring", () => {
   it("consults the shell getter at CALL time, not construction time", () => {
     // The selection flow mutates the shell refs (dock collapse) immediately
     // before renderSelection re-commits padding — the controller must see that
-    // fresh value, which is the plan-panel ordering contract.
+    // fresh value, which is the ordering contract.
     let shell: ShellState = { dock: "expanded", sheet: "expanded" };
     const { map, paddings } = fakeMap();
     const camera = createCameraController({ map, el: el(), shell: () => shell });

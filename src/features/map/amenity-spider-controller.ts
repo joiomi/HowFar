@@ -17,8 +17,7 @@ import { buildDonutElement } from "@/features/map/amenity-cluster-controller";
 import { SPIDER_SOURCE } from "@/features/map/map-setup";
 
 /**
- * Spiderfy: fan a non-splittable cluster's members into individual marks
- * (task 061 W20, owner-ordered after review).
+ * Spiderfy: fan a non-splittable cluster's members into individual marks.
  *
  * Clustering is pinned to the map's maximum zoom, so places sharing a building can
  * never be separated by zooming. The leaves list already guaranteed each of them was
@@ -32,7 +31,7 @@ import { SPIDER_SOURCE } from "@/features/map/map-setup";
  *   controller hides every other amenity mark (the same chokepoint the right-click
  *   journey uses). That is not decoration: fan positions are chosen to be provably
  *   separated from EACH OTHER and from the hub, and nothing can promise separation
- *   from an unrelated donut 20px away. Hiding the rest keeps the task's central
+ *   from an unrelated donut 20px away. Hiding the rest keeps the central
  *   no-overlap invariant true while a fan is open, and keeps the fan readable.
  * - **Positions are screen-space, recomputed on every camera change.** A fan is a
  *   pixel arrangement, not a set of places; baking it into coordinates once would
@@ -54,7 +53,7 @@ export interface AmenitySpiderController {
   /**
    * Resolve a click against the open fan — hub, a leaf, or neither — in ONE pass.
    *
-   * One entry point rather than `hitsHub` then `pickLeaf` (found in review): both
+   * One entry point rather than `hitsHub` then `pickLeaf`: both
    * targets are widened to the 44px tap contract, so their areas can now overlap, and
    * asking the hub first would let it swallow a tap that was plainly on a leaf.
    * Nearest centre across hub AND leaves decides, which is unambiguous because leaves

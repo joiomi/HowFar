@@ -4,13 +4,13 @@ import type { ReachView } from "@/features/map/reach-directions-controller";
 
 /**
  * The right-click "how do I get there?" directions, rendered in the RESULT-SHEET
- * DOCK instead of a map-covering popup (task 058, owner item 2). While it is
+ * DOCK instead of a map-covering popup. While it is
  * shown it REPLACES the SelectionCard + pace/time + amenity filters (which are
- * useless during a journey view — the owner's exact ask). Pure presentation of
+ * useless during a journey view). Pure presentation of
  * the reach-directions controller's `ReachView`; step hover/focus drives the map
  * highlight via `onHighlight`, and "Back" / Escape closes via `onClose`.
  *
- * A11y (panel terra-5): the map container is a plain div, so focus can't just
+ * A11y: the map container is a plain div, so focus can't just
  * "return to the map" implicitly. On open we move focus to the panel heading
  * (tabIndex -1 + ref); Escape and Back close and AppMap returns focus to the map
  * container. Steps are keyboard-operable (tabIndex 0, focus == hover). All text
@@ -59,7 +59,7 @@ export default function ReachPanel({ view, onHighlight, onClose }: ReachPanelPro
     headingRef.current?.focus();
   }, [view.state]);
 
-  // Escape closes the directions from ANYWHERE (panel fable-1): after the user
+  // Escape closes the directions from ANYWHERE: after the user
   // pans/clicks the map, focus leaves the panel, so a panel-scoped handler would
   // go dead. Listen at document level while mounted — but skip when the event
   // originates in the search command surface, whose own Escape dismisses the
@@ -86,7 +86,7 @@ export default function ReachPanel({ view, onHighlight, onClose }: ReachPanelPro
       <div className="flex items-start justify-between gap-3">
         {/* aria-live region: a second right-click of the same kind updates the
             title/detail without remounting the panel, so this makes AT announce
-            the new answer (panel fable-2). */}
+            the new answer. */}
         <div aria-live="polite" aria-atomic="true" className="min-w-0">
           <p className="text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-[#a78bfa]">How do I get there?</p>
           <h2

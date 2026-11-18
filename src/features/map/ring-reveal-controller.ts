@@ -17,7 +17,7 @@ const RING_REVEAL_STAGE_MS = 280;
 
 /**
  * Owns the isochrone ring paint: the staged All-mode reveal animation and the
- * filter→layer-visibility flip (task 024/028). The layers are created once at
+ * filter→layer-visibility flip. The layers are created once at
  * `load` and persist across selections + mode toggles, so this is the only paint
  * work a filter change needs. The ordered stage sequence is the pure,
  * unit-tested `ringRevealStages`; this controller drives MapLibre paint/layout
