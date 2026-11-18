@@ -19,6 +19,7 @@ import {
   PRESET_LINE_OPACITY,
   PRESET_LINE_SOURCE,
 } from "@/features/isochrones/preset-view";
+import { BASEMAP_CREDITS, type CreditLink } from "@/features/map/credits";
 
 /**
  * Pure MapLibre setup: the basemap style and the source/layer definitions,
@@ -35,6 +36,11 @@ type LayerHost = Pick<maplibregl.Map, "addSource" | "addLayer">;
 
 export const ISOCHRONE_FILL_OPACITY = 0.2;
 export const ISOCHRONE_LINE_OPACITY = 0.94;
+
+/** A credit as an HTML link for the style's attribution string. */
+function creditAnchor(credit: CreditLink): string {
+  return `<a href="${credit.href}">${credit.label}</a>`;
+}
 
 /** Style for the self-hosted Protomaps basemap. `tilesUrl` is the absolute
  * `/api/tiles` URL (the caller computes it from `window.location.origin`). */
@@ -72,12 +78,15 @@ export function createMapStyle(tilesUrl: string): maplibregl.StyleSpecification 
         // Mapzen POI-icon sprite (MIT) is hot-linked from protomaps.github.io
         // (glyphs/sprite above), i.e. referenced not redistributed; its MIT notice is
         // carried in README for good measure (docs/SELFHOST.md explains the basis).
+        // The links come from BASEMAP_CREDITS, the list the info popover shows. The
+        // map is created without MapLibre's attribution control, so the popover is
+        // where users see these credits; the source still declares them here.
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' +
-          ' &middot; Landcover &copy; <a href="https://esa-worldcover.org/en/data-access">ESA WorldCover</a>' +
-          ' (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), modified,' +
-          ' via <a href="https://daylightmap.org">Daylight</a>' +
-          ' &middot; <a href="https://www.naturalearthdata.com">Natural Earth</a>',
+          `&copy; ${creditAnchor(BASEMAP_CREDITS.osm)} contributors` +
+          ` &middot; Landcover &copy; ${creditAnchor(BASEMAP_CREDITS.esa)}` +
+          ` (${creditAnchor(BASEMAP_CREDITS.ccBy)}), modified,` +
+          ` via ${creditAnchor(BASEMAP_CREDITS.daylight)}` +
+          ` &middot; ${creditAnchor(BASEMAP_CREDITS.naturalEarth)}`,
       },
     },
     layers: layers("protomaps", namedFlavor("dark"), { lang: "ro" }),

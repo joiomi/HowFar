@@ -14,7 +14,7 @@ import {
   selectPresetRings,
 } from "./preset-view";
 import type { Mode } from "@/features/isochrones/preset-reach";
-import type { Origin, Ring } from "@/features/map/selection-flow";
+import { MODES, type Origin, type Ring } from "@/features/map/selection-flow";
 
 const ORIGIN: Origin = { lat: 44.43, lng: 26.1 };
 
@@ -248,22 +248,18 @@ describe("presetReachExplainer — the honest reach claim (assertive gate)", () 
   });
 });
 
-describe("presetReachCaveat — the barrier honesty rider", () => {
-  it("walk + transit carry a barrier caveat; car does NOT (0% over-claim, no street-walk)", () => {
-    expect(presetReachCaveat("walk")).toBeTruthy();
-    expect(presetReachCaveat("transit")).toBeTruthy();
-    expect(presetReachCaveat("car")).toBeNull();
+describe("presetReachCaveat — the honesty caveat each mode carries", () => {
+  it("states each mode's caveat verbatim: walk names the river and rail, transit the city's edge, car the assumed traffic", () => {
+    expect(presetReachCaveat("walk")).toBe(
+      "Timpi estimați pe străzi. Lângă râu sau calea ferată drumul poate fi mai lung decât arată harta.",
+    );
+    expect(presetReachCaveat("transit")).toBe(
+      "Timpi după orarele publicate, cu mersul pe jos până la stații. La marginea orașului drumul poate fi mai lung decât arată harta.",
+    );
+    expect(presetReachCaveat("car")).toBe("Trafic obișnuit pentru ora aleasă, nu trafic în timp real.");
   });
 
-  it("names the overstate direction only — the reach can be SHORTER than shown (never longer), and does not over-scare", () => {
-    for (const mode of ["walk", "transit"] as const) {
-      const c = presetReachCaveat(mode)!.toLowerCase();
-      expect(c).toContain("shorter");
-      // The honest direction is over-claim near barriers, never under-claim.
-      expect(c).not.toContain("longer");
-    }
-    // Walk names the physical barrier; transit names the city edges.
-    expect(presetReachCaveat("walk")!.toLowerCase()).toMatch(/river|rail/);
-    expect(presetReachCaveat("transit")!.toLowerCase()).toContain("edge");
+  it("never claims a trip can be shorter than drawn: near a barrier the reach over-claims, it never under-claims", () => {
+    for (const m of MODES) expect(presetReachCaveat(m)).not.toMatch(/mai scurt/);
   });
 });

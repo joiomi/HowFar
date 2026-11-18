@@ -8,7 +8,6 @@ import {
   parseTimeContext,
   TIME_PRESET_IDS,
   TIME_PRESETS,
-  timeContextSummary,
 } from "@/features/isochrones/time-context";
 
 describe("TIME_PRESETS", () => {
@@ -28,7 +27,6 @@ describe("TIME_PRESETS", () => {
       const p = TIME_PRESETS[id];
       expect(p.clock).toBe(`${p.hour}:${String(p.minute).padStart(2, "0")}`);
       expect(p.ariaLabel).toContain(p.clock);
-      expect(p.phrase.length).toBeGreaterThan(0);
     }
     expect(TIME_PRESETS.crowded.ariaLabel).toBe("Plecare la 8:30 (ora de vârf)");
     expect(TIME_PRESETS.quiet.ariaLabel).toBe("Plecare la 12:30");
@@ -42,11 +40,7 @@ describe("departureFields", () => {
   });
 });
 
-describe("summary / toggle", () => {
-  it("summarises a preset by its natural time-phrase (reads inside 'Scheduled … for {…}')", () => {
-    expect(timeContextSummary({ kind: "preset", preset: "crowded" })).toBe("a weekday rush hour");
-    expect(timeContextSummary({ kind: "preset", preset: "quiet" })).toBe("a quieter midday");
-  });
+describe("toggle", () => {
   it("nextTimePreset flips between the two presets", () => {
     expect(nextTimePreset("crowded")).toBe("quiet");
     expect(nextTimePreset("quiet")).toBe("crowded");

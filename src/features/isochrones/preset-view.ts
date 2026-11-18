@@ -276,26 +276,24 @@ export function presetReachExplainer(mode: Mode, selectedMin: number): string {
 }
 
 /**
- * The honesty CAVEAT: the reach is a typical-street-walk estimate
- * that can OVERSTATE near barriers (the accepted river/rail anisotropy).
- * Walk + transit carry it (their reach
- * folds in a street walk that a barrier can lengthen); car does NOT (0% over-claim
- * measured on the served free-flow ranges, no street-walk component). Returns null
- * where no caveat applies, so the UI renders nothing rather than an empty line.
- *
- * The over-claim DIRECTION is honest (the estimate over-reaches at barriers, never
- * under-reaches), but NOT minimized: near a barrier the gap is real (a river/rail
- * detour adds ~10 min on foot; the transit periphery can run ~30 min longer), so
- * the copy says "noticeably shorter", not "a little" — softer wording would
- * under-state a documented severe tail (the honesty bar cuts both ways).
+ * The honesty CAVEAT shown in the info popover, one sentence per mode (Romanian).
+ * Walk and transit reaches fold in a street walk that a barrier can lengthen, so
+ * near a river or rail line (walk) or at the city's edge (transit) the real trip
+ * can take LONGER than the drawn reach suggests: the estimate over-reaches there,
+ * it never under-reaches, so the copy never claims a trip can be shorter. The gap
+ * is real (a river/rail detour adds ~10 min on foot; the transit periphery can run
+ * ~30 min longer), so the copy states it plainly rather than as "a little".
+ * Car has no street-walk component (0% over-claim measured on the served
+ * free-flow ranges); its caveat names the assumption instead: typical traffic for
+ * the chosen departure, not live traffic.
  */
-export function presetReachCaveat(mode: Mode): string | null {
+export function presetReachCaveat(mode: Mode): string {
   switch (mode) {
     case "walk":
-      return "Typical street-walking times. Near a river or rail line the real reach can be noticeably shorter than shown.";
+      return "Timpi estimați pe străzi. Lângă râu sau calea ferată drumul poate fi mai lung decât arată harta.";
     case "transit":
-      return "Typical times from published timetables. Out at the city's edges the real reach can be noticeably shorter than shown.";
+      return "Timpi după orarele publicate, cu mersul pe jos până la stații. La marginea orașului drumul poate fi mai lung decât arată harta.";
     case "car":
-      return null;
+      return "Trafic obișnuit pentru ora aleasă, nu trafic în timp real.";
   }
 }

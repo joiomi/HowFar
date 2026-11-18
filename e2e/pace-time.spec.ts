@@ -1,14 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
-import { pickMode, search, toggleDeparture, toggleSlowPace } from "./shell";
+import { openInfo, pickMode, search, toggleDeparture, toggleSlowPace } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // The mode pill's pace turtle (walk) and departure clock (transit/car) on the
 // phone-first preset client. Providers are stubbed by EXACT path. The mock cannot prove
 // the server ring→count coupling (that lives in unit + integration tests + the live
 // calibration); what e2e proves is that the toggles SEND the right params, show
-// their state, and that the transit result keeps its honesty copy. The preset client suppresses amenity markers
-// (deferred to the planned amenity pass), so the pace/time re-render is proven by the REQUEST it
-// drives (a new reach flight carrying the changed param), not by an amenity count.
+// their state, and that the transit state keeps its honesty note in the ⓘ popover. The
+// preset client suppresses amenity markers (deferred to the planned amenity pass), so the
+// pace/time re-render is proven by the REQUEST it drives (a new reach flight carrying the
+// changed param), not by an amenity count.
 // Waits are on data-* stamps + captured URLs, never sleeps.
 
 function ring(minutes: number, d: number) {
@@ -49,7 +50,7 @@ async function stubBase(page: Page): Promise<Captured> {
   });
   await page.route("**/api/transit**", (route) => {
     cap.transit.push(route.request().url());
-    // Echo the resolved departure so the honesty note renders.
+    // Echo the resolved departure, as the real route does.
     route.fulfill({ json: { ...WALK, departure: "2026-07-29T05:30:00.000Z" } });
   });
   // Preset mode fetches no amenities; keep a defensive empty stub so a stray call
@@ -127,8 +128,10 @@ test("the clock: departs at 8:30 rush by default (preset=crowded); a tap switche
   await expect.poll(() => cap.transit.some((u) => /preset=crowded/.test(u))).toBe(true);
   // No Custom editor (removed for a least-necessary UI).
   await expect(page.getByRole("button", { name: "Custom…" })).toHaveCount(0);
-  // Peak-honesty copy: metro is road-traffic-immune, surface times are timetable-nominal.
-  await expect(page.getByTestId("transit-departure-note")).toContainText("affected by road traffic");
+  // Peak-honesty note in the ⓘ popover: the metro is immune to road traffic, buses and
+  // trams can run late at rush hour.
+  const info = await openInfo(page);
+  await expect(info).toContainText("Metroul nu depinde de trafic; autobuzul și tramvaiul pot întârzia la aglomerație.");
 
   const before = cap.transit.length;
   await toggleDeparture(page);

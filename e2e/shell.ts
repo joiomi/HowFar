@@ -1,7 +1,8 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-// Shared helpers for driving the search box and the mode pill (mode buttons, preset
-// chips, the walking-pace turtle and the departure clock). Specs call these instead of
+// Shared helpers for driving the search box, the mode pill (mode buttons, preset chips,
+// the walking-pace turtle and the departure clock) and the ⓘ popover, and for checking
+// that a credit can be read (nothing on top of it). Specs call these instead of
 // repeating role/test-id selectors, so a change to the controls' markup is edited here
 // once.
 
@@ -79,4 +80,54 @@ export async function sampleMapClearPercent(page: Page): Promise<number> {
       }
     return Math.round((hits / total) * 100);
   });
+}
+
+// Fails unless a tap at the element's centre would land on it: the element itself or
+// something inside it is the topmost thing there. Visibility alone passes for a credit
+// another floating control sits on top of; this proves it can be read and tapped.
+export async function expectNotCovered(locator: Locator): Promise<void> {
+  await expect(locator).toBeVisible();
+  await expect
+    .poll(() =>
+      locator.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return hit !== null && element.contains(hit);
+      }),
+    )
+    .toBe(true);
+}
+
+// Open the ⓘ popover with its button and return it. A popover that is already open may be
+// the one the first map load opens, which closes itself after a few seconds: close it and
+// open it again, so it stays open for the assertions that follow.
+export async function openInfo(page: Page): Promise<Locator> {
+  const button = page.getByTestId("info-button");
+  const popover = page.getByTestId("info-popover");
+  if ((await button.getAttribute("aria-expanded")) === "true") {
+    await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+  }
+  await button.click();
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await expect(popover).toBeVisible();
+  return popover;
+}
+
+// The basemap credits every map state carries in the ⓘ popover, by link text: each link,
+// its target, and that nothing covers it.
+const BASEMAP_CREDIT_LINKS: ReadonlyArray<readonly [string, string]> = [
+  ["OpenStreetMap", "https://www.openstreetmap.org/copyright"],
+  ["ESA WorldCover", "https://esa-worldcover.org/en/data-access"],
+  ["CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"],
+  ["Daylight", "https://daylightmap.org"],
+  ["Natural Earth", "https://www.naturalearthdata.com"],
+];
+
+export async function expectBasemapCredits(popover: Locator): Promise<void> {
+  for (const [name, href] of BASEMAP_CREDIT_LINKS) {
+    const link = popover.getByRole("link", { name, exact: true });
+    await expect(link).toHaveAttribute("href", href);
+    await expectNotCovered(link);
+  }
 }

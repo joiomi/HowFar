@@ -131,8 +131,8 @@ describe("select() — effective pace (pace is walk-only)", () => {
     };
     await h.controller.select({ kind: "point", lat: 44.4, lng: 26.1, label: "X" });
     expect(fetchedUrls.some((u) => u.startsWith("/api/car"))).toBe(true);
-    // The car block is threaded (carInfo → resolved.car) so the right-click copy
-    // + SelectionCard note can name the traffic slot.
+    // The car block is threaded (carInfo → resolved.car), and the drawn reach is
+    // stashed with it.
     expect(h.selRef.current.car).toEqual({ basis: "estimate", slotId: "am-peak", slotLabel: "weekday morning rush" });
   });
 
@@ -144,6 +144,20 @@ describe("select() — effective pace (pace is walk-only)", () => {
     };
     await h.controller.select({ kind: "point", lat: 44.4, lng: 26.1, label: "X" });
     expect(h.selRef.current.car).toBeNull();
+  });
+
+  it("a TRANSIT select keeps the echoed departure as its ISO instant only; a walk select ignores a stray one", async () => {
+    const departure = "2026-07-29T05:30:00.000Z";
+    fetchImpl = (url) => {
+      fetchedUrls.push(url);
+      return res(200, { origin: { lat: 44.4, lng: 26.1 }, rings: [], departure });
+    };
+    const transit = makeHarness("transit");
+    await transit.controller.select({ kind: "point", lat: 44.4, lng: 26.1, label: "X" });
+    expect(transit.selRef.current.departure).toEqual({ iso: departure });
+    const walk = makeHarness("walk");
+    await walk.controller.select({ kind: "point", lat: 44.4, lng: 26.1, label: "X" });
+    expect(walk.selRef.current.departure).toBeNull();
   });
 });
 

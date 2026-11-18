@@ -72,8 +72,8 @@ export interface SelectionState {
   status: SelectionStatus;
   label: string | null;
   message: string | null;
-  /** The resolved transit departure (ISO) + a short summary, surfaced so the UI can qualify the claim. */
-  departure: { iso: string; summary: string } | null;
+  /** The resolved transit departure instant (ISO), so a right-click plans its trip for the same departure. */
+  departure: { iso: string } | null;
   /** The resolved car-reach basis + traffic slot — car-only, else null. */
   car: CarMeta | null;
   /** The last successfully-resolved origin+label, so a mode/pace/time change recomputes it with no geocode. */
@@ -95,7 +95,7 @@ export const initialSelectionState: SelectionState = {
 
 export type SelectionAction =
   | { type: "start"; mode: Mode; preserveLast?: boolean }
-  | { type: "resolved"; token: number; origin: Origin; label: string; departure?: { iso: string; summary: string } | null; car?: CarMeta | null }
+  | { type: "resolved"; token: number; origin: Origin; label: string; departure?: { iso: string } | null; car?: CarMeta | null }
   | { type: "failed"; token: number; stage: Stage; httpStatus: number }
   | { type: "crash"; token: number }
   | { type: "toggle"; next: Mode }

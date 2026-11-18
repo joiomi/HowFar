@@ -1,5 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
-import { modeButton, pickMode, pickPreset, sampleMapClearPercent, search, toggleDeparture, toggleSlowPace } from "./shell";
+import {
+  expectNotCovered,
+  modeButton,
+  openInfo,
+  pickMode,
+  pickPreset,
+  sampleMapClearPercent,
+  search,
+  toggleDeparture,
+  toggleSlowPace,
+} from "./shell";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
 function ring(minutes: number, distance: number) {
@@ -519,27 +529,13 @@ test("mobile shell: the peek sheet and the floating mode pill leave the map the 
   if (!pillBox) throw new Error("mode pill has no box");
   expect(pillBox.y + pillBox.height).toBeLessThanOrEqual(sheetBox.y);
 
-  // The always-on basemap attribution sits at the strip's bottom edge — never
-  // mid-map, never under the sheet. (The Transitous credit is transit-gated, so in
-  // this walk state only the basemap attribution shows — presence/absence of the
-  // transit credit per mode is proven in preset-render.spec.ts.)
-  {
-    const attribution = page.locator(".maplibregl-ctrl-attrib");
-    await expect(attribution).toBeVisible();
-    const box = await attribution.boundingBox();
-    if (!box) throw new Error("attribution has no box");
-    expect(box.y + box.height).toBeLessThanOrEqual(sheetBox.y + 2);
-    expect(box.y).toBeGreaterThan(sheetBox.y - 120);
-  }
-  // The basemap credits must be ACTUALLY READABLE on a narrow viewport, not
-  // collapsed behind MapLibre's compact "i" toggle (which defaults on at ≤640px
-  // unless attributionControl.compact===false). A role selector skips
-  // display:none, so this fails if the credit link is hidden — the real guard for
-  // the licence-required ESA WorldCover credit at mobile width, complementing the
-  // desktop DOM assertions in smoke.spec.ts.
-  await expect(
-    page.locator(".maplibregl-ctrl-attrib").getByRole("link", { name: "ESA WorldCover" }),
-  ).toBeVisible();
+  // The basemap credits live behind the ⓘ button, which stays on screen in this state
+  // too. Opened, the licence-required ESA WorldCover credit must be ACTUALLY READABLE
+  // at phone width: a link nothing sits on top of, not merely present. (The Transitous
+  // credit is transit-gated; per mode it is proven in preset-render.spec.ts.)
+  await expect(page.getByTestId("info-button")).toBeInViewport();
+  const info = await openInfo(page);
+  await expectNotCovered(info.getByRole("link", { name: "ESA WorldCover" }));
 
   // Change the reach preset straight from the pill (the larger 20-min chip): a pure
   // client-side repaint, the route already returned both contours.
@@ -582,6 +578,119 @@ test("mobile shell: the peek sheet and the floating mode pill leave the map the 
   await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
   await expect(page.getByText(/Could not compute/)).toBeVisible();
   await expect(page.getByTestId("mode-icon-walk")).toHaveAccessibleName("Pe jos (indisponibil)");
+});
+
+// The ⓘ popover opens by itself when the map first loads, so the data credits are on
+// screen with no tap, and it gives way to the first thing the user does: a tap on the
+// address field closes it, and so does a tap on the map, which still picks that place.
+test("the auto-opened info popover yields to the first tap", async ({ page }) => {
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/reverse**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Punctul atins" } }),
+  );
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+  const map = page.getByTestId("app-map");
+  const popover = page.getByTestId("info-popover");
+  // The popover closes by itself 5 s after it opens, so each close below must come
+  // within a second of the tap, and well before that self-close could explain it.
+  async function expectClosedByTap(tap: () => Promise<void>) {
+    await expect(popover).toBeVisible();
+    const shownAt = Date.now();
+    await tap();
+    await expect(popover).toBeHidden({ timeout: 1000 });
+    expect(Date.now() - shownAt).toBeLessThan(4000);
+  }
+
+  await page.goto("/");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await expectClosedByTap(() => page.getByRole("combobox").tap());
+
+  await page.reload();
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  const box = await map.boundingBox();
+  if (!box) throw new Error("map has no box");
+  await expectClosedByTap(() => page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2));
+  await expect(map).toHaveAttribute("data-selection", "Punctul atins");
+});
+
+// Someone already typing an address when the map appears is not interrupted: while the
+// address field has focus the first-load popover stays closed, and the ⓘ button keeps the
+// credits one tap away.
+test("the info popover does not open by itself over an address being typed", async ({ page }) => {
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  // Hold the basemap archive back, so the field has focus before the map can load.
+  let releaseTiles: () => void = () => {};
+  const tilesHeld = new Promise<void>((resolve) => {
+    releaseTiles = resolve;
+  });
+  await page.route("**/api/tiles**", async (route) => {
+    await tilesHeld;
+    await route.continue();
+  });
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  const field = page.getByRole("combobox");
+  await field.tap();
+  await expect(field).toBeFocused();
+  await expect(map).not.toHaveAttribute("data-map-loaded", "true");
+  releaseTiles();
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await expect(page.getByTestId("map-placeholder")).toHaveAttribute("data-map-placeholder", "covered");
+  // The popover would open one frame after the load; wait well past that, then check
+  // once, without retrying: a retrying check would also pass once a wrongly opened
+  // popover closed itself 5 s later.
+  await page.waitForTimeout(500);
+  expect(await page.getByTestId("info-button").getAttribute("aria-expanded")).toBe("false");
+  expect(await page.getByTestId("info-popover").count()).toBe(0);
+  await expect(field).toBeFocused();
+  await expect(page.getByTestId("info-button")).toBeInViewport();
+});
+
+// The reach caveat must reach a phone user: with a place chosen, the ⓘ popover states the
+// drawn mode's caveat word for word, and switching to public transport brings the transit
+// caveat, the note on bus and tram delays, and the Transitous credit.
+test("the info popover states the drawn mode's caveat on a phone", async ({ page }) => {
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
+  );
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
+  await page.route("**/api/transit**", (route) =>
+    route.fulfill({
+      json: { origin: ISOCHRONE.origin, rings: [ring(20, 0.03), ring(40, 0.06)], departure: "2026-07-29T05:30:00.000Z" },
+    }),
+  );
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await expect(map).toHaveAttribute("data-preset-contours", "10");
+
+  const walkCaveat =
+    "Timpi estimați pe străzi. Lângă râu sau calea ferată drumul poate fi mai lung decât arată harta.";
+  const transitCaveat =
+    "Timpi după orarele publicate, cu mersul pe jos până la stații. La marginea orașului drumul poate fi mai lung decât arată harta.";
+  const transitNote = "Metroul nu depinde de trafic; autobuzul și tramvaiul pot întârzia la aglomerație.";
+
+  const info = await openInfo(page);
+  await expect(info).toContainText(walkCaveat);
+  await expect(info).not.toContainText(transitNote);
+  await expect(info.getByRole("link", { name: "Transitous" })).toHaveCount(0);
+
+  // The open popover follows the mode.
+  await pickMode(page, "transit");
+  await expect(map).toHaveAttribute("data-mode", "transit");
+  await expect(map).toHaveAttribute("data-preset-contours", "20");
+  await expect(info).toContainText(transitCaveat);
+  await expect(info).toContainText(transitNote);
+  await expect(info).not.toContainText(walkCaveat);
+  await expectNotCovered(info.getByRole("link", { name: "Transitous", exact: true }));
+  await expectNotCovered(page.getByTestId("transitous-credit"));
 });
 
 // The address bar never leaves the phone screen, so after a search the field must

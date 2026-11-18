@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { minutesLabel, MODE_NAMES, SEARCH_PLACEHOLDER, SEARCH_PLACEHOLDER_FIRST_OPEN } from "@/features/map/copy";
+import { presetReachCaveat } from "@/features/isochrones/preset-view";
+import {
+  infoContent,
+  INFO_LABEL,
+  minutesLabel,
+  MODE_NAMES,
+  SEARCH_PLACEHOLDER,
+  SEARCH_PLACEHOLDER_FIRST_OPEN,
+  TRANSIT_NOTE,
+} from "@/features/map/copy";
 
 describe("search copy", () => {
   it("names the address search in Romanian, and invites a map tap on first open", () => {
@@ -26,5 +35,21 @@ describe("mode and minute copy", () => {
       "101 minute",
       "120 de minute",
     ]);
+  });
+});
+
+describe("info popover copy", () => {
+  it("names the info control and states the transit note verbatim", () => {
+    expect(INFO_LABEL).toBe("Despre estimări și surse");
+    expect(TRANSIT_NOTE).toBe("Metroul nu depinde de trafic; autobuzul și tramvaiul pot întârzia la aglomerație.");
+  });
+
+  it("pairs the mode's caveat with the transit note on transit only, and credits Transitous exactly on transit states", () => {
+    expect(infoContent("walk", false)).toEqual({ caveat: presetReachCaveat("walk"), note: null, transitous: false });
+    expect(infoContent("transit", true)).toEqual({ caveat: presetReachCaveat("transit"), note: TRANSIT_NOTE, transitous: true });
+    expect(infoContent("car", false)).toEqual({ caveat: presetReachCaveat("car"), note: null, transitous: false });
+    // Directions opened before any place was chosen count as a transit state while the
+    // mode is still walk: Transitous is credited, the walk caveat stays.
+    expect(infoContent("walk", true)).toEqual({ caveat: presetReachCaveat("walk"), note: null, transitous: true });
   });
 });

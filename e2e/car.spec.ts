@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { pickMode, pickPreset, search, toggleDeparture } from "./shell";
+import { openInfo, pickMode, pickPreset, search, toggleDeparture } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Car travel mode on the phone-first preset client.
@@ -28,8 +28,7 @@ function polyRing(minutes: number, d: number) {
 // Car response carries the calibrated [10, 25] preset. The outer (25-min) ring
 // ~0.32° exceeds the Bucharest maxBounds (~0.6°×0.5°), so this fixture also
 // exercises off-map clipping — not a viewport-tiny mock. The `car` meta block
-// mirrors the real /api/car payload so the honesty-note slot label +
-// right-click carMeta threading are exercised e2e.
+// mirrors the real /api/car payload.
 const CAR_META = { basis: "estimate", slotId: "am-peak", slotLabel: "weekday morning rush" };
 const CAR = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(10, 0.3), polyRing(25, 0.32)], car: CAR_META };
 const WALK = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(10, 0.28), polyRing(20, 0.3)] };
@@ -150,33 +149,29 @@ test("Car time-of-day actually changes reach: 8:30 rush rings are strictly small
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await selectCar(page, map);
 
-  // Default 8:30 rush → small (am-peak) rings + slot label in the note.
-  await expect(page.getByTestId("car-estimate-note")).toContainText("weekday morning rush");
+  // Default 8:30 rush → small (am-peak) rings.
   const peakSpan = await presetReachSpan(page);
   expect(peakSpan).toBeGreaterThan(0);
 
-  // Switch the clock to 12:30 → larger rings + the note now names midday traffic.
+  // Switch the clock to 12:30 → larger rings.
   const before = carCalls.length;
   await toggleDeparture(page);
   await expect(page.getByTestId("time-toggle")).toHaveAccessibleName("Plecare la 12:30");
   await expect.poll(() => carCalls.length).toBeGreaterThan(before);
   expect(carCalls[carCalls.length - 1]!).toContain("preset=quiet");
-  await expect(page.getByTestId("car-estimate-note")).toContainText("weekday midday");
   await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   // The rendered reach GREW going 8:30 → 12:30 (i.e. peak reach is smaller).
   await expect.poll(() => presetReachSpan(page)).toBeGreaterThan(peakSpan * 2);
 });
 
-test("Car mode shows the driving-estimate honesty note naming the assumed traffic slot", async ({ page }) => {
+test("car ⓘ states the traffic assumption", async ({ page }) => {
   const { map } = await setup(page);
   await selectCar(page, map);
-  const note = page.getByTestId("car-estimate-note");
-  await expect(note).toBeVisible();
-  await expect(note).toContainText("estimate");
-  await expect(note).toContainText("traffic");
-  // Slot label from the /api/car `car` block is threaded into the note —
-  // a dropped meta block would fall back to "typical" and fail this.
-  await expect(note).toContainText("weekday morning rush");
+  // The car reach assumes typical traffic for the chosen departure, never live
+  // traffic, and the ⓘ popover says so; car has no transit note.
+  const info = await openInfo(page);
+  await expect(info).toContainText("Trafic obișnuit pentru ora aleasă, nu trafic în timp real.");
+  await expect(info).not.toContainText("Metroul");
 });
 
 // Right-click never produces a car drive-band answer — in EVERY

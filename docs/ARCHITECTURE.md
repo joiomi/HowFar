@@ -84,13 +84,13 @@ Rows marked **(parked)** are kept but not live; see [Parked code](#parked-code).
 | `src/features/map/selection-flow.ts` | Selection state machine (token staleness, mode snapshot, failure mapping) and the reach request URL (`isochroneUrl`); owns the `Mode`/`Ring`/`Origin` types |
 | `src/features/map/map-setup.ts` | Pure basemap style plus source/layer specs (unit-tested) |
 | `src/features/map/reach.ts` | Pure right-click helpers: point-in-ring banding and MOTIS trip → display steps |
-| `src/features/map/{TopBar,SuggestList,ModePill,SelectionCard,ReachPanel,EmptyState,MapPlaceholder,TransitousCredit}.tsx`, `icons.tsx`, `copy.ts`, `credits.ts` | Presentation leaves of the phone-first shell. `TopBar` is the address bar (search combobox, suggestions, clear); `ModePill` is the floating mode pill (three modes, the mode's two presets, and the turtle pace toggle or the departure clock); `TransitousCredit` is the "© Transitous" link shown on transit states; `icons.tsx` is the shared 24px stroke icon set; `copy.ts` holds Romanian strings used in more than one place |
+| `src/features/map/{TopBar,SuggestList,ModePill,InfoControl,SelectionCard,ReachPanel,EmptyState,MapPlaceholder,TransitousCredit}.tsx`, `icons.tsx`, `copy.ts`, `credits.ts` | Presentation leaves of the phone-first shell. `TopBar` is the address bar (search combobox, suggestions, clear); `ModePill` is the floating mode pill (three modes, the mode's two presets, and the turtle pace toggle or the departure clock); `InfoControl` is the ⓘ button and popover in every map state: the mode's caveat, the transit note, and the data credits (MapLibre's attribution control is off; the popover opens by itself for 5 s on the first map load); `SelectionCard` is the place's label, legend and explainer; `TransitousCredit` is the "© Transitous" link shown on transit states; `icons.tsx` is the shared 24px stroke icon set; `copy.ts` holds Romanian strings used in more than one place, including the popover's copy (`infoContent`); `credits.ts` is the one list of credit links, shared by the popover and the map style's attribution |
 | `src/features/search/combobox.ts`, `search-suggest-controller.ts` | Autocomplete state machine (generation staleness, keyboard nav); debounce plus fetch/abort glue |
 | `src/features/search/server/{nominatim,photon}.ts` | Geocode/reverse and type-ahead provider clients |
 | `src/features/isochrones/preset-reach.ts` | Calibrated preset minutes, the pure range generator, and the strict `?model` parser |
 | `src/features/isochrones/preset-view.ts` | Pure preset render model: per-mode gradient shells (decorative) and the calibrated contour lines (the actual claim) |
 | `src/features/isochrones/pace.ts` | Walking-pace model and the 80 m/min calibration anchor |
-| `src/features/isochrones/time-context.ts` | Transit/car departure context, shared by the UI control and the routes |
+| `src/features/isochrones/time-context.ts` | Transit/car departure context (the two presets, their clock text and accessible names), shared by the mode pill's clock and the routes |
 | `src/features/isochrones/car-traffic.ts` | Pure Bucharest traffic model: time of day → congestion factor; `CAR_FACTOR_REVISION` feeds the car cache key |
 | `src/features/isochrones/server/{ors,transit}.ts` | Walking/car (ORS) and transit (Transitous one-to-all) reach clients, each with a preset entry point and a parked legacy one |
 | `src/features/isochrones/server/transit-grid.ts` | Pure geometry: reachability grid, marching-squares contours, and the walk-reach union (`unionRings`) |
@@ -222,7 +222,7 @@ upstream payloads. The response body stays generic.
   - Methodology and numbers: `docs/PROVIDERS.md`; receipts: `scripts/calibrate/receipts/`. Do not
     change a calibrated number without re-running the calibration.
   - Known limitation: walk reach can overstate near river or rail barriers, and transit reach at
-    the city's edges. The result card says so (honesty copy in `preset-view.ts`).
+    the city's edges. The info popover says so (honesty copy in `preset-view.ts`).
 - Contours nest by construction: transit thresholds are cut from one monotonic field
   (`transit-grid.ts`; the preset path cuts 20/40 from the same 45-minute field). The only union is
   the per-threshold merge with the street-routed walk reach (`unionRings`), all-or-nothing with a

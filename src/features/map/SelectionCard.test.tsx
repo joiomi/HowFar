@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import SelectionCard from "@/features/map/SelectionCard";
 
 // Static server render — pure presentation of the selection state.
-describe("SelectionCard (phone-first — preset legend + honest reach copy)", () => {
+describe("SelectionCard (phone-first — label, preset legend and explainer)", () => {
   it("shows the selected preset minute in the legend + the honest reach explainer", () => {
     const html = renderToStaticMarkup(
       <SelectionCard label="Str. Lipscani 5" message={null} mode="walk" selectedMin={20} loading={false} />,
@@ -15,22 +15,16 @@ describe("SelectionCard (phone-first — preset legend + honest reach copy)", ()
     expect(html).toContain("20-minute walk"); // the explainer names the served minute
   });
 
-  it("carries the barrier caveat for walk + transit (honesty requirement), NOT for car", () => {
-    const walk = renderToStaticMarkup(
-      <SelectionCard label="X" message={null} mode="walk" selectedMin={10} loading={false} />,
-    );
-    expect(walk).toContain("reach-caveat");
-    expect(walk.toLowerCase()).toContain("shorter than shown");
-
-    const transit = renderToStaticMarkup(
-      <SelectionCard label="X" message={null} mode="transit" selectedMin={40} loading={false} />,
-    );
-    expect(transit).toContain("reach-caveat");
-
-    const car = renderToStaticMarkup(
-      <SelectionCard label="X" message={null} mode="car" selectedMin={25} loading={false} car={{ basis: "estimate", slotId: "s", slotLabel: "typical" }} />,
-    );
-    expect(car).not.toContain("reach-caveat"); // car has 0% over-claim, no barrier caveat
+  it("leaves the caveat and the transit and car notes to the info popover", () => {
+    for (const mode of ["walk", "transit", "car"] as const) {
+      const html = renderToStaticMarkup(
+        <SelectionCard label="X" message={null} mode={mode} selectedMin={20} loading={false} />,
+      );
+      expect(html).toContain("ring-explainer");
+      expect(html).not.toContain("reach-caveat");
+      expect(html).not.toContain("transit-departure-note");
+      expect(html).not.toContain("car-estimate-note");
+    }
   });
 
   it("renders the failure message as an alert, no legend", () => {

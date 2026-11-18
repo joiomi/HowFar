@@ -373,10 +373,12 @@ rm -rf data/osm data/selfhost                                        # reclaim d
   `data/selfhost/planetiler/basemaps/` is a transient build artifact (gitignored, removed by the
   cleanup below), so cite the durable upstream at the build-pinned commit:
   <https://github.com/protomaps/basemaps/blob/a50c699adc60a45c899971b1e11275e61f13bfbf/LICENSE_DATA.md>
-  (that commit is recorded in `docker/selfhost/run-manifest.md`). The map's attribution control
-  (`src/features/map/map-setup.ts`) credits OpenStreetMap (ODbL), which also covers the ODbL
+  (that commit is recorded in `docker/selfhost/run-manifest.md`). The map's info popover
+  (`src/features/map/InfoControl.tsx`, with the links in `src/features/map/credits.ts`, also used
+  by the style attribution in `map-setup.ts`) credits OpenStreetMap (ODbL), which also covers the ODbL
   water/land coastline polygons (osmdata.openstreetmap.de, OSM-derived); **ESA WorldCover landcover
-  under CC BY 4.0 with the licence link and a "modified" indication, via Daylight** (CC BY 4.0
+  under CC BY 4.0 with the licence link and a "modified" indication ("modificat" in the Romanian
+  popover), via Daylight** (CC BY 4.0
   §3(a)(1)(B) requires flagging modification, and Daylight vectorised ESA's raster; the ESA link
   goes to ESA's data-access page, and the README carries the fuller "contains modified Copernicus
   Sentinel data … processed by the ESA WorldCover consortium" acknowledgement); and Natural Earth

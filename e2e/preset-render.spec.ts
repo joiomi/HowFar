@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { pickMode, pickPreset, search } from "./shell";
+import { expectBasemapCredits, expectNotCovered, openInfo, pickMode, pickPreset, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 /**
@@ -8,7 +8,8 @@ import { emptyAmenities } from "./amenity-fixtures";
  * but the `data-*` stamps the render writes: the served preset contours,
  * the calibrated interior-line minutes (the render-midpoint honesty), the chip →
  * painted-contour mapping (pure client visibility, no refetch), amenity
- * suppression, the first-paint placeholder, and the transit attribution.
+ * suppression, the first-paint placeholder, and the data credits in the ⓘ popover
+ * (the basemap credits in every mode, Transitous on transit only).
  *
  * The client is preset-only, so every stub returns the CALIBRATED preset contours
  * (walk [10,20], transit [20,40], car [10,25]) — the shapes the server serves on
@@ -65,7 +66,7 @@ async function waitForMap(page: Page) {
   return map;
 }
 
-test("walk preset: default chip 10 draws only the 10-min contour, the 20 chip adds the calibrated 10-min interior line — no refetch", async ({
+test("walk preset: default chip 10 draws only the 10-min contour, the 20 chip adds the calibrated 10-min interior line — no refetch; the info popover credits the basemap, not Transitous", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -108,10 +109,17 @@ test("walk preset: default chip 10 draws only the 10-min contour, the 20 chip ad
   expect(isoCalls).toBe(1);
   // Amenities are DEFERRED in preset mode (by design): ZERO fetches.
   expect(amenityCalls).toBe(0);
+
+  // The ⓘ popover credits the basemap, readable; a walk state shows no Transitous
+  // credit anywhere (it would imply transit data that isn't there).
+  const info = await openInfo(page);
+  await expectBasemapCredits(info);
+  await expect(info.getByRole("link", { name: "Transitous" })).toHaveCount(0);
+  await expect(page.getByTestId("transitous-credit")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test("transit preset: default 20, the 40 chip adds the calibrated 20-min interior line, and the Transitous credit is present", async ({
+test("transit preset: default 20, the 40 chip adds the calibrated 20-min interior line, and Transitous is credited floating and in the info popover", async ({
   page,
 }) => {
   await baseStubs(page);
@@ -132,16 +140,24 @@ test("transit preset: default 20, the 40 chip adds the calibrated 20-min interio
   await expect(map).toHaveAttribute("data-preset-contours", "20");
   await expect(map).toHaveAttribute("data-interior-lines", "");
 
-  // Transitous provider credit is present on the transit state (phone-first design).
-  await expect(page.getByRole("link", { name: "Transitous" })).toBeVisible();
+  // The Transitous credit floats on the transit state, readable (nothing on top of it).
+  await expectNotCovered(page.getByTestId("transitous-credit"));
 
   await pickPreset(page, 40);
   await expect(map).toHaveAttribute("data-selected-preset", "40");
   await expect(map).toHaveAttribute("data-preset-contours", "20,40");
   await expect(map).toHaveAttribute("data-interior-lines", "20");
+
+  // The ⓘ popover credits the basemap and, on transit, Transitous too.
+  const info = await openInfo(page);
+  await expectBasemapCredits(info);
+  const transitous = info.getByRole("link", { name: "Transitous", exact: true });
+  await expect(transitous).toHaveAttribute("href", "https://transitous.org/sources/");
+  await expectNotCovered(transitous);
+  await expectNotCovered(page.getByTestId("transitous-credit"));
 });
 
-test("car preset: 10/25 contours, and NO Transitous credit on a non-transit state", async ({ page }) => {
+test("car preset: 10/25 contours, the basemap credits in the info popover, and NO Transitous credit on a non-transit state", async ({ page }) => {
   await baseStubs(page);
   await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK_PRESET }));
   await page.route("**/api/car**", (route) => {
@@ -162,8 +178,12 @@ test("car preset: 10/25 contours, and NO Transitous credit on a non-transit stat
   await expect(map).toHaveAttribute("data-preset-contours", "10,25");
   await expect(map).toHaveAttribute("data-interior-lines", "10");
 
-  // Transit credit must NOT appear on a car state (it would imply transit data).
-  await expect(page.getByRole("link", { name: "Transitous" })).toHaveCount(0);
+  // The ⓘ popover credits the basemap; the Transitous credit must NOT appear on a car
+  // state, in the popover or floating (it would imply transit data).
+  const info = await openInfo(page);
+  await expectBasemapCredits(info);
+  await expect(info.getByRole("link", { name: "Transitous" })).toHaveCount(0);
+  await expect(page.getByTestId("transitous-credit")).toHaveCount(0);
 });
 
 test("first paint shows a realistic map placeholder, never a dark void", async ({ page }) => {
@@ -186,8 +206,10 @@ test("first paint shows a realistic map placeholder, never a dark void", async (
   await expect(placeholder).toHaveAttribute("data-map-placeholder", "visible");
   await expect(placeholder).toBeVisible();
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  // After the live map loads, the placeholder is marked covered.
+  // After the live map loads, the placeholder is marked covered, and the ⓘ button
+  // (the data credits) is on screen.
   await expect(placeholder).toHaveAttribute("data-map-placeholder", "covered");
+  await expect(page.getByTestId("info-button")).toBeVisible();
 });
 
 test("degraded reach: a failed isochrone shows the error inline and keeps the map alive (no takeover, no void)", async ({

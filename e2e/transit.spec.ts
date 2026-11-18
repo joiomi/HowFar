@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectSearchBusy, expectSearchIdle, pickMode, search } from "./shell";
+import { expectNotCovered, expectSearchBusy, expectSearchIdle, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Transit slice: Walk/Transit toggle. Provider calls STUBBED by EXACT path
@@ -90,9 +90,10 @@ test("toggling Walk→Transit re-renders transit rings for the same origin witho
   expect(counts.geocode).toBe(1);
   expect(counts.reverse).toBe(0);
 
-  // Attribution: a visible "© Transitous" link to the Transitous sources page.
+  // Attribution: a readable "© Transitous" link (nothing on top of it) to the
+  // Transitous sources page.
   const attribution = page.getByTestId("transitous-credit");
-  await expect(attribution).toBeVisible();
+  await expectNotCovered(attribution);
   await expect(attribution).toHaveText("© Transitous");
   await expect(attribution).toHaveAttribute("href", "https://transitous.org/sources/");
 

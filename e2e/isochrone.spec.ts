@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { search } from "./shell";
+import { modeButton, pickMode, search, toggleDeparture, toggleSlowPace } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Slice-1 interactivity, provider calls STUBBED (CI has no ORS key / can't hit
@@ -72,9 +72,17 @@ test("the clear button returns to first open", async ({ page }) => {
   );
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
   // Walk preset contours (10 and 20 min), so the reach is actually painted before the clear.
-  await page.route("**/api/isochrone**", (route) =>
-    route.fulfill({ json: { origin: ISOCHRONE.origin, rings: [ring(10, 0.01), ring(20, 0.02)] } }),
-  );
+  const reachRequests: string[] = [];
+  await page.route("**/api/isochrone**", (route) => {
+    reachRequests.push(route.request().url());
+    return route.fulfill({ json: { origin: ISOCHRONE.origin, rings: [ring(10, 0.01), ring(20, 0.02)] } });
+  });
+  await page.route("**/api/transit**", (route) => {
+    reachRequests.push(route.request().url());
+    return route.fulfill({
+      json: { origin: ISOCHRONE.origin, rings: [ring(20, 0.03), ring(40, 0.06)], departure: "2026-07-29T05:30:00.000Z" },
+    });
+  });
 
   const map = await waitForMap(page);
   const combobox = page.getByRole("combobox");
@@ -91,10 +99,28 @@ test("the clear button returns to first open", async ({ page }) => {
   await expect(page.getByTestId("first-run")).toBeVisible();
   await expect(page.getByTestId("clear-address")).toHaveCount(0);
 
-  // Choosing the same place again is a fresh selection: the bar shows its address again.
+  // With no place left there is nothing to recompute: the turtle, a mode switch and the
+  // clock only change the settings. No reach request goes out and no place comes back.
+  const requestsAtClear = reachRequests.length;
+  await toggleSlowPace(page);
+  await expect(page.getByTestId("pace-toggle")).toHaveAttribute("aria-pressed", "true");
+  await pickMode(page, "transit");
+  await expect(modeButton(page, "transit")).toHaveAttribute("aria-pressed", "true");
+  await toggleDeparture(page);
+  await expect(page.getByTestId("time-toggle")).toHaveText("12:30");
+  // A recompute would start on the tap itself; give its request time to show up.
+  await page.waitForTimeout(500);
+  expect(reachRequests.slice(requestsAtClear)).toEqual([]);
+  await expect(map).not.toHaveAttribute("data-selection");
+  await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sel-status", "idle");
+
+  // Choosing the same place again is a fresh selection: the bar shows its address again,
+  // and the reach is asked for with the settings chosen after the clear.
   await search(page, "Piata Unirii");
   await expect(combobox).toHaveValue("Piața Unirii, București");
   await expect(page.getByTestId("clear-address")).toHaveCount(1);
+  await expect.poll(() => reachRequests.length - requestsAtClear).toBe(1);
+  expect(reachRequests[reachRequests.length - 1]).toMatch(/\/api\/transit\?.*preset=quiet/);
 });
 
 test("clicking the map reverse-geocodes and renders the isochrone", async ({ page }) => {

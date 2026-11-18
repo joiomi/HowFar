@@ -5,8 +5,9 @@ import { TRANSITOUS_SOURCES_URL } from "@/features/map/credits";
 /**
  * The visible Transitous credit, required whenever a value derived from
  * Transitous data is on screen (a transit reach, a transit trip). The basemap
- * credits (OpenStreetMap, ESA WorldCover, Natural Earth) are shown by the
- * MapLibre attribution control instead. Placement is the caller's.
+ * credits (OpenStreetMap, ESA WorldCover, Natural Earth) are in the info popover
+ * (InfoControl), which also credits Transitous on those states. Placement is
+ * the caller's.
  */
 export default function TransitousCredit(): JSX.Element {
   return (

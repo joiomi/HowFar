@@ -71,7 +71,7 @@ const RESOLVED: Partial<SelectionState> = {
   status: "idle",
   label: PLACE.label,
   lastSelection: PLACE,
-  departure: { iso: "2026-11-18T07:30:00.000Z", summary: "Weekday morning" },
+  departure: { iso: "2026-11-18T07:30:00.000Z" },
 };
 
 describe("createOriginTracker", () => {

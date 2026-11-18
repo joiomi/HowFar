@@ -69,6 +69,7 @@ import { createSelectionRender } from "@/features/map/selection-render";
 import { createLongPress } from "@/features/map/long-press";
 import { reachBand } from "@/features/map/reach";
 import { teardownInOrder } from "@/features/map/teardown";
+import InfoControl, { INFO_AUTO_OPEN_MS } from "@/features/map/InfoControl";
 import MapPlaceholder from "@/features/map/MapPlaceholder";
 import ModePill from "@/features/map/ModePill";
 import SelectionCard from "@/features/map/SelectionCard";
@@ -310,6 +311,39 @@ export default function AppMap() {
   // Flips true once the live map's `load` fires — the first-paint placeholder
   // is then covered by the opaque MapLibre canvas and hidden.
   const [mapReady, setMapReady] = useState(false);
+
+  // The ⓘ popover. It opens by itself once, a frame after the map first loads,
+  // and closes again after INFO_AUTO_OPEN_MS, so the data credits are on screen
+  // when the map appears. A user open or close cancels that pending close; a map
+  // tap, a pan the user starts and the address field close the popover.
+  const [infoOpen, setInfoOpen] = useState(false);
+  const infoAutoCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function setInfo(open: boolean) {
+    if (infoAutoCloseRef.current !== null) clearTimeout(infoAutoCloseRef.current);
+    infoAutoCloseRef.current = null;
+    setInfoOpen(open);
+  }
+  useEffect(() => {
+    if (!mapReady) return;
+    let autoClose: ReturnType<typeof setTimeout> | null = null;
+    const frame = requestAnimationFrame(() => {
+      // Someone already typing an address is left alone: focusing the field
+      // closes the popover, so it does not open over the field either.
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.closest('[data-testid="top-bar"]')) return;
+      setInfoOpen(true);
+      autoClose = setTimeout(() => {
+        infoAutoCloseRef.current = null;
+        setInfoOpen(false);
+      }, INFO_AUTO_OPEN_MS);
+      infoAutoCloseRef.current = autoClose;
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (autoClose !== null) clearTimeout(autoClose);
+    };
+  }, [mapReady]);
+
   useEffect(() => {
     let cancelled = false;
     if (typeof performance !== "undefined" && performance.mark) {
@@ -381,7 +415,8 @@ export default function AppMap() {
       // implicit would silently decouple the two if MapLibre's default changed.
       maxZoom: MAP_MAX_ZOOM,
       maxBounds: LAUNCH_MAX_BOUNDS,
-      attributionControl: { compact: false },
+      // The data credits live in the ⓘ popover (InfoControl), shown in every state.
+      attributionControl: false,
       locale: MAP_LOCALE,
     });
     mapRef.current = map;
@@ -869,6 +904,9 @@ export default function AppMap() {
       longPress.cancel();
     });
 
+    // A tap or click on the map closes the ⓘ popover (and still does whatever the
+    // handler below decides).
+    map.on("click", () => setInfo(false));
     map.on("click", (e) => {
       // A long-press just fired the reach popup — swallow the follow-up click so
       // it doesn't also start a selection.
@@ -977,9 +1015,12 @@ export default function AppMap() {
     });
     // A camera move invalidates the frozen panel anchor AND re-lays the marks —
     // drop the hover; the next mousemove re-establishes it if still over one.
-    map.on("movestart", () => {
+    map.on("movestart", (e) => {
       clusters.hoverAt(null);
       closeClusterPreview();
+      // A pan or zoom the user starts closes the ⓘ popover; a camera move the app
+      // makes (framing a selection) has no originalEvent and leaves it open.
+      if (e.originalEvent) setInfo(false);
     });
     map.on("dragend", () => {
       el.dataset.mapDrag = String(Number(el.dataset.mapDrag ?? "0") + 1);
@@ -1168,6 +1209,8 @@ export default function AppMap() {
   // they can never disagree with the painted contour.
   const selectedMin = presetMinFor(sel.mode, presetIndex);
   const reachActive = reachView !== null;
+  // Transitous data is on screen: a transit reach, or open directions.
+  const transitState = sel.mode === "transit" || reachActive;
   // The reach directions dock counts as a result surface: the sheet
   // renders — and camera padding holds — whenever there's a selection OR reach.
   const hasResults = hasResultSurface(sel, amenity.status, reachActive);
@@ -1225,12 +1268,17 @@ export default function AppMap() {
           onSubmit={onSubmit}
           onQueryChange={onQueryChange}
           onKeyDown={onSearchKeyDown}
-          onFocus={() => dispatchCombo({ type: "focus" })}
+          onFocus={() => {
+            dispatchCombo({ type: "focus" });
+            setInfo(false);
+          }}
           onBlur={closeSuggest}
           onPick={pickSuggestion}
           onHover={(index) => dispatchCombo({ type: "hover", index })}
           onClear={() => clearAddressRef.current?.()}
         />
+        {/* The reach caveat and the data credits: top right, in every state. */}
+        <InfoControl open={infoOpen} onOpenChange={setInfo} mode={sel.mode} transitState={transitState} />
         {/* The travel mode, its two presets, and the pace or departure toggle:
             above the result sheet on a phone, under the address bar from md. A
             mode whose reach failed is flagged on its button (never a takeover). */}
@@ -1301,8 +1349,6 @@ export default function AppMap() {
                 mode={sel.mode}
                 selectedMin={selectedMin}
                 loading={sel.status === "loading"}
-                departure={sel.departure}
-                car={sel.car}
               />
             </div>
           </section>
@@ -1398,15 +1444,15 @@ export default function AppMap() {
         </div>
       )}
 
-      {/* Basemap attribution (OSM · ESA WorldCover · Natural Earth) is present in
-          EVERY state via the always-on MapLibre AttributionControl (map init).
-          The Transitous credit is the ADDITIONAL transit obligation — shown
+      {/* The basemap credits (OSM · ESA WorldCover · Natural Earth) are in the ⓘ
+          popover, present in every state. The Transitous credit is the ADDITIONAL
+          transit obligation: besides its line in the popover it stays visible here
           whenever transit data is displayed: a transit reach, or a right-click
           journey (MOTIS/Transitous). Not on walk/car states, where showing it
           would imply transit data that isn't there. On a phone it floats on the
           right above the mode pill's row, tracking the sheet; from md it sits at
           the bottom right, beside the zoom control. */}
-      {sel.mode === "transit" || reachActive ? (
+      {transitState ? (
         <div className="absolute bottom-[calc(var(--hf-sheet-clearance,0px)+4.25rem)] right-3 z-20 md:bottom-3 md:right-14">
           <TransitousCredit />
         </div>

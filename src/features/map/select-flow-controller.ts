@@ -1,5 +1,5 @@
 import { type Pace } from "@/features/isochrones/pace";
-import { timeContextSummary, type TimeContext } from "@/features/isochrones/time-context";
+import { type TimeContext } from "@/features/isochrones/time-context";
 import {
   effectivePace,
   isochroneUrl,
@@ -19,15 +19,11 @@ interface GeoPoint {
   label: string;
 }
 
-/** Departure info for the UI honesty copy — only for transit, only when the
- * server echoed a departure ISO. Walk selections carry null (cleared). */
-function departureInfo(
-  mode: Mode,
-  departureIso: string | undefined,
-  timeContext: Parameters<typeof timeContextSummary>[0],
-): { iso: string; summary: string } | null {
+/** The resolved departure instant — only for transit, only when the server
+ * echoed a departure ISO. Walk and car selections carry null (cleared). */
+function departureInfo(mode: Mode, departureIso: string | undefined): { iso: string } | null {
   if (mode !== "transit" || !departureIso) return null;
-  return { iso: departureIso, summary: timeContextSummary(timeContext) };
+  return { iso: departureIso };
 }
 
 /** The honest car-reach basis echoed by /api/car — only for car
@@ -167,7 +163,7 @@ export function createSelectFlowController({
         }
         const iso = (await isoRes.json()) as IsoResponse;
         if (stale()) return;
-        dispatchSel({ type: "resolved", token, origin: iso.origin, label, departure: departureInfo(mode, iso.departure, timeContext), car: carInfo(mode, iso.car) });
+        dispatchSel({ type: "resolved", token, origin: iso.origin, label, departure: departureInfo(mode, iso.departure), car: carInfo(mode, iso.car) });
         renderSelection(iso.origin, label, iso.rings, mode);
         return;
       }
@@ -191,7 +187,7 @@ export function createSelectFlowController({
 
       // Fresh (stale() just checked): accept and paint. Reducer records the
       // isochrone's rounded origin so a mode toggle recomputes the same point.
-      dispatchSel({ type: "resolved", token, origin: iso.origin, label, departure: departureInfo(mode, iso.departure, timeContext), car: carInfo(mode, iso.car) });
+      dispatchSel({ type: "resolved", token, origin: iso.origin, label, departure: departureInfo(mode, iso.departure), car: carInfo(mode, iso.car) });
       renderSelection(iso.origin, label, iso.rings, mode);
     } catch (err) {
       if ((err as Error)?.name === "AbortError" || stale()) return;

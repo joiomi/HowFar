@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { search } from "./shell";
+import { expectNotCovered, search } from "./shell";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
 // After a responsive relayout, retry the REAL geometric predicate until it holds
@@ -185,18 +185,21 @@ function boxesOverlap(a: { x: number; y: number; width: number; height: number }
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
-async function expectAttributionClearOfResults(page: Page) {
-  // The ALWAYS-ON credit is the basemap (OSM / MapLibre control) attribution, shown
-  // in every state. The Transitous credit is mode-gated to transit (its presence in
-  // transit and ABSENCE in walk/car is proven in preset-render.spec.ts), so it is
-  // not asserted here — a walk-mode result carries no Transitous link.
-  const osm = page.locator(".maplibregl-ctrl-attrib");
-  const results = page.getByTestId("result-sheet");
-  await expect(osm).toBeVisible();
-  await expect(osm).toBeInViewport();
-  const [osmBox, resultBox] = await Promise.all([osm.boundingBox(), results.boundingBox()]);
-  if (!osmBox || !resultBox) throw new Error("attribution/result boxes unavailable");
-  expect(boxesOverlap(osmBox, resultBox)).toBe(false);
+async function expectInfoButtonClear(page: Page) {
+  // The ⓘ button holds the basemap credits in every state, so it must stay on screen,
+  // uncovered, and clear of every other floating surface: the address bar, the mode
+  // pill and the result sheet. (The Transitous credit is mode-gated to transit; its
+  // presence in transit and ABSENCE in walk/car is proven in preset-render.spec.ts.)
+  const info = page.getByTestId("info-button");
+  await expect(info).toBeInViewport();
+  await expectNotCovered(info);
+  const [infoBox, ...otherBoxes] = await Promise.all(
+    [info, page.getByTestId("top-bar"), page.getByTestId("mode-pill"), page.getByTestId("result-sheet")].map((l) =>
+      l.boundingBox(),
+    ),
+  );
+  if (!infoBox || otherBoxes.some((box) => !box)) throw new Error("info button or shell boxes unavailable");
+  for (const box of otherBoxes) expect(boxesOverlap(infoBox, box!)).toBe(false);
 }
 
 // Skipped: asserts the old staged ring reveal
@@ -287,9 +290,9 @@ test("camera reframes an existing result across desktop and mobile breakpoints",
   await expectResultFramedAfterResize(page);
 });
 
-test("provider attributions remain visible and clear of results at every shell size", async ({ page }) => {
+test("the info button stays on screen, uncovered and clear of the address bar, mode pill and results at every shell size", async ({ page }) => {
   await loadPopulatedState(page);
-  await expectAttributionClearOfResults(page);
+  await expectInfoButtonClear(page);
   for (const viewport of [
     { width: 390, height: 844 },
     { width: 390, height: 600 },
@@ -298,7 +301,7 @@ test("provider attributions remain visible and clear of results at every shell s
     await page.setViewportSize(viewport);
     // Retry the real non-overlap predicate until the reflow settles (not a proxy).
     await expect(async () => {
-      await expectAttributionClearOfResults(page);
+      await expectInfoButtonClear(page);
     }).toPass({ timeout: 10_000 });
   }
 });

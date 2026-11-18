@@ -1,19 +1,14 @@
 import { MODE_ACCENT, MODE_LABEL } from "@/features/isochrones/isochrone-view";
-import {
-  PRESET_GRADIENT_STOPS,
-  presetReachCaveat,
-  presetReachExplainer,
-} from "@/features/isochrones/preset-view";
-import type { CarMeta, Mode } from "@/features/map/selection-flow";
+import { PRESET_GRADIENT_STOPS, presetReachExplainer } from "@/features/isochrones/preset-view";
+import type { Mode } from "@/features/map/selection-flow";
 
 /**
  * Selected-address card: the resolved label + the phone-first PRESET reach legend
- * and honest copy, or the failure message. Pure presentation of the selection
+ * and explainer, or the failure message. Pure presentation of the selection
  * machine's state. The legend + explainer derive from the SELECTED preset minute
  * (walk 10/20, transit 20/40, car 10/25), so they can never claim a reach the map
- * isn't drawing (phone-first). The honesty caveat states that the reach
- * is a typical-street estimate that can overstate near barriers — a BINDING
- * release blocker, checked for overstatement in neither direction.
+ * isn't drawing (phone-first). The mode's caveat and the transit note live in
+ * the info popover (InfoControl), which every map state shows.
  */
 
 interface SelectionCardProps {
@@ -23,19 +18,12 @@ interface SelectionCardProps {
   /** The selected preset minute (the reach edge). */
   selectedMin: number;
   loading: boolean;
-  /** Transit only: the resolved representative departure + summary, so we can
-   * honestly qualify the reach (schedule-based, no live traffic). */
-  departure?: { iso: string; summary: string } | null;
-  /** Car only: the resolved reach basis + traffic slot, so the note can name
-   * WHICH traffic the estimate assumed. */
-  car?: CarMeta | null;
 }
 
-export default function SelectionCard({ label, message, mode, selectedMin, loading, departure, car }: SelectionCardProps) {
+export default function SelectionCard({ label, message, mode, selectedMin, loading }: SelectionCardProps) {
   if (!label && !message && !loading) return null;
   const modeColor = MODE_ACCENT[mode];
   const stops = PRESET_GRADIENT_STOPS[mode];
-  const caveat = presetReachCaveat(mode);
   return (
     <div
       aria-live="polite"
@@ -98,24 +86,6 @@ export default function SelectionCard({ label, message, mode, selectedMin, loadi
           <p data-testid="ring-explainer" className="mt-2 text-[0.68rem] leading-4 text-[#9ca9a0]">
             {presetReachExplainer(mode, selectedMin)}
           </p>
-          {caveat ? (
-            <p data-testid="reach-caveat" className="mt-2 text-[0.66rem] leading-4 text-[#667269]">
-              {caveat}
-            </p>
-          ) : null}
-          {mode === "transit" && departure ? (
-            <p data-testid="transit-departure-note" className="mt-2 text-[0.68rem] leading-4 text-[#667269]">
-              Scheduled public transport for <span className="text-[#9ca9a0]">{departure.summary}</span> — from
-              published timetables. Metro isn’t affected by road traffic (often the fastest option at peak); bus and
-              tram times follow the timetable and can run longer in heavy traffic.
-            </p>
-          ) : null}
-          {mode === "car" ? (
-            <p data-testid="car-estimate-note" className="mt-2 text-[0.68rem] leading-4 text-[#667269]">
-              Drive-time reach for <span className="text-[#9ca9a0]">{car?.slotLabel ?? "typical"}</span> traffic — an
-              estimate from typical congestion patterns, not live traffic.
-            </p>
-          ) : null}
         </>
       )}
     </div>

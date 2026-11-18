@@ -27,9 +27,6 @@ export interface TimePreset {
   clock: string;
   /** The clock toggle's accessible name: the departure time, and why it was chosen. */
   ariaLabel: string;
-  /** Natural time-phrase for the SelectionCard honesty sentence
-   *  ("Scheduled public transport for {phrase}"). */
-  phrase: string;
   weekday: number;
   hour: number;
   minute: number;
@@ -42,7 +39,6 @@ export const TIME_PRESETS: Record<TimePresetId, TimePreset> = {
     id: "crowded",
     clock: "8:30",
     ariaLabel: "Plecare la 8:30 (ora de vârf)",
-    phrase: "a weekday rush hour",
     weekday: 3,
     hour: 8,
     minute: 30,
@@ -55,7 +51,6 @@ export const TIME_PRESETS: Record<TimePresetId, TimePreset> = {
     // not what "quieter" should imply.
     clock: "12:30",
     ariaLabel: "Plecare la 12:30",
-    phrase: "a quieter midday",
     weekday: 3,
     hour: 12,
     minute: 30,
@@ -87,12 +82,6 @@ export interface DepartureFields {
 export function departureFields(tc: TimeContext): DepartureFields {
   const p = TIME_PRESETS[tc.preset];
   return { weekday: p.weekday, hour: p.hour, minute: p.minute };
-}
-
-/** Natural time-phrase for the UI honesty copy — reads correctly inside
- * "Scheduled public transport for {…}" (never a preset id or clock text). */
-export function timeContextSummary(tc: TimeContext): string {
-  return TIME_PRESETS[tc.preset].phrase;
 }
 
 /**

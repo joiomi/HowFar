@@ -237,11 +237,11 @@ below), so those are lower-bound samples.
   rings (a street detour around a river/rail barrier), but a LARGER magnitude at 10/20 (worst +10.8)
   than the 45-minute control's +5.9-minute worst sector, and not re-measured against a same-run
   15/30/45 control on this bearing set. It is an **accepted, documented limitation**: the walk
-  reach caveat in the UI says times are typical street-walking times and the real reach can be
-  noticeably shorter near a river or rail line (`presetReachCaveat` in `preset-view.ts`). The
-  40-minute range is not a served walk reach (it exists only for the transit union); its lone
-  over-bar sector, Militari +13.5 / 8 %, is the western rail + A1 corridor (the same barrier class),
-  and its transit role is validated directly below. Two cells (Unirii / Grozăvești at 10 min, 11/12
+  reach caveat in the UI (the info popover) says times are estimated along streets and that near a
+  river or rail line the trip can take longer than the map shows (`presetReachCaveat` in
+  `preset-view.ts`). The 40-minute range is not a served walk reach (it exists only for the
+  transit union); its lone over-bar sector, Militari +13.5 / 8 %, is the western rail + A1
+  corridor (the same barrier class), and its transit role is validated directly below. Two cells (Unirii / Grozăvești at 10 min, 11/12
   samples) drop a boundary point that falls in a network-unroutable void; both reproduce identically
   across independent runs (structural, not noise), so Grozăvești's 10-minute 18 % over-claim is over
   n=11. The sampling instrument marches to the OUTERMOST reachable point across every MultiPolygon
@@ -268,9 +268,10 @@ below), so those are lower-bound samples.
   central-origin bar held; coverage complete. **Known limitation:** at the periphery, in specific
   directions with infrequent service, a reachability contour can be optimistic against a specific
   departure's journey. The Berceni SE and Militari tails are that; it is a property of the transit
-  field at every threshold, not of the 20/40 presets. The transit caveat in the UI says the real
-  reach can be noticeably shorter at the city's edges. A transit-field re-calibration across more
-  peripheral origins has not been done. Receipt: `scripts/calibrate/receipts/transit-2026-09-03.json`.
+  field at every threshold, not of the 20/40 presets. The transit caveat in the UI (the info
+  popover) says that at the city's edge the trip can take longer than the map shows. A
+  transit-field re-calibration across more peripheral origins has not been done. Receipt:
+  `scripts/calibrate/receipts/transit-2026-09-03.json`.
 
 ### Car traffic realism — calibrated congestion factor over ORS free-flow ✅ PICKED
 
@@ -404,9 +405,12 @@ No air-quality or climate code exists yet. If it is built, this is the pick:
 - **Attribution obligation (not just OSM):** the Protomaps basemap bundles more than OpenStreetMap:
   **ESA WorldCover landcover under CC BY 4.0** (via Daylight; requires a visible credit + licence
   link + a "modified" indication), Natural Earth (public domain), and the Mapzen/`tangrams/icons` POI
-  sprite (MIT). These are shown by the map's attribution control (`src/features/map/map-setup.ts`)
-  and in the README. A tile-source or extent change must re-check them. Details and the remaining
-  gaps (raw-archive metadata, exact ESA vintage) are in `docs/SELFHOST.md`, "Caveats".
+  sprite (MIT). The map's info popover (`src/features/map/InfoControl.tsx`, links from
+  `src/features/map/credits.ts`, which the style attribution in `map-setup.ts` also uses) shows
+  them in every map state and opens by itself for 5 s when the map first loads; MapLibre's own
+  attribution control is off. They are also in the README. A tile-source or extent change must
+  re-check them. Details and the remaining gaps (raw-archive metadata, exact ESA vintage) are in
+  `docs/SELFHOST.md`, "Caveats".
 - **Open item: glyphs and sprite are not self-hosted.** The basemap's font glyphs and sprite are
   fetched by the browser from `protomaps.github.io/basemaps-assets` (`map-setup.ts` `glyphs` /
   `sprite`). They are keyless static files, so no key reaches the client, but they are the one

@@ -342,9 +342,9 @@ describe("selectionReducer — setPace / setTimeContext", () => {
       token: 1,
       origin: ORIGIN,
       label: "X",
-      departure: { iso: "2026-07-29T05:30:00.000Z", summary: "Weekday morning" },
+      departure: { iso: "2026-07-29T05:30:00.000Z" },
     });
-    expect(s.departure).toEqual({ iso: "2026-07-29T05:30:00.000Z", summary: "Weekday morning" });
+    expect(s.departure).toEqual({ iso: "2026-07-29T05:30:00.000Z" });
     const walk = selectionReducer(start("walk"), { type: "resolved", token: 1, origin: ORIGIN, label: "X" });
     expect(walk.departure).toBeNull();
   });
@@ -355,7 +355,7 @@ describe("selectionReducer — setPace / setTimeContext", () => {
       token: 1,
       origin: ORIGIN,
       label: "X",
-      departure: { iso: "2026-07-29T05:30:00.000Z", summary: "a weekday rush hour" },
+      departure: { iso: "2026-07-29T05:30:00.000Z" },
     });
     expect(resolved.departure).not.toBeNull();
     // A time-context change recompute (preserveLast) must drop the stale departure
