@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { pickMode, search } from "./shell";
+import { besidePin, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Visual right-click journey on the phone-first preset client: a right-click
@@ -165,8 +165,9 @@ async function toTransit(page: Page, map: ReturnType<Page["getByTestId"]>) {
   await expect(map).toHaveAttribute("data-mode", "transit");
 }
 
-async function rightClickCentre(page: Page) {
-  await rightClickAt(page, 0.5, 0.5);
+async function rightClickBesidePin(page: Page) {
+  const at = await besidePin(page);
+  await page.mouse.click(at.x, at.y, { button: "right" });
 }
 // Right-click at a fractional position of the canvas (so a second click can land
 // on a DIFFERENT point for the supersede test — both still inside the big rings).
@@ -184,7 +185,7 @@ test("transit right-click DRAWS the journey", async ({ page }) => {
   const { map } = await setup(page);
   await searchAndWait(page, map);
   await toTransit(page, map);
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
 
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   // 3 leg lines drawn (WALK + BUS + WALK), stamped once the source holds features.
@@ -215,7 +216,7 @@ test("supersede: a second right-click draws ONLY the latest plan", async ({ page
   const { map } = await setup(page);
   await searchAndWait(page, map);
   await toTransit(page, map);
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
 
   // The next /api/reach returns a different 2-leg plan; right-click a new point
@@ -232,7 +233,7 @@ test("starting a new selection mid-journey clears the draw", async ({ page }) =>
   const { map } = await setup(page);
   await searchAndWait(page, map);
   await toTransit(page, map);
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
 
   // A new address selection is a fresh selection → teardownReach via closeStopPopup.
@@ -246,7 +247,7 @@ test("hovering a popup step highlights its leg on the map", async ({ page }) => 
   const { map } = await setup(page);
   await searchAndWait(page, map);
   await toTransit(page, map);
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
 
   const steps = page.getByTestId("reach-panel").locator("li[data-step-mode]");
@@ -262,7 +263,7 @@ test("closing the popup clears the drawn journey", async ({ page }) => {
   const { map } = await setup(page);
   await searchAndWait(page, map);
   await toTransit(page, map);
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
 
   await page.getByRole("button", { name: "Back to your area" }).click();
@@ -275,7 +276,7 @@ test("switching mode mid-journey clears the draw", async ({ page }) => {
   const { map } = await setup(page);
   await searchAndWait(page, map);
   await toTransit(page, map);
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
 
   await pickMode(page, "walk");
@@ -286,7 +287,7 @@ test("switching mode mid-journey clears the draw", async ({ page }) => {
 test("walk-mode right-click AUTO-SWITCHES to Public transport and draws the journey", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
   await searchAndWait(page, map); // still in walk mode
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   // The single unified action: flip to Public transport + draw the trip.
   await expect(map).toHaveAttribute("data-mode", "transit");
   await expect(map).toHaveAttribute("data-reach-state", "transit");
@@ -306,7 +307,7 @@ test("car-mode right-click AUTO-SWITCHES to Public transport and draws the journ
   await searchAndWait(page, map);
   await pickMode(page, "car");
   await expect(map).toHaveAttribute("data-mode", "car");
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-mode", "transit");
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
   expect(reachCalls).toHaveLength(1);
@@ -327,7 +328,7 @@ test("camera race: a transit recompute that lands AFTER the plan does not clip t
     await route.fulfill({ json: TRANSIT });
   });
   await searchAndWait(page, map); // walk
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
   // Now let the delayed transit recompute land + settle its camera, THEN assert
   // the journey is still fully framed (a regression would fly to the origin last).
@@ -342,7 +343,7 @@ test("a walk-only plan → 'No public-transport route' (no walk-band answer), no
   await page.route("**/api/reach**", (route) => route.fulfill({ json: WALK_ONLY_PLAN }));
   await searchAndWait(page, map);
   await toTransit(page, map);
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
 
   await expect(page.getByTestId("reach-panel")).toContainText("No public-transport route");
   await expect(map).not.toHaveAttribute("data-reach-journey", /.*/);
@@ -363,7 +364,7 @@ test.skip("amenity Browse text filter SURVIVES opening + closing directions", as
   await expect(filter).toHaveValue("Mega");
   // Open directions — the dock swap hides the AmenityPanel but keeps it MOUNTED
   // (hidden + inert), so its ephemeral filter state must not be wiped.
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   await expect(filter).not.toBeVisible(); // hidden while directions active
   // Back restores the SAME panel with the filter text intact (no remount).

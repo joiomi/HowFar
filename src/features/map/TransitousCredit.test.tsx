@@ -11,5 +11,6 @@ describe("TransitousCredit", () => {
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noreferrer"');
     expect(html).toContain("© Transitous");
+    expect(html).toMatch(/^<a[^>]*class="[^"]*\bhf-floating\b/);
   });
 });

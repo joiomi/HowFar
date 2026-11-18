@@ -1,4 +1,4 @@
-import type { JSX, KeyboardEvent, MouseEvent, PointerEvent } from "react";
+import type { FocusEvent, JSX, KeyboardEvent, MouseEvent, PointerEvent } from "react";
 
 import { INFO_LABEL, infoContent } from "@/features/map/copy";
 import { BASEMAP_CREDITS, TRANSITOUS_SOURCES_URL, type CreditLink } from "@/features/map/credits";
@@ -51,6 +51,18 @@ export default function InfoControl({ open, onOpenChange, mode, transitState }: 
   function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
     event.currentTarget.dataset.intent = open ? "close" : "open";
   }
+  // A press that never reaches a click (cancelled, dragged off the button, or the button lost
+  // focus) leaves no intent behind. A touch lifting off the button fires its pointerleave
+  // before the click, so only a pointer still held down counts as dragged off.
+  function onPressAborted(event: { currentTarget: HTMLButtonElement }) {
+    delete event.currentTarget.dataset.intent;
+  }
+  function onPointerLeave(event: PointerEvent<HTMLButtonElement>) {
+    if (event.buttons !== 0) onPressAborted(event);
+  }
+  function onBlur(event: FocusEvent<HTMLButtonElement>) {
+    onPressAborted(event);
+  }
   function onClick(event: MouseEvent<HTMLButtonElement>) {
     const intent = event.currentTarget.dataset.intent;
     delete event.currentTarget.dataset.intent;
@@ -70,6 +82,9 @@ export default function InfoControl({ open, onOpenChange, mode, transitState }: 
         aria-expanded={open}
         aria-controls="info-popover"
         onPointerDown={onPointerDown}
+        onPointerCancel={onPressAborted}
+        onPointerLeave={onPointerLeave}
+        onBlur={onBlur}
         onClick={onClick}
         className="hf-floating pointer-events-auto absolute right-2.5 top-[68px] z-30 grid size-11 place-items-center md:right-4 md:top-4"
       >

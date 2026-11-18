@@ -137,8 +137,14 @@ interface ClusterHoverPreview {
   offset: number;
 }
 
+/** Whether a map event started on the origin pin: the pin has its own gestures (drag to move it). */
+function onOriginPin(ev?: Event): boolean {
+  return (ev?.target as Element | null)?.closest?.(".hf-origin-marker") != null;
+}
+
 export default function AppMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const selectRef = useRef<((input: SelectInput, opts?: { recompute?: boolean }) => void) | null>(null);
   // The most recent user SelectInput, so a pace/time change before the first
@@ -619,6 +625,7 @@ export default function AppMap() {
       cancelRingReveal,
       applyCameraPadding,
       closeStopPopup,
+      onOriginDragEnd: (at) => selectRef.current?.({ kind: "click", lat: at.lat, lng: at.lng }),
     });
     const { showOrigin, renderSelection, reselectPreset, clearSelection } = selectionRender;
     reselectPresetRef.current = reselectPreset;
@@ -873,10 +880,13 @@ export default function AppMap() {
     // selection bug. preventDefault always stops the browser menu.
     map.on("contextmenu", (e) => {
       e.originalEvent?.preventDefault?.();
+      if (onOriginPin(e.originalEvent)) return;
       if (touchActive) return;
       handleReach(e.lngLat);
     });
     map.on("touchstart", (e) => {
+      // A press on the origin pin is the start of a drag, never a long press.
+      if (onOriginPin(e.originalEvent)) return;
       touchActive = true;
       // A fresh press starts a fresh interaction: clear any stale suppression
       // left by a prior gesture whose synthetic click never arrived (else it
@@ -903,6 +913,8 @@ export default function AppMap() {
     // handler below decides).
     map.on("click", () => infoRef.current?.mapClick());
     map.on("click", (e) => {
+      // A tap on the origin pin is not a new selection.
+      if (onOriginPin(e.originalEvent)) return;
       // A long-press just fired the reach popup — swallow the follow-up click so
       // it doesn't also start a selection.
       if (suppressNextClick) {
@@ -1019,6 +1031,11 @@ export default function AppMap() {
       // A pan or zoom the user starts closes the ⓘ popover; a camera move the app
       // makes (framing a selection) has no originalEvent and leaves it open.
       infoRef.current?.moveStart(Boolean(e.originalEvent));
+      // The floating controls fade while a user gesture moves the map.
+      if (e.originalEvent && shellRef.current) shellRef.current.dataset.panning = "true";
+    });
+    map.on("moveend", () => {
+      if (shellRef.current) delete shellRef.current.dataset.panning;
     });
     map.on("dragend", () => {
       el.dataset.mapDrag = String(Number(el.dataset.mapDrag ?? "0") + 1);
@@ -1287,6 +1304,7 @@ export default function AppMap() {
       // during MapLibre load.
       className="hf-map-shell absolute inset-0 isolate"
       data-sel-status={sel.status}
+      ref={shellRef}
     >
       {/* The overlay plane stays pointer-transparent. Individual command/result
           surfaces opt back in, keeping the map usable through every gap. */}

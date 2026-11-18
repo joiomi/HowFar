@@ -49,6 +49,7 @@ export function createSelectionRender({
   cancelRingReveal,
   applyCameraPadding,
   closeStopPopup,
+  onOriginDragEnd,
 }: {
   map: maplibregl.Map;
   el: HTMLElement;
@@ -60,6 +61,8 @@ export function createSelectionRender({
   cancelRingReveal: (clearReadback?: boolean) => void;
   applyCameraPadding: () => EdgeInsets;
   closeStopPopup: () => void;
+  /** The pin was dragged and dropped at `at`: the caller selects that point. */
+  onOriginDragEnd: (at: { lat: number; lng: number }) => void;
 }) {
   let marker: maplibregl.Marker | null = null;
   // The last resolved rings/mode/origin, so a chip change (reselectPreset) can
@@ -124,11 +127,11 @@ export function createSelectionRender({
       const core = document.createElement("span");
       core.className = "hf-origin-marker__core";
       markerElement.append(aura, core);
-      marker = new (mapGl().Marker)({ element: markerElement, anchor: "center" });
-      // Pointer-transparent: the origin pin is display-only, so it must never
-      // swallow a click/hover meant for an amenity marker underneath (so an
-      // exact-origin transit stop stays clickable).
-      marker.getElement().style.pointerEvents = "none";
+      // The pin is the one draggable thing on the map: dropping it selects that point.
+      // The marker is built once and only moved after that, so this listener is added once.
+      marker = new (mapGl().Marker)({ element: markerElement, anchor: "center", draggable: true });
+      const built = marker;
+      marker.on("dragend", () => onOriginDragEnd(built.getLngLat()));
     }
     marker.getElement().style.setProperty("--hf-origin-color", MARKER_COLOR[mode]);
     marker.setLngLat([origin.lng, origin.lat]).addTo(map);

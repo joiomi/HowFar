@@ -170,15 +170,32 @@ button,
   background-color: rgba(255, 255, 255, 0.08);
 }
 
+/* Floating controls dim while the map pans, so the map under them can be seen. */
+.hf-floating {
+  transition: opacity 0.2s;
+}
+
+.hf-map-shell[data-panning="true"] .hf-floating {
+  opacity: 0.3;
+}
+
+/* Phones zoom by pinch: the zoom buttons only show from 768 px. */
+@media (max-width: 767.98px) {
+  .hf-map-shell .maplibregl-ctrl-bottom-right {
+    display: none;
+  }
+}
+
 .hf-map-shell .maplibregl-ctrl-logo {
   filter: grayscale(1) brightness(1.8);
 }
 
 .hf-origin-marker {
   position: relative;
-  width: 32px;
-  height: 32px;
-  pointer-events: none;
+  width: 44px;
+  height: 44px;
+  cursor: grab;
+  touch-action: none;
 }
 
 .hf-origin-marker__aura,

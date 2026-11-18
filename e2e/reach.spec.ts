@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectBannerClear, pickMode, search } from "./shell";
+import { besidePin, expectBannerClear, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Right-click "how do I get there?". Provider calls stubbed by EXACT
@@ -82,6 +82,13 @@ async function rightClickCentre(page: Page) {
   await canvas.click({ button: "right", position: { x: Math.round(box.width / 2), y: Math.round(box.height / 2) } });
 }
 
+// Native right-click on bare map beside the origin pin (the pin sits at the centre once a
+// place is selected, and a press on it is the pin's, not the map's).
+async function rightClickBesidePin(page: Page) {
+  const at = await besidePin(page);
+  await page.mouse.click(at.x, at.y, { button: "right" });
+}
+
 test("right-click with no selection shows the hint", async ({ page }) => {
   const { map } = await setup(page);
   await rightClickCentre(page);
@@ -89,10 +96,23 @@ test("right-click with no selection shows the hint", async ({ page }) => {
   await expect(page.getByTestId("reach-panel")).toContainText("Pick a starting point");
 });
 
+test("a right-click on the origin pin opens no directions", async ({ page }) => {
+  const { map, reachCalls } = await setup(page);
+  await searchAndWait(page, map);
+  const pin = await page.locator(".hf-origin-marker").boundingBox();
+  if (!pin) throw new Error("the origin pin has no box");
+  await page.mouse.click(pin.x + pin.width / 2, pin.y + pin.height / 2, { button: "right" });
+  // The sentinel: a right-click on bare map beside the pin plans the trip. Once it has, a plan
+  // for the pin would already have been requested; there is exactly the sentinel's.
+  await rightClickBesidePin(page);
+  await expect(map).toHaveAttribute("data-reach-state", "transit");
+  expect(reachCalls).toHaveLength(1);
+});
+
 test("Escape closes the directions even after focus has left the panel", async ({ page }) => {
   const { map } = await setup(page);
   await searchAndWait(page, map);
-  await rightClickCentre(page); // any-mode right-click → transit directions
+  await rightClickBesidePin(page); // any-mode right-click → transit directions
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   // Move focus off the panel to the map container (tabIndex=-1) — a panel-scoped
   // Escape handler would go dead here; the document-level one must still close.
@@ -105,7 +125,7 @@ test("Escape closes the directions even after focus has left the panel", async (
 test("walk mode: right-click auto-switches to Public transport and plans the trip", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
   await searchAndWait(page, map); // walk mode
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   // No more walk-band answer — right-click always means "get me there by PT".
   await expect(map).toHaveAttribute("data-mode", "transit");
   await expect(map).toHaveAttribute("data-reach-state", "transit");
@@ -121,7 +141,7 @@ test("public-transport mode: right-click shows the planned trip with a specific 
   await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
 
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   const panel = page.getByTestId("reach-panel");
   await expect(panel).toContainText("By public transport");
@@ -144,7 +164,7 @@ test("directions open the result sheet — it holds only the directions, no reac
   // Before the right-click: a chosen place opens no sheet.
   await expect(sheet).toHaveCount(0);
 
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   // The directions render IN the result sheet (not a map-anchored popup)…
   await expect(sheet.getByTestId("reach-panel")).toBeVisible();
@@ -184,7 +204,7 @@ test("public-transport mode: a point outside the drawn rings STILL plans the tri
   // the client frames against the reach it actually draws, never a hidden 40/45
   // contour) and the planner IS called (honesty comes from the drawn path +
   // band-honesty copy, not a silent no-fetch).
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   await expect(page.getByTestId("reach-panel")).toContainText("By public transport");
   expect(reachCalls).toHaveLength(1);
@@ -207,7 +227,7 @@ test("public-transport mode: no route found is reported", async ({ page }) => {
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await searchAndWait(page, map);
   await pickMode(page, "transit");
-  await rightClickCentre(page);
+  await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-state", "none");
   await expect(page.getByTestId("reach-panel")).toContainText("No public-transport route");
 });

@@ -80,6 +80,9 @@ test("landing page renders the map shell and finishes loading tiles", async ({ p
   await expect(popover).toBeHidden({ timeout: 8_000 });
   await expect(page.getByTestId("info-button")).toBeVisible();
 
+  // The zoom buttons are hidden below 768 px (pinch zooms there); on a desktop they stay.
+  await expect(page.getByRole("button", { name: "Mărește" })).toBeVisible();
+
   await expect(page.locator("html")).toHaveAttribute("lang", "ro");
   await expect(page).toHaveTitle("HowFar — până unde ajungi în București");
 

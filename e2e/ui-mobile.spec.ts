@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  besidePin,
   expectBasemapCredits,
   expectNotCovered,
   modeButton,
@@ -272,10 +273,10 @@ test.skip("touch journey stays usable through selection, results, inspection, ma
 });
 
 // The floating mode pill must fit a narrow phone: every control is a ≥40px target,
-// the whole pill stays inside the viewport with no horizontal scroll, and it never
-// sits on top of the bottom-right zoom control — in its narrowest state (walk, with
-// the turtle) and its widest (a non-walk mode showing the 12:30 departure).
-test("mode pill: every button is ≥ 40 px, inside the viewport at 390 and 375 px, with no horizontal scroll and no overlap with the zoom control", async ({
+// the whole pill stays inside the viewport with no horizontal scroll, and a phone shows
+// no zoom buttons (pinch zooms there) — in its narrowest state (walk, with the turtle)
+// and its widest (a non-walk mode showing the 12:30 departure).
+test("mode pill: every button is ≥ 40 px, inside the viewport at 390 and 375 px, with no horizontal scroll, and the zoom buttons are hidden", async ({
   page,
 }) => {
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
@@ -285,8 +286,6 @@ test("mode pill: every button is ≥ 40 px, inside the viewport at 390 and 375 p
 
   const pill = page.getByTestId("mode-pill");
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
-  const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
-    !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y);
 
   async function expectPillFits(viewport: { width: number; height: number }) {
     await page.setViewportSize(viewport);
@@ -309,10 +308,7 @@ test("mode pill: every button is ≥ 40 px, inside the viewport at 390 and 375 p
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
     ).toBe(true);
-    await expect(zoomIn).toBeVisible();
-    const zb = await zoomIn.boundingBox();
-    if (!zb) throw new Error("zoom control has no box");
-    expect(overlaps(pb, zb)).toBe(false);
+    await expect(zoomIn).toBeHidden();
   }
 
   const phones = [
@@ -365,11 +361,8 @@ test("mobile: long-press transit directions show a compact card and draw the jou
   await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
 
-  const canvas = page.locator(".maplibregl-canvas");
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("no canvas");
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
+  // Beside the origin pin: a press on the pin itself is the pin's, not the map's.
+  const { x: cx, y: cy } = await besidePin(page);
   const session = await page.context().newCDPSession(page);
   const pt = (x: number, y: number) => [{ x, y, radiusX: 3, radiusY: 3, force: 1, id: 1 }];
 
@@ -432,11 +425,8 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   await expect(map).toHaveAttribute("data-mode", "walk"); // start in WALK — do NOT switch manually
 
-  const canvas = page.locator(".maplibregl-canvas");
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("no canvas");
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
+  // Beside the origin pin: a press on the pin itself is the pin's, not the map's.
+  const { x: cx, y: cy } = await besidePin(page);
   const session = await page.context().newCDPSession(page);
   const pt = (x: number, y: number) => [{ x, y, radiusX: 3, radiusY: 3, force: 1, id: 1 }];
 
@@ -456,6 +446,59 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
   // The directions open the result sheet, which holds them and nothing else.
   await expect(page.getByTestId("result-sheet").getByTestId("reach-panel")).toBeVisible();
+});
+
+// A press and hold on the origin pin begins a drag of the pin; it must not also open
+// directions. A long press on bare map beside it afterwards does, and is the signal that the
+// gesture works in this run: exactly one plan was fetched, and it was that one's.
+test("mobile: a long press on the origin pin opens no directions", async ({ page }) => {
+  const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+  const reachCalls: string[] = [];
+  await page.route("**/api/geocode**", (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }));
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings } }));
+  await page.route("**/api/transit**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings, departure: "2026-07-29T05:30:00.000Z" } }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+  await page.route("**/api/reach**", (route) => {
+    reachCalls.push(route.request().url());
+    route.fulfill({
+      json: {
+        reachable: true,
+        totalMinutes: 20,
+        transfers: 0,
+        legs: [
+          { mode: "WALK", fromName: "START", toName: "Board", minutes: 4, from: { lat: 44.4268, lng: 26.1025 }, to: { lat: 44.435, lng: 26.105 }, path: [[26.1025, 44.4268], [26.105, 44.435]] },
+          { mode: "TRAM", line: "1", headsign: "Nord", fromName: "Board", toName: "Alight", minutes: 16, from: { lat: 44.435, lng: 26.105 }, to: { lat: 44.45, lng: 26.07 }, path: [[26.105, 44.435], [26.07, 44.45]] },
+        ],
+      },
+    });
+  });
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+
+  const marker = await page.locator(".hf-origin-marker").boundingBox();
+  if (!marker) throw new Error("the origin pin has no box");
+  const session = await page.context().newCDPSession(page);
+  const pt = (x: number, y: number) => [{ x, y, radiusX: 3, radiusY: 3, force: 1, id: 1 }];
+  const hold = async (x: number, y: number) => {
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pt(x, y) });
+    await page.waitForTimeout(650); // > long-press hold threshold, no move
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  };
+
+  await hold(marker.x + marker.width / 2, marker.y + marker.height / 2);
+  const beside = await besidePin(page);
+  await expect(async () => {
+    await hold(beside.x, beside.y);
+    await expect(map).toHaveAttribute("data-mode", "transit", { timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(map).toHaveAttribute("data-reach-state", "transit");
+  expect(reachCalls).toHaveLength(1);
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
 });
 
 // A long-press from Walk switches to public transport and plans the trip. When that
@@ -490,11 +533,8 @@ test("mobile: a failed transit reach under open directions keeps the Transitous 
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   await expect(map).toHaveAttribute("data-mode", "walk");
 
-  const canvas = page.locator(".maplibregl-canvas");
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("no canvas");
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
+  // Beside the origin pin: a press on the pin itself is the pin's, not the map's.
+  const { x: cx, y: cy } = await besidePin(page);
   const session = await page.context().newCDPSession(page);
   const pt = (x: number, y: number) => [{ x, y, radiusX: 3, radiusY: 3, force: 1, id: 1 }];
   // Retry the long-press until the directions register (robust to a dropped gesture).
@@ -974,9 +1014,8 @@ test("blocked storage still loads, selects and shows the hint once", async ({ pa
   await expect(toast).toHaveCount(0, { timeout: 6_000 });
 
   // A second place in the same page brings no second hint.
-  const box = await map.boundingBox();
-  if (!box) throw new Error("map has no box");
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  const second = await besidePin(page);
+  await page.touchscreen.tap(second.x, second.y);
   await expect(map).toHaveAttribute("data-selection", "Al doilea punct");
   await page.waitForTimeout(1_000);
   expect(await toast.count()).toBe(0);

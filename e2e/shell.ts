@@ -85,7 +85,7 @@ export async function sampleMapClearPercent(page: Page): Promise<number> {
 
 // Fails unless the element is the topmost thing along its middle: at five points across
 // its width (10%, 30%, 50%, 70% and 90%, at half its height) the hit is the element itself
-// or something inside it. Visibility alone passes for a credit another floating control
+// or something inside it, and neither it nor an ancestor is faded below half opacity. Visibility alone passes for a credit another floating control
 // sits on top of, and a centre-only probe passes for one covered at an end; this proves it
 // can be read and tapped.
 export async function expectNotCovered(locator: Locator): Promise<void> {
@@ -94,6 +94,12 @@ export async function expectNotCovered(locator: Locator): Promise<void> {
     .poll(
       () =>
         locator.evaluate((element) => {
+          // A control faded below half opacity (the floating controls dim while the map pans) is
+          // not usable, whatever sits on top of it: fail with the opacity instead of passing.
+          for (let node: Element | null = element; node; node = node.parentElement) {
+            const opacity = Number(getComputedStyle(node).opacity);
+            if (opacity < 0.5) return `faded (opacity ${opacity})`;
+          }
           const box = element.getBoundingClientRect();
           const y = box.top + box.height / 2;
           const covered = [0.1, 0.3, 0.5, 0.7, 0.9].filter((f) => {
@@ -130,6 +136,15 @@ export async function expectBannerClear(page: Page): Promise<void> {
     await expectNotCovered(button);
   }
   await expectNotCovered(page.getByTestId("info-button"));
+}
+
+// A page point on the bare map beside the origin pin: the canvas centre plus 80 px to the
+// right, in page coordinates. The pin sits at the centre once a place is selected, so a press
+// there would grab the pin; presses meant for the map go here.
+export async function besidePin(page: Page): Promise<{ x: number; y: number }> {
+  const box = await page.locator(".maplibregl-canvas").boundingBox();
+  if (!box) throw new Error("the map canvas has no box");
+  return { x: box.x + box.width / 2 + 80, y: box.y + box.height / 2 };
 }
 
 // Open the ⓘ popover with its button and return it. A popover that is already open may be

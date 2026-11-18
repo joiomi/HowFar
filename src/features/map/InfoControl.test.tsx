@@ -155,6 +155,40 @@ describe("InfoControl", () => {
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 
+  it("an aborted press leaves no intent behind, so the next keyboard click toggles", () => {
+    const onOpenChange = vi.fn();
+    const props = (open: boolean) => {
+      const el = find(InfoControl({ open, onOpenChange, mode: "walk", transitState: false }), (e) => e.type === "button");
+      if (!el) throw new Error("no info button");
+      return el.props as Record<"onPointerDown" | "onPointerCancel" | "onPointerLeave" | "onBlur" | "onClick", (e: unknown) => void>;
+    };
+    const aborts: Array<[string, (target: unknown) => void]> = [
+      ["pointercancel", (currentTarget) => props(false).onPointerCancel({ currentTarget })],
+      ["leaving while still pressed", (currentTarget) => props(false).onPointerLeave({ currentTarget, buttons: 1 })],
+      ["blur", (currentTarget) => props(false).onBlur({ currentTarget })],
+    ];
+    for (const [name, abort] of aborts) {
+      onOpenChange.mockClear();
+      const target = { dataset: {} as Record<string, string | undefined> };
+      props(false).onPointerDown({ currentTarget: target });
+      abort(target);
+      expect(target.dataset.intent, name).toBeUndefined();
+      // A keyboard click while the popover is open closes it; a stale "open" intent would not.
+      props(true).onClick({ currentTarget: target });
+      expect(onOpenChange, name).toHaveBeenLastCalledWith(false);
+    }
+  });
+
+  it("a touch lifting off the button before its click keeps the press's intent", () => {
+    const onOpenChange = vi.fn();
+    const el = find(InfoControl({ open: true, onOpenChange, mode: "walk", transitState: false }), (e) => e.type === "button");
+    const props = el?.props as Record<"onPointerDown" | "onPointerLeave" | "onClick", (e: unknown) => void>;
+    const target = { dataset: {} as Record<string, string | undefined> };
+    props.onPointerDown({ currentTarget: target });
+    props.onPointerLeave({ currentTarget: target, buttons: 0 });
+    expect(target.dataset.intent).toBe("close");
+  });
+
   it("Escape closes an open popover and returns focus to the button; other keys and a closed popover are left alone", () => {
     const onOpenChange = vi.fn();
     const focus = vi.fn();

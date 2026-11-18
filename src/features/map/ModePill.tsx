@@ -58,7 +58,7 @@ export default function ModePill({
   return (
     <div
       data-testid="mode-pill"
-      className="hf-mode-pill pointer-events-auto absolute bottom-3 left-3 z-30 flex items-center gap-0.5 rounded-full border border-[var(--hf-border)] bg-[var(--hf-panel)] p-[3px] shadow-[0_12px_30px_rgba(0,0,0,.4)] backdrop-blur-xl md:bottom-auto md:left-4 md:top-[5.25rem]"
+      className="hf-mode-pill hf-floating pointer-events-auto absolute bottom-3 left-3 z-30 flex items-center gap-0.5 rounded-full border border-[var(--hf-border)] bg-[var(--hf-panel)] p-[3px] shadow-[0_12px_30px_rgba(0,0,0,.4)] backdrop-blur-xl md:bottom-auto md:left-4 md:top-[5.25rem]"
     >
       <div role="group" aria-label="Cum te deplasezi" className="flex items-center gap-0.5">
         {MODES.map((m) => {

@@ -50,6 +50,7 @@ describe("ModePill", () => {
     const html = render();
     expect(html).toMatch(/<div[^>]*role="group"[^>]*aria-label="Cum te deplasezi"/);
     expect(openTag(html, "mode-pill")).toContain("hf-mode-pill");
+    expect(openTag(html, "mode-pill")).toMatch(/class="[^"]*\bhf-floating\b/);
     const walk = openTag(html, "mode-icon-walk");
     expect(walk).toContain('aria-label="Pe jos"');
     expect(walk).toContain('aria-pressed="true"');
