@@ -712,10 +712,8 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
         .catch(() => {});
 
       // Runtime-added images do not survive a style reload, and an icon layer whose
-      // sprite is gone paints bare dots. This handler was DOCUMENTED here but never
-      // actually registered — the comment claimed a safety
-      // net that did not exist. `registerAmenityIcons` is idempotent, so re-running it
-      // on demand is safe.
+      // sprite is gone paints bare dots; re-register the icons on demand
+      // (`registerAmenityIcons` is idempotent).
       map.on("styleimagemissing", (e) => {
         if (!String(e.id ?? "").startsWith("amenity-icon-")) return;
         void registerAmenityIcons(map)
