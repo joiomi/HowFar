@@ -46,7 +46,7 @@ const ONE_TO_ALL_PATH = "/api/v6/one-to-all";
 // attempt aborts at the budget signal, and the retry only fires when a real
 // attempt's worth of budget remains — so worst case stays ~one attempt, not 2×.
 export const ONE_TO_ALL_BUDGET_MS = 24_000;
-export const ONE_TO_ALL_RETRY_MIN_REMAINING_MS = 5_000; // don't retry without room for a real attempt
+const ONE_TO_ALL_RETRY_MIN_REMAINING_MS = 5_000; // don't retry without room for a real attempt
 const ONE_TO_ALL_RETRY_BACKOFF_MS = 250;
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_TRAVEL_MIN = THRESHOLDS[THRESHOLDS.length - 1]; // 45

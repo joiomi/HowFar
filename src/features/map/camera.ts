@@ -11,11 +11,11 @@ export const DOCK_BREAKPOINT_PX = 768;
 
 /** 16px page edge + 388px rail + 16px map breathing room. */
 export const DOCK_CAMERA_PAD_LEFT_PX = 420;
-export const SHORT_LANDSCAPE_MAX_HEIGHT_PX = 520;
+const SHORT_LANDSCAPE_MAX_HEIGHT_PX = 520;
 export const SHORT_LANDSCAPE_CAMERA_PAD_TOP_PX = 168;
 export const SHORT_LANDSCAPE_CAMERA_PAD_BOTTOM_PX = 132;
 
-export const SHORT_VIEWPORT_HEIGHT_PX = 700;
+const SHORT_VIEWPORT_HEIGHT_PX = 700;
 export const MOBILE_CAMERA_PAD_TOP_PX = 188;
 export const MOBILE_CAMERA_PAD_BOTTOM_PX = 228;
 export const MOBILE_SHORT_CAMERA_PAD_TOP_PX = 152;

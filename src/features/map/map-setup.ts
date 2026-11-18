@@ -239,8 +239,8 @@ export function addRoutePathLayers(map: LayerHost): void {
  * the drawn trip reads in the same visual language as the rings. Board/alight
  * dots are emphasized; transfers are a quieter hollow dot; the highlight layers
  * pulse a near-white figure when a popup step is hovered. */
-export const REACH_WALK_COLOR = "#2dd4bf"; // --hf-walk
-export const REACH_TRANSIT_COLOR = "#a78bfa"; // --hf-transit
+const REACH_WALK_COLOR = "#2dd4bf"; // --hf-walk
+const REACH_TRANSIT_COLOR = "#a78bfa"; // --hf-transit
 const REACH_CASING = "#09090b";
 const REACH_HIGHLIGHT = "#fafafa";
 

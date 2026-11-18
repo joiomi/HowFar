@@ -20,7 +20,7 @@
  * after full materialization. Generous vs real Bucharest legs (~30–70 points /
  * ~260 chars observed); the point cap is the real payload bound. */
 export const MAX_POLYLINE_POINTS = 4000;
-export const MAX_ENCODED_CHARS = 64_000;
+const MAX_ENCODED_CHARS = 64_000;
 
 function inRange(lat: number, lng: number): boolean {
   return (

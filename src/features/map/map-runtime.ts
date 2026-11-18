@@ -31,8 +31,3 @@ export function mapGl(): MapGl {
   }
   return gl;
 }
-
-/** Test-only reset so a suite that installs a fake runtime does not leak into the next. */
-export function __resetMapGlForTest(): void {
-  gl = null;
-}

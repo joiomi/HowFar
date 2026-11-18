@@ -71,7 +71,7 @@ export const PLAN_MAX_POST_TRANSIT_S = 2700;
  * `effectivePace`) + OSM-routed transfers. Divergent walking
  * semantics between the two calls is another painted-vs-planned mismatch
  * source. Sourced from PACE_MODEL so the two calls can never drift apart. */
-export const PLAN_PEDESTRIAN_SPEED_MS = PACE_MODEL.normal.pedestrianSpeedMs;
+const PLAN_PEDESTRIAN_SPEED_MS = PACE_MODEL.normal.pedestrianSpeedMs;
 /** Legs-per-itinerary cap (payload bound). Bucharest trips run ~3–9 legs; a
  * value well above that drops only degenerate/hostile responses. */
 const MAX_REACH_LEGS = 24;
