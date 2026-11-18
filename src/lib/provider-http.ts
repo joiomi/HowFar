@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 /**
  * Shared upstream-fetch plumbing for the server-side provider clients
- * (Nominatim, ORS, and later Overpass/Open-Meteo). Two jobs:
+ * (Nominatim, Photon, ORS, Transitous MOTIS, Overpass). Two jobs:
  *   1. A per-PROVIDER serialized rate limiter (bucket `provider@host`)
  *      — Nominatim's ToS mandates ≤1 req/s, and caching alone doesn't bound
  *      *distinct* cold requests. Keying on the provider (not the bare host) keeps

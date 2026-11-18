@@ -2,11 +2,11 @@ import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 
 /**
- * Server-side cache for external provider responses (Nominatim/ORS/
- * Open-Meteo) and hot local results (amenities catalogue summaries) so the
- * app stays inside free-tier quotas and avoids repeat PostGIS/provider work
- * (brief §10). Backed by the `ApiCache` table; `cacheKey` is the caller-chosen
- * identity of a request.
+ * Server-side cache for external provider responses (geocoding, routing,
+ * transit, Overpass) and hot local results (amenities catalogue summaries) so
+ * the app stays inside provider free-tier quotas and avoids repeat
+ * PostGIS/provider work. Backed by the `ApiCache` table; `cacheKey` is the
+ * caller-chosen identity of a request.
  *
  * A small process-local L1 sits in front of Postgres so warm keys in the same
  * Node process avoid a DB round-trip (single-instance friendly). L1 is
@@ -96,7 +96,7 @@ export async function setCached(key: string, value: unknown, expiresAt: Date): P
 /**
  * Best-effort cache accessors for the provider layer: the cache is an
  * optimisation, not a hard dependency, so a cache/DB failure must degrade to
- * "uncached" (the core map flow keeps working per brief §10) rather than fail
+ * "uncached" (the core map flow must survive a cache outage) rather than fail
  * the request. Use these from provider clients; use the strict getCached/
  * setCached where a DB error genuinely should surface (e.g. saved searches).
  */

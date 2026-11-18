@@ -9,8 +9,8 @@ datasource db {
 }
 
 // ---- Auth.js (NextAuth) adapter models ----
-// Standard @auth/prisma-adapter shape. SavedSearch + ApiCache (below) arrive
-// with M1 (brief §11): user-owned saved searches and an expiring cache for
+// Standard @auth/prisma-adapter shape. SavedSearch + ApiCache (below) are the
+// app's own models: user-owned saved searches and an expiring cache for
 // server-side provider responses.
 
 model User {
@@ -71,12 +71,12 @@ model VerificationToken {
   @@schema("public")
 }
 
-// ---- M1 foundation models ----
+// ---- Saved searches + provider cache ----
 
 /// A search a signed-in user chose to keep. `query` is the raw address text;
-/// lat/lng are the geocoded point. `params` is forward-compat headroom for the
-/// M2 report config (travel modes, minutes, score weights) — kept as opaque
-/// JSON so the schema need not change when M2 firms up its shape.
+/// lat/lng are the geocoded point. `params` is forward-compat headroom for a
+/// future report config (travel modes, minutes, score weights) — kept as opaque
+/// JSON so the schema need not change while that shape is undecided.
 model SavedSearch {
   id        String   @id @default(cuid())
   userId    String
@@ -94,8 +94,8 @@ model SavedSearch {
   @@schema("public")
 }
 
-/// Server-side cache for external provider responses (Nominatim/ORS/
-/// Open-Meteo) so the app stays inside free-tier quotas (brief §10). `value`
+/// Server-side cache for external provider responses (geocoding, routing,
+/// transit, Overpass) so the app stays inside provider free-tier quotas. `value`
 /// holds the raw JSON response; a read is a hit only while `expiresAt > now`.
 /// Expired rows are ignored on read but not deleted on the read path; the
 /// `deleteExpired` sweep (api-cache.ts, run on a cadence) reaps them using the

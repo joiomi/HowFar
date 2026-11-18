@@ -1,6 +1,6 @@
 /**
  * Amenities domain model — single source of truth for the five fixed POI
- * categories (brief §5: groceries, pharmacies, parks/green space, schools,
+ * categories (groceries, pharmacies, parks/green space, schools,
  * transit stops).
  *
  * Runtime discovery is local PostGIS (`queryCatalogueSummaryInRing`): the reach rings

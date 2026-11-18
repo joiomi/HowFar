@@ -198,8 +198,8 @@ function validateBaseUrl(name: string, raw: string): string {
 }
 
 /** ABSENT (key unset) → default; PRESENT-but-blank → EnvError; else validated.
- *  A blank value is a mistake, not "use the default": for the commercial
- *  self-host boundary a stray `ORS_BASE_URL=` must not silently fall back to a
+ *  A blank value is a mistake, not "use the default": for a self-host
+ *  deployment a stray `ORS_BASE_URL=` must not silently fall back to a
  *  public provider — fail closed and make the operator unset it deliberately. */
 function baseUrl(source: EnvSource, name: string, fallback: string): string {
   const raw = source[name];

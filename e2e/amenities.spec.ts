@@ -9,7 +9,7 @@ test.beforeEach(() => {
   test.skip(true, "Amenity UI is parked until the planned amenity pass; kept verbatim to re-enable then.");
 });
 
-// Amenities slice (M2 slice 3). Providers STUBBED by EXACT path (never /api/**,
+// Amenity providers are STUBBED by EXACT path (never /api/**,
 // which would swallow /api/tiles). Amenity fetch identity is origin × mode ×
 // effectivePace × timeContext: the clip is the selected mode's reach area, so
 // a Walk↔Transit or crowded↔quiet toggle REFETCHES. Only a ring-filter change is local.
