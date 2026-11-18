@@ -77,6 +77,7 @@ import ErrorBanner from "@/features/map/ErrorBanner";
 import MapPlaceholder from "@/features/map/MapPlaceholder";
 import ModePill from "@/features/map/ModePill";
 import StatusAnnouncer from "@/features/map/StatusAnnouncer";
+import { LOCATE_MESSAGES, LocateError, locateOnce, type LocateFailure } from "@/features/map/locate";
 import TopBar from "@/features/map/TopBar";
 import TransitousCredit from "@/features/map/TransitousCredit";
 import {
@@ -211,6 +212,12 @@ export default function AppMap() {
   // tick (fresh token/generation) from the imperative fetch orchestration —
   // see features/map/selection-flow and features/search/combobox. Render reads the state; callbacks
   // read the ref.
+  // My location: a position request in flight, and why the last one failed. The epoch
+  // moves on with every new selection so a late answer cannot overwrite a newer choice.
+  const [locating, setLocating] = useState(false);
+  const [locateFailure, setLocateFailure] = useState<LocateFailure | null>(null);
+  const locatingRef = useRef(false);
+  const locateEpochRef = useRef(0);
   const [selState, setSelState] = useState<SelectionState>(initialSelectionState);
   const [comboState, setComboState] = useState<ComboboxState>(initialComboboxState);
   const selRef = useRef<SelectionState>(initialSelectionState);
@@ -246,6 +253,12 @@ export default function AppMap() {
   const [clusterPreview, setClusterPreview] = useState<ClusterHoverPreview | null>(null);
 
   function dispatchSel(action: SelectionAction): SelectionState {
+    // Every selection path (search, pick, map tap, ✕) goes through here, so a stale
+    // locate failure, and any locate still waiting on a fix, ends with the new choice.
+    if (action.type === "start" || action.type === "clear") {
+      locateEpochRef.current += 1;
+      setLocateFailure(null);
+    }
     const next = selectionReducer(selRef.current, action);
     if (next !== selRef.current) {
       selRef.current = next;
@@ -1095,6 +1108,26 @@ export default function AppMap() {
     else pendingSelectRef.current = input;
   }
 
+  // Select where the phone is. A second tap while a fix is pending is ignored.
+  async function onLocate() {
+    if (locatingRef.current) return;
+    locatingRef.current = true;
+    setLocating(true);
+    setLocateFailure(null);
+    const epoch = locateEpochRef.current;
+    try {
+      const where = await locateOnce(typeof navigator === "undefined" ? undefined : navigator.geolocation);
+      if (epoch === locateEpochRef.current) runUserSelect({ kind: "click", lat: where.lat, lng: where.lng });
+    } catch (error) {
+      if (epoch === locateEpochRef.current) {
+        setLocateFailure(error instanceof LocateError ? error.reason : "unavailable");
+      }
+    } finally {
+      locatingRef.current = false;
+      setLocating(false);
+    }
+  }
+
   function switchMode(next: Mode) {
     if (next === selRef.current.mode) return;
     // Read what to recompute before the toggle, which settles a switch with no
@@ -1194,7 +1227,8 @@ export default function AppMap() {
   const transitState =
     reachActive || (sel.mode === "transit" && sel.status !== "error" && sel.lastSelection !== null);
   // A failed selection, shown as the banner over the map.
-  const errorMessage = sel.status === "error" ? sel.message : null;
+  // A failed attempt to find the phone takes the banner over the selection's own error.
+  const errorMessage = locateFailure ? LOCATE_MESSAGES[locateFailure] : sel.status === "error" ? sel.message : null;
   // First open: no place, nothing loading or failed, no directions. The pulse
   // waits for the live map, so it never pulses over the placeholder.
   const firstOpen = mapReady && sel.lastSelection === null && sel.status === "idle" && !reachActive;
@@ -1263,6 +1297,8 @@ export default function AppMap() {
           onPick={pickSuggestion}
           onHover={(index) => dispatchCombo({ type: "hover", index })}
           onClear={() => clearAddressRef.current?.()}
+          onLocate={onLocate}
+          locating={locating}
         />
         {/* The reach caveat and the data credits: top right, in every state. Its open
             popover is the topmost surface of this plane (z-50). */}
@@ -1336,8 +1372,10 @@ export default function AppMap() {
             <div className="pointer-events-auto w-full md:absolute md:bottom-6 md:left-1/2 md:z-30 md:w-[420px] md:-translate-x-1/2">
               <ErrorBanner
                 message={errorMessage}
-                onRetry={recomputeCurrent}
-                onSwitchToWalk={sel.failedMode && sel.failedMode !== "walk" ? () => switchMode("walk") : undefined}
+                onRetry={locateFailure ? onLocate : recomputeCurrent}
+                onSwitchToWalk={
+                  !locateFailure && sel.failedMode && sel.failedMode !== "walk" ? () => switchMode("walk") : undefined
+                }
               />
             </div>
           ) : null}

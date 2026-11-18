@@ -21,6 +21,8 @@ function props(overrides: Partial<TopBarProps> = {}): TopBarProps {
     onPick: noop,
     onHover: noop,
     onClear: noop,
+    onLocate: noop,
+    locating: false,
     ...overrides,
   };
 }
@@ -82,6 +84,21 @@ describe("TopBar", () => {
     const clearButton = html.match(/<button[^>]*data-testid="clear-address"[^>]*>/)?.[0] ?? "";
     expect(clearButton).toMatch(/class="[^"]*\bsize-11\b/);
     expect(html).toContain('value="Piața Unirii, București"');
+  });
+
+  it("offers a 52px my-location button, busy only while locating", () => {
+    const idle = render();
+    expect(idle).toMatch(/data-testid="locate"/);
+    expect(idle).toContain('aria-label="Locația mea"');
+    const button = idle.match(/<button[^>]*data-testid="locate"[^>]*>/)?.[0] ?? "";
+    expect(button).toMatch(/class="[^"]*\bsize-\[52px\]/);
+    expect(button).toContain('aria-busy="false"');
+    expect(button).toContain("var(--hf-accent)");
+    expect(button).toContain("var(--hf-accent-ink)");
+    const busy = render({ locating: true }).match(/<button[^>]*data-testid="locate"[^>]*>/)?.[0] ?? "";
+    expect(busy).toContain('aria-busy="true"');
+    // Present beside the clear button too.
+    expect(render({ hasSelection: true, firstOpen: false })).toMatch(/data-testid="locate"/);
   });
 
   it("with an address the leading pin takes the travel mode's colour; without one nothing is tinted", () => {

@@ -10,7 +10,8 @@ import type { ComboboxState, Suggestion } from "@/features/search/combobox";
 /**
  * The address bar floating over the top of the map: the search combobox with its
  * suggestion list, and, once a place is chosen, a pin in the travel mode's colour
- * plus a ✕ that clears the place. Presentation only: every state transition lives
+ * plus a ✕ that clears the place. A lime button beside the field selects where the
+ * phone is. Presentation only: every state transition lives
  * in AppMap's combobox and selection wiring. Enter submits the form; there is no
  * submit button.
  */
@@ -30,6 +31,10 @@ export interface TopBarProps {
   onPick: (s: Suggestion) => void;
   onHover: (index: number) => void;
   onClear: () => void;
+  /** Selects where the phone is. */
+  onLocate: () => void;
+  /** A position is being read: the button reports itself busy. */
+  locating: boolean;
 }
 
 export default function TopBar({
@@ -45,18 +50,20 @@ export default function TopBar({
   onPick,
   onHover,
   onClear,
+  onLocate,
+  locating,
 }: TopBarProps) {
   return (
     <div
       data-testid="top-bar"
       className="pointer-events-auto absolute inset-x-3 top-3 z-40 md:left-4 md:right-auto md:top-4 md:w-[400px]"
     >
-      <form role="search" onSubmit={onSubmit}>
+      <form role="search" onSubmit={onSubmit} className="flex items-center gap-2">
         <div
           data-testid="search-field"
           // The focus ring is drawn on the whole field rather than on the bare input,
           // so it follows the field's rounded outline.
-          className={`relative flex h-[52px] items-center gap-2.5 rounded-[18px] border border-[var(--hf-border)] bg-[var(--hf-panel)] pl-4 shadow-[0_12px_30px_rgba(0,0,0,.35)] backdrop-blur-xl has-[input:focus-visible]:outline-3 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-solid has-[input:focus-visible]:outline-[color:var(--hf-accent)] ${
+          className={`relative flex h-[52px] min-w-0 flex-1 items-center gap-2.5 rounded-[18px] border border-[var(--hf-border)] bg-[var(--hf-panel)] pl-4 shadow-[0_12px_30px_rgba(0,0,0,.35)] backdrop-blur-xl has-[input:focus-visible]:outline-3 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-solid has-[input:focus-visible]:outline-[color:var(--hf-accent)] ${
             hasSelection ? "pr-1" : "pr-4"
           }`}
         >
@@ -104,6 +111,16 @@ export default function TopBar({
           ) : null}
           <SuggestList combo={combo} onPick={onPick} onHover={onHover} />
         </div>
+        <button
+          type="button"
+          data-testid="locate"
+          aria-label="Locația mea"
+          aria-busy={locating}
+          onClick={onLocate}
+          className="grid size-[52px] shrink-0 place-items-center rounded-[18px] bg-[var(--hf-accent)] text-[var(--hf-accent-ink)] shadow-[0_12px_30px_rgba(0,0,0,.35)] aria-busy:opacity-70"
+        >
+          <Icon name="locate" size={22} />
+        </button>
       </form>
     </div>
   );

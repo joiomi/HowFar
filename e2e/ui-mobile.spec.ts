@@ -848,6 +848,43 @@ test("mobile: a search or a picked suggestion releases the address field so the 
   await expect(field).not.toBeFocused();
 });
 
+test("a long address keeps the clear and locate buttons on screen at 360 px", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  const label =
+    "Strada Aleea Lacul Morii nr. 12, bloc 4, scara B, Sectorul 6, București, Ilfov, România — lângă Parcul Drumul Taberei";
+  await page.route("**/api/suggest**", (route) =>
+    route.fulfill({ json: { suggestions: [{ label, lat: 44.4268, lng: 26.1025 }] } }),
+  );
+  await page.route("**/api/reverse**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label } }),
+  );
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  const field = page.getByRole("combobox");
+  await field.tap();
+  await field.fill("Lacul Morii");
+  await page.getByRole("option", { name: label }).tap();
+  await expect(map).toHaveAttribute("data-selection", label);
+
+  for (const id of ["clear-address", "locate"]) {
+    const box = await page.getByTestId(id).boundingBox();
+    expect(box, id).not.toBeNull();
+    expect(box!.width, id).toBeGreaterThanOrEqual(44);
+    expect(box!.height, id).toBeGreaterThanOrEqual(44);
+    expect(box!.x, id).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width, id).toBeLessThanOrEqual(360);
+  }
+  // The long label scrolls inside the field instead of pushing the buttons out.
+  expect(await field.evaluate((input) => input.scrollWidth > input.clientWidth)).toBe(true);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+  ).toBe(true);
+});
+
 // After the first place resolves, a one-time hint says a long press on the map plans
 // a trip there. It hides itself after a few seconds — a mode tap's re-render does not
 // keep it up — and the device remembers it was shown, so a reload brings no hint.
