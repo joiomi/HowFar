@@ -23,10 +23,10 @@ if [ ! -d "${SCRIPT_DIR}/node_modules/puppeteer-core" ]; then
   exit 1
 fi
 
-# ALWAYS rebuild before measuring: the close verify contract runs `npm run check`
-# (no build) then this gate, so a "build only if .next missing" would grade a changed tree against
-# a STALE bundle left by an earlier build — a regression could then close green. A fresh build is
-# the only way "a regression blocks the close" is actually true. (Set PERF_BUDGET_SKIP_BUILD=1 to
+# ALWAYS rebuild before measuring: `npm run check` does not build, so a "build only if .next
+# missing" would grade a changed tree against a STALE bundle left by an earlier build — a
+# regression could then pass green. A fresh build is the only way "a regression fails this
+# gate" is actually true. (Set PERF_BUDGET_SKIP_BUILD=1 to
 # reuse .next when you have JUST built current source, e.g. inside check:ci.)
 if [ -z "${PERF_BUDGET_SKIP_BUILD:-}" ] || [ ! -d .next ]; then
   log "building current source ..."

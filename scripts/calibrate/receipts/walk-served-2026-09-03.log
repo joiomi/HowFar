@@ -30,8 +30,8 @@
   ✗ SERVED 20min @ Grozavesti: over-claim 17% > bar 10%
 
 FAILED — coverage INCOMPLETE (2), served-walk per-origin failures 2 — receipt: scripts/calibrate/receipts/walk-served-2026-09-03.json
-# The 2 served-walk "failures" are the Grozăvești river-barrier over-claims — OWNER-ACCEPTED (decision
-# recorded in the task record): inherent river/rail anisotropy, identical to the shipped 15/30/45 rings,
-# with a binding honest-reach-copy rider for the UI. The bar flagged it; the owner accepted it. The 2
+# The 2 served-walk "failures" are the Grozăvești river-barrier over-claims — ACCEPTED: inherent
+# river/rail anisotropy at this origin (the same tail exists in the shipped rings), with a binding
+# honest-reach-copy rider for the UI. The bar flagged it; it is accepted. The 2
 # coverage gaps are 10-min boundary points in a network-unroutable void (MOTIS one-to-many returns null
 # within 250 m) — structural, reproduced identically across runs; Grozăvești's 18% is therefore over n=11.

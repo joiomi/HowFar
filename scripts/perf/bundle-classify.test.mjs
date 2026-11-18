@@ -1,7 +1,7 @@
 // Unit tests for the pure bundle classifier. Runs with the built-in
 // `node --test` — NO puppeteer/chrome, so it executes in the app's check:ci without the
 // isolated perf deps. Proves the INITIAL/LAZY split rule that both the measurement and the CI
-// budget gate depend on, so a regression in the rule fails a close (not just a measurement).
+// budget gate depend on, so a regression in the rule fails CI (not just a measurement).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";

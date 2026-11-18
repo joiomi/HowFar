@@ -259,7 +259,7 @@ async function main() {
   receipt.conclusion =
     `Direct measurement of the SERVED preset thresholds [20,40] on transitPresetIsochrone. ` +
     `Central origins (Unirii, Grozavesti) held the pre-declared ≤${CENTRAL_OVER_BAR * 100}% over-claim bar: ${centralFailures === 0 ? "PASS" : "FAIL — " + centralBreaches.join("; ")}. ` +
-    `Periphery/barrier origins measured, reported not hard-gated (accepted street-network anisotropy — the reach can overstate at the edges; feeds the 2b honest-copy precondition): ` +
+    `Periphery/barrier origins measured, reported not hard-gated (accepted street-network anisotropy — the reach can overstate at the edges; feeds the honest-copy precondition): ` +
     `Berceni over-claim by threshold ${JSON.stringify(berceniOver)}; Militari (west/A1, the transit-40 walk-union barrier corridor) over-claim by threshold ${JSON.stringify(militariOver)}. ` +
     `Coverage: ${coverageOk ? "complete" : "INCOMPLETE — " + coverageGaps.join("; ")}.`;
   receipt.centralOverBar = CENTRAL_OVER_BAR;
