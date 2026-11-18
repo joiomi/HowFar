@@ -138,7 +138,7 @@ describe("parseRouteRelations", () => {
     ]);
   });
 
-  it("carries the OSM relation id so the client can draw the route's path (task 024)", () => {
+  it("carries the OSM relation id so the client can draw the route's path", () => {
     const { lines } = parseRouteRelations(
       [{ type: "relation", id: 1766705, tags: { type: "route", route: "bus", ref: "301", to: "Piața Romană" } }],
       "stop",
@@ -212,7 +212,7 @@ describe("modeLabel", () => {
   });
 });
 
-describe("mergeStopLines (task 047 — union across merged members)", () => {
+describe("mergeStopLines (union across merged members)", () => {
   const line = (over: Partial<StopLine> = {}): StopLine => ({ mode: "bus", ref: "1", ...over });
 
   it("dedups on (mode,ref,direction) across members, keeping direction variants distinct", () => {

@@ -14,7 +14,7 @@ export interface CatalogueStatus {
   lastFailureMessage: string | null;
   /**
    * Set to "region-mismatch" ONLY when an active dataset exists but its recorded
-   * region does not match the configured extent (task 013). It is the operator-visible
+   * region does not match the configured extent. It is the operator-visible
    * discriminator between "wrong city's catalogue is active" and "no catalogue at all"
    * — both otherwise report `available:false` with suppressed dataset fields. Carries
    * NO coordinates (the boxes stay in the server log), so it exposes the hazard without
@@ -43,7 +43,7 @@ export async function getCatalogueStatus(now = new Date()): Promise<CatalogueSta
     }),
   ]);
 
-  // Region cross-check (task 013): an active dataset whose recorded import bbox
+  // Region cross-check: an active dataset whose recorded import bbox
   // does not match the configured extent is NOT available — otherwise a post-flip
   // deployment would report `available:true` while serving the wrong city's places.
   const regionMatches = active !== null && datasetMatchesExtent(active.validation);

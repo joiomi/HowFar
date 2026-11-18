@@ -1,35 +1,31 @@
 /**
  * Amenity display geometry — the pure, MapLibre-free core of the "always
- * legible" contract (task 061).
+ * legible" contract.
  *
  * ## The load-bearing idea
  *
- * The owner's complaint was density: in a dense district up to 750 markers
- * (the then-current per-category cap × 5 categories) landed inside one 15-min walk
- * ring — task 065 widened the clip to the whole reach area and moved the cap to
- * `MAX_PER_CATEGORY_PER_BAND`, so the worst case is now ~1,050 marks — and no
+ * The problem is density: in a dense district the worst case is ~1,050 marks (the
+ * per-category-per-band cap `MAX_PER_CATEGORY_PER_BAND` across the reach area) — and no
  * amount of icon polish makes 8 places readable inside 20px. So instead of
  * *reducing* crowding, this module's constants make readable-overlap
  * **structurally impossible**: the source clusters anything closer than
  * `CLUSTER_RADIUS_PX` at EVERY zoom (`clusterMaxZoom` is pinned to the map's own
  * maximum), so two marks can never render close enough to collide.
  *
- * ## Why centre separation is not enough (found in review)
+ * ## Why centre separation is not enough
  *
  * Supercluster only bounds the distance between cluster *centres*. That does NOT
  * imply the rendered *footprints* are disjoint — a donut sized by member count
  * can grow until two legally-separated centres still overlap visually, and a
- * zoom-scaled pin can outgrow the cluster radius. review caught this
- * independently, and it was the weakest point of the original design.
+ * zoom-scaled pin can outgrow the cluster radius.
  *
- * ## What is actually guaranteed — stated precisely (found in review)
+ * ## What is actually guaranteed — stated precisely
  *
  * The shipped guarantee is **non-intersection of rendered footprints**: for every
  * pair of visible marks, `distance ≥ rA + rB`. It is NOT "every pair is at least
- * N px apart" — two marks may render exactly tangent. An earlier version of this
- * file documented a minimum *gap* while every enforcement point (`marksOverlap`,
- * the merge criterion, the e2e) tested bare intersection, so the doc promised
- * more than the code delivered; the wording here is now the weaker, true one.
+ * N px apart" — two marks may render exactly tangent. Every enforcement point
+ * (`marksOverlap`, the merge criterion, the e2e) tests bare intersection, not a
+ * minimum gap.
  *
  * The guarantee is **produced by `agglomerateClusters`**, which merges any
  * intersecting pair until none is left — not by choosing lucky constants. What the
@@ -59,16 +55,15 @@ export const CLUSTER_RADIUS_PX = 46;
 /**
  * The donut size budget: the widest a cluster mark may ever render, in px.
  *
- * Named for what it actually is (found in review). It was `MIN_MARK_SEPARATION_PX`,
- * which read as "no two marks are ever closer than this" — a promise nothing in
- * the codebase kept, since every enforcement point tests footprint intersection,
- * not a gap. This constant caps `clusterRadiusForCount`, so a 200-member cluster
+ * Deliberately not named as a minimum separation ("no two marks are ever closer
+ * than this"): every enforcement point tests footprint intersection, not a gap.
+ * This constant caps `clusterRadiusForCount`, so a 200-member cluster
  * is no wider than a 3-member one.
  */
 export const MAX_MARK_FOOTPRINT_PX = 40;
 
-/** Hover growth for a whole donut mark (task 062 — owner: growing marks must
- * show a hover response). Budgeted, not free: the invariant proves
+/** Hover growth for a whole donut mark, so growing marks show a hover response.
+ * Budgeted, not free: the invariant proves
  * `MAX_MARK_FOOTPRINT_PX × DONUT_HOVER_SCALE ≤ CLUSTER_RADIUS_PX` (40 × 1.15 =
  * 46 — exact tangency, which the guarantee allows), and the merge pass
  * reserves the HOVERED footprint for donuts just as it always has for pins, so
@@ -76,11 +71,11 @@ export const MAX_MARK_FOOTPRINT_PX = 40;
 export const DONUT_HOVER_SCALE = 1.15;
 
 /** Individual-pin radius by zoom. Fixed 7px at every zoom was one of the three
- * causes of the original complaint (a pin occupied the same footprint whether
+ * causes of crowding (a pin occupied the same footprint whether
  * you looked at 200m or 5km). Capped at `MAX_PIN_RADIUS_PX` so pin growth can
  * never breach the separation invariant. */
 export const PIN_RADIUS_STOPS: readonly (readonly [zoom: number, radius: number])[] = [
-  // Task 062 legibility bump ("a little bigger"), biased to the z11–15 stops
+  // Legibility bump, biased to the z11–15 stops
   // where pins were smallest; the top stop grows only to 14 because the
   // envelope binds there: 2 × (14 × PIN_HOVER_SCALE + PIN_HOVER_STROKE_PX)
   // = 44.2 must stay ≤ CLUSTER_RADIUS_PX (46), which the invariant asserts.
@@ -97,12 +92,12 @@ export const MAX_PIN_RADIUS_PX = PIN_RADIUS_STOPS[PIN_RADIUS_STOPS.length - 1][1
 /** Hover growth factor, applied on top of the zoom-interpolated radius. A hovered
  * pin is NOT exempt from the no-overlap guarantee: collision reserves the grown
  * size (see `pinFootprintRadius`), because a hover that regrew a cleared overlap
- * is still the defect this task removes. */
+ * is still an overlap defect. */
 export const PIN_HOVER_SCALE = 1.4;
 
 /** The pin's white outline, in px. MapLibre paints `circle-stroke-width` OUTSIDE
  * the radius, so it is part of the footprint — omitting it let pairs overlap by a
- * few px and still pass the "structural" e2e (found in review). These are the two
+ * few px and still pass the "structural" e2e. These are the two
  * values `map-setup`'s `hoverCase` paints, kept here so the layer spec, the
  * collision pass and the e2e all measure the same pin. */
 export const PIN_STROKE_PX = 1.75;
@@ -138,7 +133,7 @@ export const CLUSTER_RING_THICKNESS_PX = 5;
  * maximum zoom — otherwise coincident places would separate into overlap exactly
  * where they are most coincident. The GeoJSON source's `maxzoom` must be
  * STRICTLY GREATER than this or MapLibre warns and clustering stops early
- * (review: the source default is 18, the map default is 22, so both must
+ * (the source default is 18, the map default is 22, so both must
  * be set explicitly — verified against `maplibre-gl/src/source/geojson_source`). */
 export const MAP_MAX_ZOOM = 22;
 export const CLUSTER_MAX_ZOOM = MAP_MAX_ZOOM;
@@ -172,7 +167,7 @@ export function pinRadiusZoomExpression(): unknown[] {
  * Pin radius including hover growth, as one valid MapLibre expression.
  *
  * The shape here is forced by two separate MapLibre rules, both of which rejected
- * more obvious formulations during this task:
+ * more obvious formulations:
  *
  * 1. A paint property may contain only ONE zoom-based `interpolate`/`step`, so
  *    `["case", hover, <interp>, <interp>]` throws at `addLayer` — which silently
@@ -200,8 +195,7 @@ export function pinRadiusHoverExpression(): unknown[] {
  * Donut radius for a member count — √-scaled so bigger clumps read as bigger,
  * then **hard-capped**. The cap is the point: beyond it, additional members are
  * communicated by the centre number, never by a wider ring, because an
- * uncapped radius would let two legally-separated centres overlap visually
- * (found in review).
+ * uncapped radius would let two legally-separated centres overlap visually.
  */
 export function clusterRadiusForCount(count: number): number {
   if (!Number.isFinite(count) || count <= 1) return CLUSTER_MIN_RADIUS_PX;
@@ -320,7 +314,7 @@ export interface MarkEnvelope {
   clusterRadius: number;
   maxMarkFootprint: number;
   donutFootprint: number;
-  /** Hover growth factor for donut marks (task 062) — the hovered size must
+  /** Hover growth factor for donut marks — the hovered size must
    * still fit the clustering radius, exactly like the hovered pin. */
   donutHoverScale: number;
   sourceMaxZoom: number;
@@ -343,11 +337,11 @@ export function markBounds(m: MarkFootprint): { minX: number; minY: number; maxX
  * Do two rendered marks overlap?
  *
  * Deliberately **footprint**-based, not centre-based: centre distance was the
- * flawed proof review rejected (T4). Two marks are overlapping when
+ * flawed proof. Two marks are overlapping when
  * their circles intersect, which is what a user actually sees.
  *
  * Strictly `<`, so exactly-tangent marks are legal. That is the guarantee this
- * codebase actually enforces everywhere (found in review) — see the header note on
+ * codebase actually enforces everywhere — see the header note on
  * why it is deliberately not phrased as a minimum gap.
  */
 export function marksOverlap(a: MarkFootprint, b: MarkFootprint): boolean {
@@ -392,7 +386,7 @@ export interface ClusterCandidate {
   /** Supercluster ids merged into this mark (one, until agglomeration merges).
    * EMPTY for an unclustered pin participating in the collision pass. */
   ids: number[];
-  /** Feature ids of unclustered PINS absorbed into this mark (found in review).
+  /** Feature ids of unclustered PINS absorbed into this mark.
    * A pin only becomes part of a mark by being absorbed, so this is how the mark
    * can still list places that belong to no supercluster. */
   pinIds: number[];
@@ -406,7 +400,7 @@ export interface ClusterCandidate {
 }
 
 /**
- * Keep ONE tile generation's clusters (found in review).
+ * Keep ONE tile generation's clusters.
  *
  * During a zoom, MapLibre retains the old zoom's tiles while the new zoom's load,
  * and `querySourceFeatures` reports whatever is loaded — so the same places come
@@ -493,8 +487,7 @@ export function tilesOverlap(a: TileRef, b: TileRef): boolean {
  * made amenities briefly VANISH there.
  *
  * The decision is made on **tile coverage**, not on how close two marks happen to be on
- * screen. An earlier version used centroid proximity and four reviewers independently
- * showed why that is wrong: a coarse parent cluster can sit far from every one of its own
+ * screen. Centroid proximity would be wrong: a coarse parent cluster can sit far from every one of its own
  * finer children (its centroid is their weighted average, which can land well outside
  * `nearRadius` of any of them), so proximity kept the parent AND its children and
  * double-counted exactly the places the partition exists to protect. Containment in the
@@ -517,7 +510,7 @@ export function resolveGenerations<T extends { tile: TileRef | null }>(
   // kept. Deciding it per feature loses data: a tile always overlaps itself, so an
   // "already represented by another stale tile" test drops every feature after the first
   // one from the same uncovered tile — i.e. it silently deleted amenities from exactly
-  // the region it was meant to preserve (found in review).
+  // the region it was meant to preserve.
   const key = (t: TileRef) => `${t.z}/${t.x}/${t.y}`;
   const staleTiles: TileRef[] = [];
   const seenTiles = new Set<string>();
@@ -582,7 +575,7 @@ function mergeCounts(
  * same kind of quantity a cluster centroid already is. Displacing a donut instead
  * would put a mark where no places are.
  *
- * Unclustered PINS participate too (found in review). Supercluster only guarantees a
+ * Unclustered PINS participate too. Supercluster only guarantees a
  * pin is farther than `clusterRadius` from a cluster's SEED, not from its centroid —
  * and a centroid is a weighted average that can drift toward that pin, so a donut and
  * a lone pin could overlap heavily while every donut-vs-donut pair was legal. Feeding
@@ -594,10 +587,9 @@ function mergeCounts(
  * restarts, so the result is order-stable and **provably** overlap-free on exit.
  * Termination is structural rather than assumed: every merge replaces two marks with
  * one, so the mark count strictly decreases and at most `n-1` merges can occur — the
- * loop can only exit by finding no overlapping pair. An earlier version capped the
- * passes at a fixed 64, which meant the overlap-free claim silently became conditional
- * once more than ~64 marks were on screen (found in review); the bound is now
- * derived from the input size, so it can never truncate a real convergence.
+ * loop can only exit by finding no overlapping pair. The pass bound is derived
+ * from the input size rather than a fixed cap, so it can never truncate a real
+ * convergence.
  * Input sizes are small (tens of marks), so the O(n²) scan is irrelevant.
  */
 export function agglomerateClusters(
@@ -635,11 +627,10 @@ export function agglomerateClusters(
         const ra = radiusFor(a.total);
         const rb = radiusFor(b.total);
         // The sweep: x-sorted input means everything past this j is farther still.
-        // Without it the pass is a full O(n^2) scan on every animation frame, which an
-        // reviewer correctly flagged as an unmeasured cost at the 750-place
-        // worst case (where nothing merges, because unclustered pins are always at
-        // least CLUSTER_RADIUS_PX apart — so it is exactly the case that used to pay
-        // the full scan for nothing).
+        // Without it the pass is a full O(n^2) scan on every animation frame, which would
+        // be an unmeasured cost at the 750-place worst case (where nothing merges,
+        // because unclustered pins are always at least CLUSTER_RADIUS_PX apart — so it
+        // is exactly the case that would otherwise pay the full scan for nothing).
         if (b.x - a.x >= ra + maxR) break;
         if (Math.hypot(a.x - b.x, a.y - b.y) >= ra + rb) continue;
 
@@ -671,8 +662,8 @@ export function agglomerateClusters(
 /**
  * The size envelope, as an executable assertion.
  *
- * `overrides` exist purely so the tests can prove the check FIRES (review,
- * review): asserting only that the shipped constants pass cannot distinguish a working
+ * `overrides` exist purely so the tests can prove the check FIRES:
+ * asserting only that the shipped constants pass cannot distinguish a working
  * guard from one a refactor has quietly turned into a no-op. Production calls it with
  * no arguments and therefore with the real constants.
  *
@@ -716,7 +707,7 @@ export function assertMarkSeparationInvariant(overrides: Partial<MarkEnvelope> =
       `donut footprint ${donutFootprint}px exceeds MAX_MARK_FOOTPRINT_PX ${maxMarkFootprint}px`,
     );
   }
-  // Task 062: the hover-grown donut is part of the envelope, exactly like the
+  // The hover-grown donut is part of the envelope, exactly like the
   // hovered pin — tangency at the hovered size is legal, intersection is not.
   if (donutFootprint * donutHoverScale > clusterRadius) {
     problems.push(

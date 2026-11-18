@@ -129,7 +129,7 @@ describe("stopLines — direct-first, stop_area fallback", () => {
 
   it("config-namespaces the cache key under a PROVIDER_DATA_REVISION bump (guards the taggedCacheKey wrapper)", async () => {
     // Proves this call site flows through taggedCacheKey — so the documented
-    // "a revision bump colds EVERY provider cache" claim holds here too (task 009).
+    // "a revision bump colds EVERY provider cache" claim holds here too.
     vi.stubEnv("PROVIDER_DATA_REVISION", "r1");
     try {
       raceOverpass.mockResolvedValueOnce([routeRel({ route: "bus", ref: "1", to: "X" })]);

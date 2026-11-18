@@ -122,7 +122,7 @@ export async function publishDataset(
  * pass the captured dataset ID explicitly. A concurrent publication therefore
  * cannot make counts and markers come from different snapshots.
  *
- * Region cross-check (task 013) is enforced HERE, by construction: the active
+ * Region cross-check is enforced HERE, by construction: the active
  * pointer is read AND its region verified inside the same RepeatableRead snapshot
  * that `read` will use, so every place-serving caller (`nearbyAmenities`,
  * `catalogue-export`) fails closed on a region mismatch — a wrong-region dataset

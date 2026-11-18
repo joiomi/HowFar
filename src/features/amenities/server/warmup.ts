@@ -7,9 +7,9 @@ import { DEFAULT_TIME_CONTEXT } from "@/features/isochrones/time-context";
 import { drivingIsochrone, walkingIsochrone } from "@/features/isochrones/server/ors";
 
 /**
- * Process-start provider warmup (task 017, gap #8).
+ * Process-start provider warmup.
  *
- * WHY, measured: this warms the two PROVIDER cold-start tails the owner named (gap #8 / #5,#6).
+ * WHY, measured: this warms the two PROVIDER cold-start tails.
  * The dominant AMENITIES cold cost was NOT I/O and is NOT what this fixes — it was the query
  * re-evaluating geometry in un-materialized CTEs (fixed in catalogue-query.ts with MATERIALIZED,
  * 457→100 ms; that was the real lever). What warmup covers instead: (a) the ORS engine's first
@@ -18,7 +18,7 @@ import { drivingIsochrone, walkingIsochrone } from "@/features/isochrones/server
  * cheap read of the whole active catalogue geom (~14 MB, fits the 128 MB shared_buffers) pulls it
  * into cache, trimming the first amenities query's heap-fetch I/O (a minor complement to the query
  * fix, not the main win). suggest/geocode warmth is deliberately NOT primed: at n=30 those p95s
- * were only marginally over and gap #5's cause — prefix-search cost vs JVM warmth — is unconfirmed,
+ * were only marginally over and their cause — prefix-search cost vs JVM warmth — is unconfirmed,
  * so warming them would be an unproven fix, not a measured one.
  *
  * SAFETY: this is a PROCESS-START, fire-and-forget task. It is NEVER awaited by `/api/ready`

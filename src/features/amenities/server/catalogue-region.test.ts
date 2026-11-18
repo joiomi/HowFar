@@ -25,7 +25,7 @@ describe("readValidationBbox — tri-state (absent / malformed / Bbox)", () => {
     expect(readValidationBbox(validationWith(DEFAULT))).toEqual(DEFAULT);
   });
 
-  it("'absent' for a well-formed legacy shape missing source/bbox (pre-007), or undefined", () => {
+  it("'absent' for a well-formed legacy shape missing source/bbox (recorded before `source.bbox` existed), or undefined", () => {
     expect(readValidationBbox(undefined)).toBe("absent");
     expect(readValidationBbox({})).toBe("absent");
     expect(readValidationBbox({ source: {} })).toBe("absent");
@@ -72,7 +72,7 @@ describe("datasetMatchesExtent — under the DEFAULT extent", () => {
     expect(datasetMatchesExtent(validationWith(OTHER_CITY))).toBe(false);
   });
 
-  it("GRANDFATHERS a legacy dataset with no recorded bbox (pre-007) under the default extent", () => {
+  it("GRANDFATHERS a legacy dataset with no recorded bbox under the default extent", () => {
     // undefined validation / missing bbox ⇒ trusted only because the extent is default
     expect(datasetMatchesExtent(undefined)).toBe(true);
     expect(datasetMatchesExtent({})).toBe(true);

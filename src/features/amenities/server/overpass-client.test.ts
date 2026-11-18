@@ -23,7 +23,7 @@ describe("raceOverpass — empty semantics", () => {
     await expect(raceOverpass("q")).rejects.toThrow(/overpass unavailable/i);
   });
 
-  it("tolerated empty (false): all-empty resolves to [] instead of throwing (task 021)", async () => {
+  it("tolerated empty (false): all-empty resolves to [] instead of throwing", async () => {
     providerFetch.mockResolvedValue(resp([]));
     await expect(raceOverpass("q", { treatEmptyAsFailure: false })).resolves.toEqual([]);
     expect(providerFetch).toHaveBeenCalledTimes(3);
@@ -55,7 +55,7 @@ describe("raceOverpass — empty semantics", () => {
   });
 });
 
-describe("config-driven endpoint pool (task 007)", () => {
+describe("config-driven endpoint pool", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("defaults to today's 3-host pool, deriving rateHost from each URL", async () => {
@@ -69,7 +69,7 @@ describe("config-driven endpoint pool (task 007)", () => {
     ]);
     const hosts = providerFetch.mock.calls.map((c) => (c[1] as { rateHost: string }).rateHost);
     expect(hosts).toEqual(["maps.mail.ru", "overpass-api.de", "overpass.kumi.systems"]);
-    // task 009: every interactive-pool call is labelled `overpass` (kept per-host)
+    // every interactive-pool call is labelled `overpass` (kept per-host)
     // with the config-driven interval (default 1100) — the bulk importer is a
     // separate direct-fetch path, deliberately NOT in this bucket.
     const opts = providerFetch.mock.calls.map((c) => c[1] as { provider: string; minIntervalMs: number });

@@ -51,13 +51,13 @@ export function parseAmenitySelection(value: string | null): AmenityCategoryKey[
  * The server sends pre-cap per-category counts but at most
  * `MAX_PER_CATEGORY_PER_BAND` markers per category per ring band, so in a dense area
  * the map holds strictly fewer places than the chips report. The `counts` passed in
- * are already scoped to the SHADED bands (task 065), so this note can never quote a
- * total for an area the user cannot see. Once cluster donuts display counts (task 061), summing
+ * are already scoped to the SHADED bands, so this note can never quote a
+ * total for an area the user cannot see. Once cluster donuts display counts, summing
  * them visibly disagrees with the chips — and an unexplained mismatch reads as a
  * bug rather than a documented limit. Returns null when nothing was capped, so
  * the note only appears when it is actually true.
  *
- * Scoped to the SELECTED categories (found in review). Summing every category made the
+ * Scoped to the SELECTED categories. Summing every category made the
  * note quote a total the user could not see: with only Groceries shown it still
  * said "the nearest 400 of 900 places", counting schools and parks that were
  * deliberately hidden — an honesty note that is itself misleading is worse than
@@ -80,12 +80,12 @@ export function cappedAmenityTotal(
 /**
  * The visible subset: selected categories ∩ visible ring bands ∩ text query.
  *
- * **This is the single chokepoint for band visibility (task 065), and it has to be
+ * **This is the single chokepoint for band visibility, and it has to be
  * the DATA path rather than a MapLibre layer filter.** A cluster's `point_count` and
  * `clusterProperties` are frozen when the source is indexed, so hiding a band with
  * `setFilter` would remove its markers from the map while leaving them counted inside
- * every donut total — the aggregate would lie. Task 061 reversed task 042's
- * `setFilter` optimisation for exactly this reason on categories; bands ride the same
+ * every donut total — the aggregate would lie. Categories are filtered the
+ * same way for exactly this reason (not via `setFilter`); bands ride the same
  * mechanism, and the tests treat a layer-filter-only implementation as a hard fail.
  *
  * `bands` omitted (or empty) means "no band restriction", which keeps every existing

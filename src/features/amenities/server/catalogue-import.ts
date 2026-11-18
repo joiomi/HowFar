@@ -416,7 +416,7 @@ export async function importCatalogueSnapshot(
   // reprocess even against byte-identical OSM, instead of silently deferring
   // until next week's snapshot happens to differ.
   //
-  // A region flip (task 013) cannot get stuck on this short-circuit: the extent
+  // A region flip cannot get stuck on this short-circuit: the extent
   // bbox is part of `buildBulkOverpassQuery()`, so a new city fetches a different
   // Overpass response ⇒ a different `sourceChecksum` ⇒ `unchanged` is false and the
   // new-region import always proceeds. (There is no path where the same bytes are
@@ -425,7 +425,7 @@ export async function importCatalogueSnapshot(
     active?.sourceChecksum === checksum &&
     validationPipelineVersion(active.validation) === CATALOGUE_PIPELINE_VERSION &&
     validationOverridesChecksum(active.validation) === overridesChecksum &&
-    // …and the active dataset's region matches the configured extent (task 013). A
+    // …and the active dataset's region matches the configured extent. A
     // region flip already changes the query bbox ⇒ different bytes ⇒ different
     // checksum, so this clause is belt-and-braces: it guarantees a region-mismatched
     // active dataset is NEVER short-circuited as "unchanged", so a re-import always
@@ -446,7 +446,7 @@ export async function importCatalogueSnapshot(
   }
 
   const normalized = normalizeElements(snapshot.body, overrides);
-  // Category-delta guard baseline (task 013): compare against the active dataset ONLY
+  // Category-delta guard baseline: compare against the active dataset ONLY
   // when it belongs to the SAME region as the configured extent. On a city-extent flip the
   // active dataset is the OLD city, so its per-category counts are not a comparable
   // baseline — feeding them to `validateCategoryDeltas` would throw (>50% drop / >3×)

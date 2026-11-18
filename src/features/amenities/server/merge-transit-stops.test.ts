@@ -8,7 +8,7 @@ import {
 } from "@/features/amenities/server/merge-transit-stops";
 
 // Real Bucharest OSM nodes (catalogued modes only: bus_stop/tram_stop/station),
-// measured live for task 047 (see .agent/tasks/047/calibration-stops.json). These
+// measured live. These
 // are the ground truth the merge is calibrated against.
 type Stop = { name: string; lat: number; lng: number; modes: string[]; osmId: number };
 
@@ -169,7 +169,7 @@ describe("mergeCoincidentTransitStops — conservative guardrails", () => {
     expect(mergeCoincidentTransitStops(pair(19).map(amenity)).amenities).toHaveLength(2); // 19m separate
   });
 
-  it("does NOT let a mid-road stop bridge two opposite-kerb stops 26m apart into one marker (F1)", () => {
+  it("does NOT let a mid-road stop bridge two opposite-kerb stops 26m apart into one marker", () => {
     // A and B are the 26m opposite-kerb pair (like Stadionul Dinamo); M sits mid-
     // road ~13m from each. Every hop is a same-name same-mode edge (≤18m), but the
     // A–B span (26m) exceeds MAX_SPAN, so M merges with the nearer kerb only.
@@ -194,7 +194,7 @@ describe("mergeCoincidentTransitStops — conservative guardrails", () => {
 
   it("treats a dual-tagged node (bus_stop + tram=yes) as cross-mode vs a pure tram stop", () => {
     // modes differ ({bus,tram} vs {tram}) → cross-mode → merges within 18m with
-    // NO name check, even though names differ. (sonnet plan-review finding.)
+    // NO name check, even though names differ.
     const stops: Stop[] = [
       { name: "Depou", lat: 44.4, lng: 26.14, modes: ["bus", "tram"], osmId: 10106002817 },
       { name: "Terminus", lat: 44.4 + 10 / 111320, lng: 26.14, modes: ["tram"], osmId: 2 },

@@ -6,7 +6,7 @@ import { providerFetch, ProviderError, USER_AGENT } from "@/lib/provider-http";
  * instances (Promise.any) — the first healthy responder wins, losers are
  * aborted. Public Overpass instances are individually flaky, so racing turns
  * "all must be up in order" into "any one must be up". Used by BOTH the amenity
- * envelope query and the per-stop route-relation query (task 021), so the
+ * envelope query and the per-stop route-relation query, so the
  * fair-use posture (identifying UA, per-host rate limit, abort-on-win) lives in
  * one place.
  *
@@ -18,13 +18,13 @@ import { providerFetch, ProviderError, USER_AGENT } from "@/lib/provider-http";
  * a valid answer instead of a 502.
  */
 
-// The endpoint pool is config-driven (task 007, `OVERPASS_ENDPOINTS`) — default
+// The endpoint pool is config-driven (`OVERPASS_ENDPOINTS`) — default
 // is today's list, ordered by observed reliability (probed 2026-07-17):
 // maps.mail.ru answered the live query every round (~2s); overpass-api.de is
 // variable (fast, or 504 under load); kumi is a third hedge (was down when
 // probed, may recover). Racing means a currently-dead host costs nothing — it
 // simply never wins. The per-host rate-limit key is derived from each URL.
-// Interval is config-driven (task 009, `intervals.overpass`, default 1100 ms =
+// Interval is config-driven (`intervals.overpass`, default 1100 ms =
 // fair-use per host). Bucket = `overpass@${host}`, so the interactive pool
 // stays per-host; the weekly BULK importer (bulk-overpass.ts) uses a separate
 // direct-fetch path and is deliberately NOT in this bucket.
@@ -39,7 +39,7 @@ export interface OverpassElement {
   geometry?: { lat?: number; lon?: number }[];
   timestamp?: string;
   tags?: Record<string, string>;
-  /** Under `out geom` (task 024), node members carry lat/lon inline and way
+  /** Under `out geom`, node members carry lat/lon inline and way
    * members carry their full point list in `geometry`. */
   members?: {
     type?: string;
@@ -61,7 +61,7 @@ interface OverpassBody {
  * this host so a slower host with REAL data can still win the race; only if
  * every host ends up empty-or-errored (with ≥1 empty) does the race resolve to
  * `[]`. Without this, the fastest degraded mirror's `[]` would beat a healthy
- * host and cache a false "no lines" (task 021). */
+ * host and cache a false "no lines". */
 class EmptyResultError extends Error {
   constructor(host: string) {
     super(`overpass ${host} returned an empty envelope (tolerated)`);

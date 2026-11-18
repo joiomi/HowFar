@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-describe("withActiveDataset — region gate (task 013)", () => {
+describe("withActiveDataset — region gate", () => {
   it("runs the read for a region-matching active dataset, passing the pinned id", async () => {
     txFindUnique.mockResolvedValue({ id: "ds-1", validation: { source: { bbox: DEFAULT } } });
     const read = vi.fn().mockResolvedValue("SERVED");

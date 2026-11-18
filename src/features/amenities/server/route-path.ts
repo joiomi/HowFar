@@ -5,13 +5,13 @@ import { getCachedSafe, setCachedSafe } from "@/lib/api-cache";
 import { taggedCacheKey } from "@/lib/env";
 
 /**
- * The drawable path (track + named stops) of one OSM transit route relation
- * (task 024), via Overpass `out geom` (server-side, cached). Uses the shared
+ * The drawable path (track + named stops) of one OSM transit route relation,
+ * via Overpass `out geom` (server-side, cached). Uses the shared
  * endpoint race with `treatEmptyAsFailure: false` — a nonexistent or deleted
  * relation id legitimately returns an empty envelope, which must resolve to a
  * cached negative (404), never an uncacheable 502.
  *
- * The compound query is SET-SAFE (probed live, task 024): the relation is
+ * The compound query is SET-SAFE (probed live): the relation is
  * pinned to `.r` because each `node(r.r:...)` statement overwrites the default
  * set — a plain chain would recurse from the previous statement's nodes.
  * The second half fetches the passenger nodes' tags (names); `out geom` alone
@@ -62,7 +62,7 @@ const inFlight = new Map<string, Promise<RoutePath | null>>();
  * transit route (→ 404 at the route). Cached best-effort; single-flighted.
  */
 export async function routePath(relationId: number): Promise<RoutePath | null> {
-  // Config-tagged (task 007): route geometry comes from the config-driven
+  // Config-tagged: route geometry comes from the config-driven
   // Overpass pool, so an OVERPASS_ENDPOINTS switch must re-namespace this cache.
   const key = taggedCacheKey(`route-path:v1:${relationId}`);
   const hit = await getCachedSafe<CachedRoutePath>(key);

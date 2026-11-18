@@ -113,8 +113,8 @@ describe("cappedAmenityTotal", () => {
   });
 
   it("counts ONLY the selected categories, so a filtered map is not described by hidden ones", () => {
-    // Hiding a category used to leave the note quoting places the user could not
-    // see: "the nearest N of M" summed every category (found in review). An honesty note
+    // Hiding a category must not leave the note quoting places the user could not
+    // see: "the nearest N of M" must not sum every category. An honesty note
     // that is itself misleading is worse than no note.
     const c = counts({ groceries: 200, parks: 300 });
     expect(cappedAmenityTotal(c, 150, ["groceries"])).toBe(200);
@@ -176,7 +176,7 @@ describe("amenityDistanceSort", () => {
   });
 
   it("preserves order for FRACTIONAL near-ties at far-apart indices", () => {
-    // The tie-break is a sub-metre nudge, so a review asked the obvious question:
+    // The tie-break is a sub-metre nudge, so the question is:
     // can it invert two places whose distances differ by less than the nudge? The
     // answer depends on a precondition -- `items` reaches `buildAmenityFeatures`
     // already distance-sorted (SQL `ORDER BY distance, category, id`, and both
@@ -202,7 +202,7 @@ describe("amenityDistanceSort", () => {
   });
 });
 
-describe("band visibility rides the DATA path, not a layer filter (task 065)", () => {
+describe("band visibility rides the DATA path, not a layer filter", () => {
   const place = (name: string, category: "groceries" | "parks", band?: 15 | 30 | 45) => ({
     lat: 44.4,
     lng: 26.1,

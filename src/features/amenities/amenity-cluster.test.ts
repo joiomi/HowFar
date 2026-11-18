@@ -34,22 +34,21 @@ import {
 const KEYS = AMENITY_CATEGORIES.map((c) => c.key);
 
 describe("the mark-separation invariant", () => {
-  // This is the design's central claim, and review's most important
-  // finding was that centre separation alone does not establish it. These tests
-  // are what make "always legible" a checked property rather than an intention.
+  // This is the design's central claim, and centre separation alone does not
+  // establish it. These tests are what make "always legible" a checked property rather than an intention.
   it("holds for the shipped constants", () => {
     expect(() => assertMarkSeparationInvariant()).not.toThrow();
   });
 
   it("FIRES on every envelope violation, so the guard is proven not to be a no-op", () => {
     // Asserting only that the real constants pass cannot tell a working guard from one a
-    // refactor has quietly emptied (found in review). Each case below breaks
+    // refactor has quietly emptied. Each case below breaks
     // exactly one relationship.
     const cases: [string, Parameters<typeof assertMarkSeparationInvariant>[0]][] = [
       ["a hovered pin wider than the clustering radius", { maxPinFootprint: 40, clusterRadius: 46 }],
       ["a donut budget wider than the clustering radius", { maxMarkFootprint: 60, clusterRadius: 46 }],
       ["a donut drawn wider than its own budget", { donutFootprint: 99, maxMarkFootprint: 34 }],
-      // Task 062: the hover-grown donut is budgeted too — 40 × 1.2 = 48 > 46.
+      // The hover-grown donut is budgeted too — 40 × 1.2 = 48 > 46.
       ["a hovered donut wider than the clustering radius", { donutFootprint: 40, donutHoverScale: 1.2, clusterRadius: 46 }],
       ["a source maxzoom that stops clustering early", { sourceMaxZoom: 22, clusterMaxZoom: 22 }],
     ];
@@ -139,7 +138,7 @@ describe("clusterRadiusForCount", () => {
   });
 
   it("grows with count but is hard-capped, so a huge cluster is no wider than a small one", () => {
-    // The cap is the whole point (found in review): extra members grow the centre
+    // The cap is the whole point: extra members grow the centre
     // NUMBER, never the ring, because an uncapped radius would let two legally
     // separated centres overlap visually.
     let previous = -Infinity;
@@ -276,7 +275,7 @@ describe("footprint overlap detection", () => {
 
   it("catches the case centre-distance testing misses: two large donuts far enough apart by centre", () => {
     // This pair is 45px apart — legal under a 44px clustering radius — yet the
-    // rendered rings intersect. Exactly the flaw review identified, and
+    // rendered rings intersect. Exactly the flaw centre-distance testing has, and
     // the reason the shipped cap keeps donut diameter <= MAX_MARK_FOOTPRINT_PX.
     const a = { x: 0, y: 0, radius: 30 };
     const b = { x: 45, y: 0, radius: 30 };
@@ -421,7 +420,7 @@ describe("agglomerateClusters", () => {
     expect(agglomerateClusters(one)).toHaveLength(1);
   });
 
-  it("absorbs an unclustered PIN that a drifted centroid collides with (found in review)", () => {
+  it("absorbs an unclustered PIN that a drifted centroid collides with", () => {
     // Supercluster keeps a pin clear of a cluster's SEED, not of its centroid — and a
     // centroid is a weighted average that can drift toward that pin. Before this, the
     // pass merged donut-vs-donut only, so a donut and a lone pin could overlap heavily
@@ -500,8 +499,7 @@ describe("resolveGenerations", () => {
   // progressively, so retained old tiles can be the only coverage for part of the
   // viewport. Dropping those made amenities briefly VANISH there.
   //
-  // The second attempt kept off-generation marks by SCREEN PROXIMITY, and four reviewers
-  // independently showed why that fails: a coarse parent cluster's centroid is the
+  // Keeping off-generation marks by SCREEN PROXIMITY fails: a coarse parent cluster's centroid is the
   // weighted average of its children, so it can sit far from all of them and be kept
   // ALONGSIDE them — double-counting the very places the partition protects. The decision
   // is therefore made on tile coverage, which is exact.
@@ -599,7 +597,7 @@ describe("tilesOverlap", () => {
 describe("pickClusterGeneration", () => {
   // Mid-zoom the source holds two tilings at once, and their clusters cover the
   // same places under different ids — merging across them paints a donut with
-  // roughly DOUBLE the real count (found in review).
+  // roughly DOUBLE the real count.
   const gen = (tileZ: number | null, id: number) => ({ tileZ, id });
 
   it("keeps only the generation matching the map's current tiling", () => {
@@ -624,7 +622,7 @@ describe("pickClusterGeneration", () => {
     expect(pickClusterGeneration(items, 14)).toHaveLength(3);
   });
 
-  it("halves a mixed-generation double count in the shape the review described", () => {
+  it("halves a mixed-generation double count in the shape of a real mid-zoom", () => {
     // Same 20 places reported twice: once as two z13 clusters, once as four z14
     // clusters. Whichever generation wins, the total must be 20 and not 40.
     const items = [
@@ -645,10 +643,9 @@ describe("pickClusterGeneration", () => {
   });
 });
 
-describe("what the envelope implies about absorption (review, measured)", () => {
-  // Two rounds of review asked for an e2e fixture that reproduces the absorbed-pin case — a lone pin
-  // absorbed into a donut. Trying to build one turned up the reason no fixture ever
-  // did: the constants bound how close an UNCLUSTERED mark can get.
+describe("what the envelope implies about absorption (measured)", () => {
+  // An e2e fixture cannot reproduce the absorbed-pin case — a lone pin absorbed into
+  // a donut — because the constants bound how close an UNCLUSTERED mark can get.
   //
   // Supercluster groups anything within CLUSTER_RADIUS_PX at the tile zoom, and the
   // map's tile zoom is floor(zoom), so on screen two unclustered features are at
@@ -713,9 +710,7 @@ describe("what the envelope implies about absorption (review, measured)", () => 
 });
 
 describe("agglomerateClusters cost at the reachable worst case", () => {
-  // The claim gap a review asked to close, and a later one put a number on
-  // (~105ms for a 375-candidate chain). MEASURED here instead of argued: the chain
-  // geometry needs hundreds of MUTUALLY OVERLAPPING marks, which the clustering radius
+  // MEASURED here instead of argued: the chain geometry needs hundreds of MUTUALLY OVERLAPPING marks, which the clustering radius
   // makes impossible — unclustered pins are always at least CLUSTER_RADIUS_PX apart. So
   // the reachable worst case is "many pins, nothing merges", and what matters is that
   // it stays a single pass. Asserted as an algorithmic property, not a wall-clock

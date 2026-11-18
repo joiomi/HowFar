@@ -115,7 +115,7 @@ describe("spiderOverlaps", () => {
 });
 
 describe("leavesAreCoincident", () => {
-  // The gate that keeps a fan from LYING about geography (found in review).
+  // The gate that keeps a fan from LYING about geography.
   // A fan draws its members at decorative offsets around one hub, so it is only
   // truthful for places genuinely at the same spot; `agglomerateClusters` merges marks
   // that merely collide in SCREEN space, whose leaves keep different real coordinates.

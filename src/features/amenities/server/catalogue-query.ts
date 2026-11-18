@@ -59,16 +59,14 @@ export const AMENITY_STRATIFY_GRID_DEG = 0.005;
  * the cap is applied. Admission then round-robins across strata, so each contributes
  * roughly `cap / AMENITY_DISTANCE_STRATA` markers.
  *
- * **Why this exists, measured rather than assumed.** The grid buckets above were
- * originally the whole stratification story, and at real density they were not
- * enough: within `bucket_rank = 1` the ordering was still `distance`, so when a band
+ * **Why this exists, measured rather than assumed.** The grid buckets above are not
+ * enough on their own at real density: within `bucket_rank = 1` the ordering was still `distance`, so when a band
  * holds far more grid cells than the cap, the admitted set is the *nearest N cells* —
  * origin-hugging all over again. Measured on the real 8.7k-place catalogue with a cap
  * of 100 and no strata: of the places available in the OUTER QUARTILE of the reach,
  * the query returned **3%** at a central transit origin (10 of 289), 8% and 10% at
- * two others. That is the exact complaint this task exists to fix, reproduced inside
- * the new clip — so the grid was demoted to a de-clumping device and distance strata
- * were added to guarantee far coverage.
+ * two others. That is the exact failure stratification exists to fix, so the grid is
+ * only a de-clumping device and distance strata guarantee far coverage.
  *
  * 10 is chosen so the farthest ~10% of places in every band always get ~10% of that
  * band's markers, which is a claim about the data rather than about geometry (equal
@@ -105,8 +103,8 @@ function mapRow(row: CatalogueRow): CatalogueAmenity {
     distanceMeters: row.distanceMeters,
     band: toBand(row.band),
   };
-  // Transit stops carry their OSM mode set so the coincident-stop merge (task
-  // 047) can distinguish an interchange from two same-mode platforms.
+  // Transit stops carry their OSM mode set so the coincident-stop merge
+  // can distinguish an interchange from two same-mode platforms.
   if (row.category === "transit") amenity.modes = deriveTransitModes(row.transitTags);
   return amenity;
 }
@@ -121,8 +119,7 @@ function mapRow(row: CatalogueRow): CatalogueAmenity {
  * per (category, band). Because production and the boundary-clipping integration
  * test both call it, a regression in the display-point derivation cannot ship green.
  *
- * Three decisions here are load-bearing and were all wrong in the first draft of
- * task 065's plan:
+ * Three decisions here are load-bearing:
  *
  * 1. **Band comes from the geometry, not from the display point.** A park can span
  *    bands 15→45; its `ST_PointOnSurface` might land in band 30, and filtering the
@@ -174,7 +171,7 @@ export async function queryCatalogueSummaryInRing(
         ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(outerRing)}), 4326) AS ring_outer,
         ST_SetSRID(ST_Point(${origin.lng}, ${origin.lat}), 4326) AS origin
     ), intersections AS MATERIALIZED (
-      -- MATERIALIZED (task 017, gap #8) — the load-bearing perf fix, EXPLAIN-justified. The band
+      -- MATERIALIZED — the load-bearing perf fix, EXPLAIN-justified. The band
       -- column is a nested ST_Intersects(geom, ring_inner/mid) CASE. Without materialization
       -- Postgres INLINES this CTE, so band (and the geography ST_Distance downstream) get
       -- re-evaluated inside every window-function sort key (bucketed/stratified/ranked all
@@ -210,7 +207,7 @@ export async function queryCatalogueSummaryInRing(
       WHERE place."datasetId" = ${datasetId}
         AND ST_Intersects(place.geom, params.ring_outer)
     ), clipped_rows AS MATERIALIZED (
-      -- MATERIALIZED with intersections above (task 017) — holds the per-row ST_Intersection
+      -- MATERIALIZED with intersections above — holds the per-row ST_Intersection
       -- clip once so the downstream ST_PointOnSurface/window sorts don't re-run it. Re-joins the
       -- 1-row params for the band's ring rather than carrying it forward from intersections.
       SELECT
@@ -220,7 +217,7 @@ export async function queryCatalogueSummaryInRing(
         -- further out would take a display point out there, so at the default inner-band
         -- filter its marker drew OUTSIDE the shaded 15-minute area. That is the exact
         -- inverse of the vanishing-park bug the band attribution fixed, and it breaks
-        -- this task's own acceptance rule ("no marker outside the shading").
+        -- the rule that no marker is drawn outside the shading.
         --
         -- A POINT that passed ST_Intersects IS its own clip, so it skips the
         -- intersection entirely — and safely: for a point, "intersects" means

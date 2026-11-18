@@ -1,12 +1,10 @@
 /**
  * Per-category icon shapes — the single source of truth for BOTH the React
- * `AmenityPanel` tiles/rows and the MapLibre sprite images (task 061).
+ * `AmenityPanel` tiles/rows and the MapLibre sprite images.
  *
- * Before this module, the map encoded category as a single ASCII letter
- * (`G`/`+`/`P`/`S`/`T`) while the review drew proper glyphs, so the two halves of
- * the product spoke different visual languages and a marker could only be
- * decoded by consulting the legend. Both now render the same shapes from the
- * same data.
+ * Both render the same shapes from the same data, so a marker can be decoded
+ * without consulting the legend (a single ASCII letter per category would not
+ * match the glyphs the panel draws).
  *
  * Shapes are described declaratively (not as raw SVG markup) for two reasons:
  * React can map them to real `<path>`/`<rect>` elements with no

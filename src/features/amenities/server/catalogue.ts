@@ -19,12 +19,11 @@ import { taggedCacheKey } from "@/lib/env";
 import { ProviderError, roundCoord } from "@/lib/provider-http";
 
 /**
- * What the amenity set was clipped to (task 065).
+ * What the amenity set was clipped to.
  *
- * Replaces the old `walkMinutes: 15`, which described a 15-minute WALK ring that
- * was used in EVERY mode — so in transit or car the payload named a boundary the
- * user was not looking at. The clip is now the outermost band of the CURRENT mode,
- * and `minutes` is that band's per-mode label (`bandMinutes`), so a car clip
+ * The clip is the outermost band of the CURRENT mode (not a 15-minute WALK ring in
+ * every mode, which would name a boundary the user is not looking at in transit or
+ * car), and `minutes` is that band's per-mode label (`bandMinutes`), so a car clip
  * honestly reads 30 rather than 45.
  */
 export interface AmenityClip {
@@ -39,11 +38,10 @@ export interface NearbyAmenitiesResult {
   /**
    * TRUE pre-cap totals per (category, band) — the ONLY count contract.
    *
-   * A flat whole-clip `counts` used to ride alongside this and was dropped in task 065's
-   * no consumer read it (every displayed figure is derived by
-   * summing the SHADED bands), yet leaving it in the payload invited a future reader to
-   * wire the chips straight to it and silently reintroduce the "chips claim the whole
-   * clip" bug this task removed. Anyone needing the whole-clip figure sums the bands.
+   * There is deliberately no flat whole-clip `counts` alongside this: every displayed
+   * figure is derived by summing the SHADED bands, and a flat total in the payload would
+   * invite a future reader to wire the chips straight to it and reintroduce the "chips
+   * claim the whole clip" bug. Anyone needing the whole-clip figure sums the bands.
    */
   countsByBand: AmenityCountsByBand;
   amenities: CatalogueAmenity[];
@@ -90,12 +88,12 @@ export const CATALOGUE_STALE_AFTER_MS = 10 * 24 * 60 * 60 * 1_000;
 export const AMENITY_RESULT_TTL_MS = 24 * 60 * 60 * 1_000;
 
 /** Bump when the cached JSON shape changes. Includes datasetId so a publish
- * invalidates. v2 (task 047): merged-transit `members`. v3 (task 051): the walk
+ * invalidates. v2: merged-transit `members`. v3: the walk
  * ring used for the clip is PACE-dependent, so the pace is part of the key —
  * Slow and Normal must never share a cache entry (or counts would be wrong).
- * v4 (task 064): the 3/5 km/h walking speeds resize the 15-minute clip ring, so
+ * v4: the 3/5 km/h walking speeds resize the 15-minute clip ring, so
  * the SET of amenities in range changed at every origin.
- * v5 (task 065): the clip is no longer a 15-minute walk ring in every mode — it
+ * v5: the clip is no longer a 15-minute walk ring in every mode — it
  * is the outermost band of the CURRENT mode, rows carry a `band`, counts are
  * per-(category, band) and the payload's `walkMinutes` became `clip`. Every v4
  * entry describes a different question and must never be served (24h TTL). */
@@ -106,8 +104,7 @@ const AMENITY_RESULT_CACHE_PREFIX = "amenity:local:v5:";
  * GEOMETRY — mode, effective pace, and (mode-dependent) the resolved transit
  * departure or the car traffic slot + factor revision.
  *
- * It is deliberately built from RESOLVED values, never from a preset id (the 059
- * rule): the transit departure rolls forward weekly on its own, and the car
+ * It is deliberately built from RESOLVED values, never from a preset id: the transit departure rolls forward weekly on its own, and the car
  * factor table can be recalibrated, so a preset-keyed entry would serve amenities
  * clipped to rings that no longer exist.
  */
@@ -117,7 +114,7 @@ export function amenityResultCacheKey(
   lng: number,
   clipIdentity: string,
 ): string {
-  // Config-tagged (task 007): the clipped amenity set is DERIVED from the
+  // Config-tagged: the clipped amenity set is DERIVED from the
   // config-lifted ORS/transit rings + the geofence bbox, but the key carries
   // none of that — so a provider/region flip must re-namespace it too, else it
   // serves places banded by the old provider's rings for the full TTL.
@@ -131,7 +128,7 @@ export function amenityResultCacheKey(
  *
  * Selected **by position, never by a minute value**: band ids are fixed positions
  * but the minute LABELS are per-mode (car reads 10/20/30, `bands.ts`), so a
- * `minutes === 45` lookup — the shape of the pre-065 `WALK_CLIP_MINUTES` lookup —
+ * `minutes === 45` lookup — the shape of a fixed walk-minutes lookup —
  * would find nothing in car mode and fail every car amenity request.
  */
 export function clipRingsFrom(
@@ -195,7 +192,7 @@ async function resolveClip(
 
 /**
  * Subtract the coincident-stop merge's absorbed duplicates from the per-band
- * transit counts (tasks 047 + 065).
+ * transit counts.
  *
  * The catalogue query counts OSM nodes; the merge then fuses stops that are one
  * physical place (a bus+tram interchange, or spelling variants of one stop), so the
@@ -203,11 +200,9 @@ async function resolveClip(
  * correction is applied **per band**, because a band's chip is now its own honest
  * figure — subtracting one clip-wide scalar would leave each band over-counting.
  *
- * **Gated on band completeness (`completeBands`).** Task 047 skipped the correction for a
- * capped category because its returned rows are an incomplete sample. Task 065 briefly
- * removed that gate, arguing the observable duplicates were "closer to the truth"; two
- * the gate is RESTORED, because a capped band would
- * otherwise mix a de-duplicated and a raw basis into one number that cannot be described
+ * **Gated on band completeness (`completeBands`).** The correction is skipped for a
+ * capped band because its returned rows are an incomplete sample; applying it there would
+ * mix a de-duplicated and a raw basis into one number that cannot be described
  * honestly. So: a **complete** band has its duplicates removed; a **capped** band reports
  * raw stop records. One basis per band.
  */
@@ -228,10 +223,10 @@ export function adjustTransitCountsForMerge(
     // **Applied only to a band whose transit rows came back COMPLETE.** In a capped band
     // only the duplicates among the returned rows are observable, so subtracting them
     // would mix two bases — part de-duplicated, part raw — and produce a number that is
-    // hard to state truthfully. Task 047 had this gate, task 065 removed it reasoning
-    // the honest contract is one basis per band. A capped band therefore reports RAW stop records, some of which
-    // may be the same physical place — see the Parked note for the proper fix (merge
-    // before capping, which needs the coincident-stop rule inside SQL).
+    // hard to state truthfully; the honest contract is one basis per band. A capped band
+    // therefore reports RAW stop records, some of which
+    // may be the same physical place — the proper fix would be to merge
+    // before capping, which needs the coincident-stop rule inside SQL.
     const delta = completeBands.has(band) ? (bandAdjustments.get(band) ?? 0) : 0;
     out[band] = { ...inBand, transit: Math.max(0, inBand.transit - delta) };
   }
@@ -312,12 +307,11 @@ const inFlight = new Map<string, Promise<NearbyAmenitiesResult>>();
  * (ORS walking / MOTIS transit / ORS driving) plus local PostGIS — so the markers
  * and the shading always describe one polygon.
  *
- * **Single-flight identity must match the clip's identity.** It used to be
- * `pace:coords`, which was correct while every mode shared one 15-minute walk
- * clip; now a Walk→Public-transport (or Crowded→Quiet) toggle landing mid-flight
+ * **Single-flight identity must match the clip's identity.** Keying on
+ * `pace:coords` alone would not do: a Walk→Public-transport (or Crowded→Quiet) toggle landing mid-flight
  * would coalesce onto the in-flight computation and return **the wrong mode's
- * clip** — the same class of bug the pace was added to this key to prevent
- * (task 051). The preset id is the right granularity HERE (it answers "are these
+ * clip** — the same class of bug the pace was added to this key to prevent.
+ * The preset id is the right granularity HERE (it answers "are these
  * two callers asking the same question?"); the RESULT CACHE key instead uses the
  * resolved departure/slot, because it answers "does this stored answer still match
  * the drawn polygon?" — those are different questions, hence deliberately
@@ -332,7 +326,7 @@ export async function nearbyAmenities(
 ): Promise<NearbyAmenitiesResult> {
   const lat = Number(roundCoord(latRaw));
   const lng = Number(roundCoord(lngRaw));
-  // Pace is a WALKING concept (task 052): the single source for "which pace does
+  // Pace is a WALKING concept: the single source for "which pace does
   // this mode actually use" is `effectivePace`, reused rather than re-encoded so a
   // Slow pace left over from Walk can never leak into a transit or car clip.
   const clipPace = effectivePace(mode, pace);
@@ -345,7 +339,7 @@ export async function nearbyAmenities(
     select: { id: true, validation: true },
   });
   if (!active) throw new CatalogueUnavailableError("No active amenity catalogue");
-  // Region cross-check (task 013), cheap OUTER early-out: refuse a dataset whose
+  // Region cross-check, cheap OUTER early-out: refuse a dataset whose
   // recorded import bbox ≠ the resolved extent BEFORE the ORS/MOTIS ring call, so a
   // wrong-region catalogue answers a clean 503, never an honest-looking empty 200.
   // The AUTHORITATIVE check is repeated inside `withActiveDataset` below (a publish
@@ -354,8 +348,8 @@ export async function nearbyAmenities(
     throw new CatalogueUnavailableError(describeRegionMismatch(active.validation));
   }
 
-  // Resolve the clip identity BEFORE coalescing. It used to be keyed on the preset id,
-  // which can coalesce two transit requests that straddle
+  // Resolve the clip identity BEFORE coalescing. Keying on the preset id would
+  // coalesce two transit requests that straddle
   // the weekly strictly-future departure roll: same preset, different resolved departure,
   // so the second caller would receive amenities clipped to the ring the FIRST caller's
   // departure produced while its own rings were drawn for the new one. Keying on the
@@ -411,8 +405,8 @@ async function computeNearbyAmenities(
   }
 
   // Miss path: the reach rings bound AND band the query, then a pinned dataset read.
-  // Server-side spans (task 017, gap #8) attribute the cold cost between the ORS reach-ring
-  // fetch and the PostGIS intersect — the audit could only INFER the split by subtracting two
+  // Server-side spans attribute the cold cost between the ORS reach-ring
+  // fetch and the PostGIS intersect — the split cannot be inferred by subtracting two
   // independently-sampled p95s (which don't subtract). Gated on AMENITY_SPANS so it's a
   // diagnostic, not always-on log noise. `clip.rings` is already present for transit (resolveClip
   // fetched them), so this ORS span is walk/car only — exactly the cold-cold probe's path.
@@ -437,7 +431,7 @@ async function computeNearbyAmenities(
         where: { id: datasetId },
         select: { sourceTimestamp: true },
       });
-      // The AUTHORITATIVE region cross-check (task 013) lives inside `withActiveDataset`
+      // The AUTHORITATIVE region cross-check lives inside `withActiveDataset`
       // itself: it verifies the pinned dataset's region in the SAME snapshot before
       // running this callback, returning null on a mismatch (which maps to a 503
       // below). So a publish that swaps in a wrong-region dataset between the outer
@@ -457,18 +451,18 @@ async function computeNearbyAmenities(
   if (!summary) throw new CatalogueUnavailableError("No active amenity catalogue");
   const tAfterQuery = spansOn ? performance.now() : 0;
 
-  // Fuse coincident transit stops into single markers (task 047). Read-time only.
+  // Fuse coincident transit stops into single markers. Read-time only.
   const merged = mergeCoincidentTransitStops(summary.amenities);
   if (spansOn) {
     const orsMs = (tAfterRings - tStart).toFixed(0);
     const pgMs = (tAfterQuery - tAfterRings).toFixed(0);
     const mergeMs = (performance.now() - tAfterQuery).toFixed(0);
-    // One line, no payloads (the [api:*] boundary-log convention, node [19]).
+    // One line, no payloads (the [api:*] boundary-log convention).
     console.log(`[amenities:spans] mode=${mode} ors_rings=${orsMs}ms postgis=${pgMs}ms merge=${mergeMs}ms places=${summary.amenities.length}`);
   }
   // `modes` is a server-only merge input; drop it so it never enters the client
   // payload/cache contract (a merged marker carries everything the popup needs in
-  // `members`). (impl-panel finding F5.)
+  // `members`).
   const amenities: CatalogueAmenity[] = merged.amenities
     .map((a) => {
       const copy = { ...a };

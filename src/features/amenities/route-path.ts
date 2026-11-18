@@ -1,5 +1,5 @@
 /**
- * Route-path domain model (task 024): turn one OSM route relation (fetched
+ * Route-path domain model: turn one OSM route relation (fetched
  * with `out geom` + a second statement for stop-node tags) into the drawable
  * shape of a transit line — its track segments and its ordered, named stops —
  * so a rider can see everything a line reaches from a stop.
@@ -8,7 +8,7 @@
  * paints. Total on arbitrary junk — malformed members are skipped, never
  * thrown on (this runs outside the ProviderError try/catch).
  *
- * Structure ground-truth (live probes, task 024 E1 — bus 301, tram 41, M2):
+ * Structure ground-truth (live probes — bus 301, tram 41, M2):
  * the line geometry is the relation's EMPTY-role way members ONLY. Platform-
  * role WAY members also carry geometry (tram 41: 7 of 20) and must be
  * excluded or platforms draw as track stubs. Passenger positions are the

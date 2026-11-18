@@ -66,7 +66,7 @@ describe("bulk Overpass transport", () => {
     ).rejects.toThrow(/exceeds 20 bytes/);
   });
 
-  it("defaults to today's public bulk pool when no endpoints are passed (task 007)", async () => {
+  it("defaults to today's public bulk pool when no endpoints are passed", async () => {
     const calls: string[] = [];
     vi.stubGlobal(
       "fetch",
@@ -80,7 +80,7 @@ describe("bulk Overpass transport", () => {
     expect(calls[0]).toBe("https://overpass-api.de/api/interpreter");
   });
 
-  it("uses an OVERPASS_BULK_ENDPOINTS override when set (task 007)", async () => {
+  it("uses an OVERPASS_BULK_ENDPOINTS override when set", async () => {
     vi.stubEnv("OVERPASS_BULK_ENDPOINTS", "https://bulk.internal/api/interpreter");
     const calls: string[] = [];
     vi.stubGlobal(

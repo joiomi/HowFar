@@ -99,7 +99,7 @@ describe("buildAmenityFeatures", () => {
     expect(f.properties).not.toHaveProperty("osmId");
   });
 
-  it("stringifies members (task 047) so the flat-prop contract holds; round-trips via parseAmenityMembers", () => {
+  it("stringifies members so the flat-prop contract holds; round-trips via parseAmenityMembers", () => {
     const members: TransitStopMember[] = [
       { osmType: "node", osmId: 1, name: "A", lat: 44.4, lng: 26.1 },
       { osmType: "node", osmId: 2, name: "B", lat: 44.4001, lng: 26.1001 },
@@ -157,7 +157,7 @@ describe("parseAmenityMembers", () => {
   });
 });
 
-describe("per-band count helpers (task 065)", () => {
+describe("per-band count helpers", () => {
   it("emptyCountsByBand zero-fills every band and category", () => {
     const empty = emptyCountsByBand();
     expect(Object.keys(empty).map(Number).sort((a, b) => a - b)).toEqual([15, 30, 45]);

@@ -139,7 +139,7 @@ describePostgres("deterministic amenity catalogue import", () => {
     // Clip through the SAME query production uses. The ring's east edge
     // (26.115) cuts relation/302 (centroid east of it, asserted below), so a
     // regression in display-point derivation would move the marker out of the
-    // ring and fail here. Passed as three NESTED rings (task 065): here they are
+    // ring and fail here. Passed as three NESTED rings: here they are
     // degenerate — all three identical — so every place lands in the innermost
     // band and the historical clip assertions below keep their original meaning.
     const inRing = await withActiveDataset((tx, datasetId) =>
@@ -187,7 +187,7 @@ describePostgres("deterministic amenity catalogue import", () => {
       countsByBand: expect.any(Object),
     });
 
-    // ——— Task 065: banding, per-band counts and stratified caps, against REAL SQL ———
+    // ——— Banding, per-band counts and stratified caps, against REAL SQL ———
 
     // Genuinely nested rings: `ring` (the tight clip above) is the inner band, a
     // slightly larger box is the mid band, and `fullRing` (city-wide) is the outer.
@@ -238,8 +238,8 @@ describePostgres("deterministic amenity catalogue import", () => {
     // to. `Boundary Park` (relation/302) is a real multi-vertex polygon in the fixture;
     // with a tight inner ring that only clips its western edge, the park is band 15 and
     // its display point must therefore land inside that inner ring — not somewhere in
-    // the band-30/45 zone where the outer-ring clip used to put it. Six of seven
-    // this is the fixture that makes that defect fail.
+    // the band-30/45 zone where an outer-ring clip would put it. This is the
+    // fixture that makes that defect fail.
     const parkInnerRing: GeoJSON.Polygon = {
       type: "Polygon",
       coordinates: [
@@ -501,8 +501,8 @@ describePostgres("deterministic amenity catalogue import", () => {
     //
     // The 160 generated stops sit on a diagonal from (44.43, 26.1) stepping 1e-6 per
     // index — a line only ~18 m long — so the inner box has to be drawn in the SAME
-    // 1e-6 scale to split them. A degree-scale box (my first attempt) contained every
-    // one of them and left the outer band empty, which is why this comment exists.
+    // 1e-6 scale to split them. A degree-scale box would contain every
+    // one of them and leave the outer band empty.
     const tightInner: GeoJSON.Polygon = {
       type: "Polygon",
       coordinates: [
@@ -545,12 +545,12 @@ describePostgres("deterministic amenity catalogue import", () => {
     expect(splitTransit.some((a) => a.band === 15)).toBe(true);
     expect(splitTransit.some((a) => a.band === 45)).toBe(true);
     // Decisive: MORE stops come back than a single band's cap allows, which is only
-    // possible if each band is capped on its own. Under the pre-065 flat cap the same
-    // catalogue returned at most one cap's worth in total.
+    // possible if each band is capped on its own. Under a flat per-category cap the same
+    // catalogue would return at most one cap's worth in total.
     expect(splitTransit.length).toBeGreaterThan(MAX_PER_CATEGORY_PER_BAND);
   });
 
-  // ---- region cross-check (task 013) through the REAL Json column ----
+  // ---- region cross-check through the REAL Json column ----
 
   it("records source.bbox that round-trips the Json column byte-exact and matches the configured extent", async () => {
     const result = await importCatalogueSnapshot(snapshot(bodyAt("2099-03-01T00:00:00Z")), overrides);
@@ -564,7 +564,7 @@ describePostgres("deterministic amenity catalogue import", () => {
     expect(readValidationBbox(reloaded.validation)).toEqual(LAUNCH_BBOX);
     expect(datasetMatchesExtent(reloaded.validation)).toBe(true);
     // A legacy dataset (validation with no source.bbox) is grandfathered under the
-    // default extent — the un-brick-prod path.
+    // default extent — the path that keeps an existing deployment serving.
     expect(datasetMatchesExtent({ categoryCounts: {} })).toBe(true);
   });
 

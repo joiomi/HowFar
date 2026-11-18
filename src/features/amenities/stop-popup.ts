@@ -1,7 +1,7 @@
 import { modeLabel, type StopLine } from "@/features/amenities/stop-lines";
 
 /**
- * Pure presentation model for the transit-stop popup (task 021). The AppMap
+ * Pure presentation model for the transit-stop popup. The AppMap
  * click handler is imperative MapLibre/DOM glue (coverage-excluded, e2e-tested),
  * so ALL the state/label decisions live here where they're unit-measured: the
  * fetch phase → which of loading/error/empty/ready to show, and the per-line
@@ -16,7 +16,7 @@ export interface StopPopupRow {
   /** Destination headsign; omitted when unknown (never invented). */
   direction?: string;
   /** OSM route relation id — present ⇒ the row is selectable and can draw its
-   * path (task 024); absent ⇒ plain informational row. */
+   * path; absent ⇒ plain informational row. */
   relationId?: number;
 }
 
@@ -31,7 +31,7 @@ export const STOP_POPUP_TEXT = {
   loading: "Finding lines…",
   error: "Line info unavailable right now",
   empty: "No line data mapped for this stop",
-  /** Shown under the list when a merged stop's popup (task 047) rendered the
+  /** Shown under the list when a merged stop's popup rendered the
    * union of only SOME members — at least one member's lines failed to load. */
   partial: "Some lines may be missing",
 } as const;

@@ -79,15 +79,15 @@ describe("classifyAmenityFailure", () => {
   });
 });
 
-describe("amenityFetchKey — what does and does not trigger a refetch (task 065)", () => {
+describe("amenityFetchKey — what does and does not trigger a refetch", () => {
   const origin = { lat: 44.4268, lng: 26.1025 };
   const crowded = { kind: "preset", preset: "crowded" } as const;
   const quiet = { kind: "preset", preset: "quiet" } as const;
   const base = { origin, mode: "walk", pace: "normal", timeContext: crowded } as const;
 
   it("changes on a MODE toggle — the clip follows the mode, so the place set really differs", () => {
-    // This is the contract task 065 REVERSED. Before it, a Walk↔Transit toggle
-    // deliberately kept the same key so markers persisted; now they must refetch.
+    // The clip follows the mode, so a Walk↔Transit toggle changes the key and
+    // the markers must refetch.
     const walk = amenityFetchKey(base);
     const transit = amenityFetchKey({ ...base, mode: "transit" });
     const car = amenityFetchKey({ ...base, mode: "car" });

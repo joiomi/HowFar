@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 describe("catalogue export", () => {
-  it("region cross-check (task 013): when the active dataset is gated out (region mismatch), exportCataloguePage yields null (→ 503) and runs no query", async () => {
+  it("region cross-check: when the active dataset is gated out (region mismatch), exportCataloguePage yields null (→ 503) and runs no query", async () => {
     // The region gate now lives inside `withActiveDataset` (proven against a real DB
     // in catalogue-import.integration.test.ts). When it fires it returns null WITHOUT
     // invoking the read callback, so the public ODbL feed never queries — let alone

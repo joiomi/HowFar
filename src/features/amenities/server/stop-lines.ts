@@ -4,12 +4,12 @@ import { getCachedSafe, setCachedSafe } from "@/lib/api-cache";
 import { taggedCacheKey } from "@/lib/env";
 
 /**
- * The transit lines serving one OSM stop (task 021), via OSM public-transport
+ * The transit lines serving one OSM stop, via OSM public-transport
  * route relations on Overpass (server-side, cached). Uses the shared endpoint
  * race with `treatEmptyAsFailure: false` — a stop that serves no mapped routes
  * legitimately returns `[]` (must NOT become a 502).
  *
- * The query is stop-area-aware (probed live 2026-07-17, task 021): a bus/
+ * The query is stop-area-aware (probed live 2026-07-17): a bus/
  * tram stop node is usually a DIRECT member of its route relations, but a metro/
  * rail STATION node is not — its routes reference the platform/stop_position
  * nodes grouped with it under a `public_transport=stop_area` relation. So we
@@ -22,8 +22,8 @@ import { taggedCacheKey } from "@/lib/env";
 export type OsmType = "node" | "way" | "relation";
 
 const SEED: Record<OsmType, string> = { node: "node", way: "way", relation: "rel" };
-// Backward-recursion filter to find relations CONTAINING the seed (task 021:
-// `bn:ID` inline is invalid — recursion consumes a seeded set).
+// Backward-recursion filter to find relations CONTAINING the seed
+// (`bn:ID` inline is invalid — recursion consumes a seeded set).
 const BACK: Record<OsmType, string> = { node: "bn", way: "bw", relation: "br" };
 
 const TTL_FULL_MS = 30 * 24 * 60 * 60 * 1000; // route topology changes slowly
@@ -35,7 +35,7 @@ const TTL_EMPTY_MS = 24 * 60 * 60 * 1000;
 /** DIRECT route relations the stop itself is a member of. Correct for surface
  * stops (a bus/tram platform node IS a member of its routes) — and, crucially,
  * per-platform ACCURATE: it does NOT pull sibling-platform lines the way a
- * stop_area expansion would (task 021, verified live at Piața Unirii: a bus
+ * stop_area expansion would (verified live at Piața Unirii: a bus
  * stop with 1 real route gained 8 unrelated tram routes under the area hop).
  * Pure + exported for tests. `id` is a positive integer (validated at the route). */
 export function buildDirectQuery(osmType: OsmType, id: number): string {
@@ -71,9 +71,9 @@ const inFlight = new Map<string, Promise<StopLine[]>>();
  * here (the caller already knows it) — this returns lines only, so the cache is
  * keyed purely by OSM identity and never poisoned by a client-supplied name. */
 export async function stopLines(osmType: OsmType, id: number): Promise<StopLine[]> {
-  // v2: StopLine gained relationId (task 024) — the bump keeps v1 hits (parsed
+  // v2: StopLine gained relationId — the bump keeps v1 hits (parsed
   // before ids existed) from serving rows whose paths could never be drawn.
-  // Config-tagged (task 007): the lines come from the config-driven Overpass
+  // Config-tagged: the lines come from the config-driven Overpass
   // pool, so an OVERPASS_ENDPOINTS switch must re-namespace this 30-day cache.
   const key = taggedCacheKey(`stop-lines:v2:${osmType}/${id}`);
   const hit = await getCachedSafe<StopLine[]>(key);

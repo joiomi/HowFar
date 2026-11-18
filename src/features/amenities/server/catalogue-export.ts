@@ -51,7 +51,7 @@ export async function exportCataloguePage(
   after: string | null,
   limit: number,
 ): Promise<CatalogueExportPage | null> {
-  // Region cross-check (task 013) is enforced inside `withActiveDataset`: a
+  // Region cross-check is enforced inside `withActiveDataset`: a
   // region-mismatched active dataset yields null (→ the route's 503 path) BEFORE this
   // callback runs, so this PUBLIC ODbL feed can never publish the old city's places
   // after an extent flip, and a mismatched request pays no query.

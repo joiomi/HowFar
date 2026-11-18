@@ -7,11 +7,11 @@
  * namespace to whichever module loads second, and that top-level `.map(...)`
  * throws `Cannot read properties of undefined`.
  *
- * That is not theoretical — task 061 introduced exactly this cycle by putting a
- * shared sort-key constant in `amenity-cluster.ts`, and it crashed with that
- * error whenever `amenities.ts` was the entry module. Typecheck passed and the
- * per-module unit tests passed, because they happened to import in the safe
- * order; only entry-order mattered.
+ * That is not theoretical — putting a shared sort-key constant in
+ * `amenity-cluster.ts` creates exactly this cycle, and it crashes with that
+ * error whenever `amenities.ts` is the entry module. Typecheck and the
+ * per-module unit tests still pass, because they happen to import in the safe
+ * order; only entry-order matters.
  *
  * This file's FIRST import is deliberately the base module, reproducing the
  * failing order, so a reintroduced cycle fails here instead of at runtime.

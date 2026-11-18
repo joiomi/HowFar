@@ -111,7 +111,7 @@ export async function fetchBulkOverpass(
     maxBytes?: number;
   } = {},
 ): Promise<BulkOverpassSnapshot> {
-  // Default pool is config-driven (task 007, `OVERPASS_BULK_ENDPOINTS`); the
+  // Default pool is config-driven (`OVERPASS_BULK_ENDPOINTS`); the
   // weekly job passes none, so it picks up the configured (or default) hosts.
   const endpoints = options.endpoints ?? providerConfig().bulkOverpassEndpoints;
   const query = buildBulkOverpassQuery();

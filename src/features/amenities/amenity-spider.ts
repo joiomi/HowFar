@@ -1,14 +1,14 @@
 /**
  * Spiderfy geometry — fanning genuinely coincident places out into individual,
- * separately readable marks (task 061, W20).
+ * separately readable marks.
  *
  * ## Why this exists
  *
  * Clustering is pinned to the map's maximum zoom, so places that share a building
  * (or a rounded coordinate) can never be separated by zooming: they stay one donut
  * at z22. The "N places here" list guarantees each of them is reachable and named,
- * but three review made the fair point that a list is read AFTER a
- * click — the owner asked to *see* the places, and Intent said spiderfy. So a
+ * but a list is read AFTER a
+ * click, and the goal is to *see* the places. So a
  * non-splittable mark now fans its members onto leader lines: each member becomes
  * its own pin, with its own icon and name, at a position the user can point at.
  *
@@ -121,8 +121,8 @@ export function spiderOverlaps(
  * How far apart the members of a fan may really be, in metres.
  *
  * A fan draws its members at DECORATIVE offsets around one hub, so it is only
- * truthful when those members are genuinely at the same spot. A reviewer
- * found the case that breaks it: `agglomerateClusters` merges clusters whose
+ * truthful when those members are genuinely at the same spot. The case that
+ * breaks it: `agglomerateClusters` merges clusters whose
  * centroids merely collide in SCREEN space, and their leaves keep different real
  * coordinates — so fanning such a mark draws pins where no place is, and clicking
  * one flies the camera away from the leaf the user just clicked (`inspectAmenity`

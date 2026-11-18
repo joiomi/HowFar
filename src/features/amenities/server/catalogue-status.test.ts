@@ -56,7 +56,7 @@ describe("catalogue operational status", () => {
     });
   });
 
-  it("region cross-check (task 013): an active dataset from another city reports available:false and logs why", async () => {
+  it("region cross-check: an active dataset from another city reports available:false and logs why", async () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     findActive.mockResolvedValue({
       sourceTimestamp: new Date("2026-07-19T00:00:00Z"),
@@ -85,7 +85,7 @@ describe("catalogue operational status", () => {
     );
   });
 
-  it("region cross-check (task 013): an active dataset recorded for the configured (default) extent stays available", async () => {
+  it("region cross-check: an active dataset recorded for the configured (default) extent stays available", async () => {
     findActive.mockResolvedValue({
       sourceTimestamp: new Date("2026-07-19T00:00:00Z"),
       sourceVersion: "osm-2026-07-19",

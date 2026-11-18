@@ -30,7 +30,7 @@ describe("buildStopPopupModel", () => {
     });
   });
 
-  it("rows carry relationId when the line has one (selectable → path drawable, task 024)", () => {
+  it("rows carry relationId when the line has one (selectable → path drawable)", () => {
     const model = buildStopPopupModel("s", "ready", [
       { mode: "bus", ref: "301", direction: "Piața Romană", relationId: 1766705 },
       { mode: "bus", ref: "104" }, // no id → plain informational row
@@ -61,7 +61,7 @@ describe("buildStopPopupModel", () => {
     expect(buildStopPopupModel("   ", "loading")).toEqual({ kind: "loading", title: "Transit stop" });
   });
 
-  it("flags a partial union (task 047) only when rows exist and partial is set", () => {
+  it("flags a partial union only when rows exist and partial is set", () => {
     const lines: StopLine[] = [{ mode: "bus", ref: "1" }];
     const full = buildStopPopupModel("Merged", "ready", lines, false);
     expect(full).toEqual({ kind: "ready", title: "Merged", rows: [{ modeLabel: "Bus", ref: "1" }] });
@@ -71,7 +71,7 @@ describe("buildStopPopupModel", () => {
     expect(partial).toMatchObject({ kind: "ready", partial: true });
 
     // a partial merge that yielded ZERO rows can't honestly claim "no data" — a
-    // failed member may have lines — so it degrades to error, not empty (F3).
+    // failed member may have lines — so it degrades to error, not empty.
     expect(buildStopPopupModel("Merged", "ready", [], true)).toEqual({ kind: "error", title: "Merged" });
     // a COMPLETE result with zero rows is still the honest empty state
     expect(buildStopPopupModel("Merged", "ready", [], false)).toEqual({ kind: "empty", title: "Merged" });

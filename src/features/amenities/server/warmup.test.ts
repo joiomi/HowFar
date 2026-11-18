@@ -15,7 +15,7 @@ vi.mock("@/features/isochrones/server/ors", () => ({ walkingIsochrone, drivingIs
 
 const { warmupProviders, __resetWarmupForTest } = await import("./warmup");
 
-describe("warmupProviders (task 017)", () => {
+describe("warmupProviders", () => {
   beforeEach(() => {
     __resetWarmupForTest();
     findActiveDataset.mockReset().mockResolvedValue({ id: "ds-1" });

@@ -83,7 +83,7 @@ const walkRings = [
   { minutes: 45, geometry: ring45 },
 ];
 /** Car labels the SAME three band positions 10/20/30 — a minute-keyed clip lookup
- * would find no "45-min ring" here and fail every car request (task 065 P4). */
+ * would find no "45-min ring" here and fail every car request. */
 const carRings = [
   { minutes: 10, geometry: ring15 },
   { minutes: 20, geometry: ring30 },
@@ -153,7 +153,7 @@ describe("nearbyAmenities local catalogue flow", () => {
       catalogue: { sourceTimestamp: "2099-07-20T06:45:42.000Z", stale: false },
     });
     expect(walkingIsochrone).toHaveBeenCalledWith(44.426801, 26.102499, "normal");
-    // The clip is the OUTERMOST ring, not the 15-minute one it used to be.
+    // The clip is the OUTERMOST ring, not the 15-minute one.
     expect(querySummary).toHaveBeenCalledWith(
       expect.anything(),
       "dataset-1",
@@ -162,7 +162,7 @@ describe("nearbyAmenities local catalogue flow", () => {
 );
     // LITERAL key, not `amenityResultCacheKey(...)` — deriving the expectation
     // from the implementation would stay green if the version were reverted,
-    // and a stale prefix serves amenities clipped to the pre-065 15-minute WALK
+    // and a stale prefix serves amenities clipped to a 15-minute WALK
     // ring (in every mode) for up to 24h.
     expect(amenityCacheRead).toHaveBeenCalledWith("amenity:local:v5:dataset-1:walk:normal:44.42680,26.10250");
     expect(amenityCacheRead).toHaveBeenCalledWith(amenityResultCacheKey("dataset-1", 44.4268, 26.1025, "walk:normal"));
@@ -274,9 +274,9 @@ describe("nearbyAmenities local catalogue flow", () => {
   });
 
   it("answers catalogue-unavailable WITHOUT calling a ring provider, in every mode", async () => {
-    // The clip used to be resolved before the catalogue was checked, so a transit
-    // request hit MOTIS — and could return a provider 502 — when the deterministic answer
-    // was 503. An unavailable catalogue must cost zero upstream calls.
+    // The catalogue is checked before the clip is resolved: otherwise a transit
+    // request would hit MOTIS — and could return a provider 502 — when the deterministic
+    // answer is 503. An unavailable catalogue must cost zero upstream calls.
     findActiveDataset.mockResolvedValue(null);
     for (const mode of ["walk", "transit", "car"] as const) {
       await expect(nearbyAmenities(44.4268, 26.1025, "normal", mode)).rejects.toBeInstanceOf(
@@ -288,7 +288,7 @@ describe("nearbyAmenities local catalogue flow", () => {
     expect(drivingIsochrone).not.toHaveBeenCalled();
   });
 
-  it("region cross-check (task 013): refuses a wrong-region active dataset BEFORE any ring call (outer early-out)", async () => {
+  it("region cross-check: refuses a wrong-region active dataset BEFORE any ring call (outer early-out)", async () => {
     // Active dataset recorded for another city than the configured (default) extent.
     findActiveDataset.mockResolvedValue({
       id: "dataset-1",
@@ -308,7 +308,7 @@ describe("nearbyAmenities local catalogue flow", () => {
 );
   });
 
-  it("region cross-check (task 013): TOCTOU — a region-mismatched pinned dataset yields no result (withActiveDataset gates and returns null)", async () => {
+  it("region cross-check: TOCTOU — a region-mismatched pinned dataset yields no result (withActiveDataset gates and returns null)", async () => {
     // The authoritative pinned-region gate now lives INSIDE withActiveDataset (proven
     // against a real DB in catalogue-store.integration.test.ts). Here we assert
     // nearbyAmenities' contract when the gate fires: withActiveDataset returns null ⇒
@@ -348,7 +348,7 @@ describe("nearbyAmenities local catalogue flow", () => {
   });
 });
 
-describe("nearbyAmenities clips to the CURRENT mode's reach (task 065)", () => {
+describe("nearbyAmenities clips to the CURRENT mode's reach", () => {
   it("walk clips to the outermost WALK ring at the requested pace", async () => {
     const result = await nearbyAmenities(44.4268, 26.1025, "slow", "walk");
     expect(walkingIsochrone).toHaveBeenCalledWith(44.4268, 26.1025, "slow");
@@ -368,7 +368,7 @@ describe("nearbyAmenities clips to the CURRENT mode's reach (task 065)", () => {
     expect(result.clip).toEqual({ mode: "transit", band: 45, minutes: 45 });
     // The departure in the key is the one the RINGS resolved to — not a preset id,
     // which would survive the weekly strictly-future roll and serve a clip computed
-    // against last week's rings (task 065 P13/P14).
+    // against last week's rings.
     expect(amenityCacheRead).toHaveBeenCalledWith(
       "amenity:local:v5:dataset-1:transit:normal:2026-08-05T05:30:00.000Z:44.42680,26.10250",
 );
@@ -382,7 +382,7 @@ describe("nearbyAmenities clips to the CURRENT mode's reach (task 065)", () => {
     expect(transitIsochrone).toHaveBeenCalledTimes(1);
   });
 
-  it("car clips to the outermost DRIVING ring, whose label is 30 — not 45 (P4 regression)", async () => {
+  it("car clips to the outermost DRIVING ring, whose label is 30 — not 45", async () => {
     const result = await nearbyAmenities(44.4268, 26.1025, "normal", "car");
     expect(drivingIsochrone).toHaveBeenCalledTimes(1);
     // The clip is the outer BAND POSITION; its displayed minute is the car label.
@@ -409,7 +409,7 @@ describe("nearbyAmenities clips to the CURRENT mode's reach (task 065)", () => {
 );
   });
 
-  it("does NOT coalesce different MODES for the same origin (P1 — a transit request must not get the walk clip)", async () => {
+  it("does NOT coalesce different MODES for the same origin (a transit request must not get the walk clip)", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => {
       release = r;
@@ -508,7 +508,7 @@ describe("nearbyAmenities clips to the CURRENT mode's reach (task 065)", () => {
     expect(withActiveDataset).toHaveBeenCalledTimes(1);
   });
 
-  it("does NOT coalesce different paces for the same origin (task 051 — a Slow request must not get Normal counts)", async () => {
+  it("does NOT coalesce different paces for the same origin (a Slow request must not get Normal counts)", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => {
       release = r;
@@ -533,7 +533,7 @@ describe("nearbyAmenities clips to the CURRENT mode's reach (task 065)", () => {
   });
 });
 
-describe("nearbyAmenities merges coincident transit stops (task 047 + per-band counts, task 065)", () => {
+describe("nearbyAmenities merges coincident transit stops (with per-band counts)", () => {
   // Two transit stops ~1m apart, different modes → one merged marker. Both in band 15.
   const coincident = [
     { id: "a", lat: 44.4268, lng: 26.1025, name: "Stadion", category: "transit", osmType: "node", osmId: 1, distanceMeters: 10, modes: ["bus"], band: 15 },
@@ -565,7 +565,7 @@ describe("nearbyAmenities merges coincident transit stops (task 047 + per-band c
     // Both the band chip and the whole-clip total reflect the merge (2 stops → 1 place).
     expect(result.countsByBand[15].transit).toBe(1);
     expect(totalFor(result.countsByBand, "transit")).toBe(1);
-    // server-only `modes` never reaches the client payload (F5)
+    // server-only `modes` never reaches the client payload
     expect(result.amenities[0]).not.toHaveProperty("modes");
     // and the merged payload is what gets cached
     expect(amenityCacheWrite).toHaveBeenCalledWith(
@@ -611,10 +611,10 @@ describe("nearbyAmenities merges coincident transit stops (task 047 + per-band c
   });
 
   it("moves the representative to the innermost band — band AND point from the SAME row", async () => {
-    // The inverted straddle, which is the ONLY case that exercises the round-2 Critical
-    // fix: the NEAREST row (distance 10) sits in the OUTER band and its twin ~11m away is
-    // inner-band. An earlier version relabelled the nearest row's `band` and kept its coordinates,
-    // so a band-15 marker rendered outside the 15-minute shading; the representative now
+    // The inverted straddle, which is the ONLY case that exercises the band/point pairing:
+    // the NEAREST row (distance 10) sits in the OUTER band and its twin ~11m away is
+    // inner-band. Relabelling the nearest row's `band` while keeping its coordinates
+    // would render a band-15 marker outside the 15-minute shading, so the representative
     // moves instead.
     //
     // Asserts the full row identity, not just the band label: a relabel-only regression
@@ -623,8 +623,8 @@ describe("nearbyAmenities merges coincident transit stops (task 047 + per-band c
       countsByBand: bandCounts({ 15: 1, 45: 1 }),
       amenities: [
         { ...coincident[0], band: 45, lat: 44.4268, lng: 26.1025, distanceMeters: 10 },
-        // ~11 m away: inside the 18 m merge radius (a first attempt used 0.00015° on both
-        // axes ≈ 20.5 m and the pair stopped merging at all), yet far enough for a
+        // ~11 m away: inside the 18 m merge radius (0.00015° on both
+        // axes ≈ 20.5 m would stop the pair merging at all), yet far enough for a
         // 5-decimal assertion to tell the rows apart.
         { ...coincident[1], band: 15, lat: 44.42688, lng: 26.10258, distanceMeters: 12 },
       ],
@@ -705,7 +705,7 @@ describe("nearbyAmenities merges coincident transit stops (task 047 + per-band c
   });
 });
 
-describe("amenityResultCacheKey config namespacing (task 007)", () => {
+describe("amenityResultCacheKey config namespacing", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("is byte-identical on default config", () => {
@@ -751,7 +751,7 @@ describe("amenity clip stays on the 3-ring legacy model (isolation)", () => {
 
 // Static guard: the amenity clip must consume ONLY the legacy 3-ring isochrone
 // entry points. Pointing it at a preset (2-ring) function would break clipRingsFrom
-// and the Band model; the band-model migration is H4b-3, so until then this fails
+// and the Band model; the band-model migration belongs to the planned amenity pass, so until then this fails
 // loud if a future edit wires the clip to the preset path.
 describe("amenity clip source isolation (a recorded precondition)", () => {
   const src = readFileSync(join(process.cwd(), "src/features/amenities/server/catalogue.ts"), "utf8");

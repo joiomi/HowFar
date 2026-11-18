@@ -4,7 +4,7 @@
  * transit stops).
  *
  * Runtime discovery is local PostGIS (`queryCatalogueSummaryInRing`): the reach rings
- * of the SELECTED travel mode bound the query (task 065 — no longer a fixed 15-minute
+ * of the SELECTED travel mode bound the query (not a fixed 15-minute
  * walk ring in every mode), then one catalogue CTE returns pre-cap counts per
  * (category, band) plus the capped markers. Predicates here still drive the **weekly bulk import**
  * (`buildBulkOverpassQuery` + `categoryForTags` during normalize). Client code
@@ -93,28 +93,26 @@ export const AMENITY_CATEGORIES: AmenityCategory[] = [
  * Per-category-PER-BAND cap on rendered markers (SQL `ROW_NUMBER` in
  * catalogue-query). Counts shown to the user are true in-area totals (pre-cap).
  *
- * Task 065 replaced a flat per-category cap of 150. The clip used to be a
- * 15-minute walk ring, where the cap never actually bound (measured on prod
- * 2026-07-29: the largest single category at any origin was 62). Now that the clip
- * is a whole mode's reach area, a flat nearest-first cap would admit only places
- * hugging the origin and leave the outer overlay empty — the very complaint this
- * task fixes. So the cap is per (category, band) and admission inside a band is
- * spatially stratified (see `catalogue-query`).
+ * A flat per-category cap would not work here. Over a 15-minute walk ring the cap
+ * would rarely bind (measured: the largest single category at any origin was 62),
+ * but the clip is a whole mode's reach area, so a flat nearest-first cap would admit
+ * only places hugging the origin and leave the outer overlay empty. So the cap is
+ * per (category, band) and admission inside a band is spatially stratified (see
+ * `catalogue-query`).
  *
  * The value is a payload-size budget, not a UX preference. Measured on the real
- * 8.7k-place catalogue (task 065 W5): at a cap of 100 the worst origin returned 1,484
- * markers and a **325 KB** payload, over the ~300 KB ceiling this task set itself. At
+ * 8.7k-place catalogue: at a cap of 100 the worst origin returned 1,484
+ * markers and a **325 KB** payload, over the ~300 KB payload ceiling. At
  * 70 the same worst case is ~1,050 markers and ~235 KB, comfortably inside it, while
  * distance stratification keeps every distance slice of every band represented — so
  * the cap trades marker DENSITY, which clustering already manages, and not marker
- * COVERAGE, which is what the owner asked for. Task 066 tunes clustering next against
- * exactly this field.
+ * COVERAGE, which is what matters here.
  */
 export const MAX_PER_CATEGORY_PER_BAND = 70;
 
 /** A single resolved POI — the canonical flat shape the route returns and the
  * client renders/counts. `osmType`/`osmId` carry the OSM identity so a transit
- * stop can be looked up for its serving lines (task 021); optional because a
+ * stop can be looked up for its serving lines; optional because a
  * malformed element without an id still renders as a plain marker. */
 export interface Amenity {
   lat: number;
@@ -123,16 +121,15 @@ export interface Amenity {
   category: AmenityCategoryKey;
   osmType?: string;
   osmId?: number;
-  /** Transit-mode set derived from OSM tags (task 047), e.g. `["bus","tram"]`.
+  /** Transit-mode set derived from OSM tags, e.g. `["bus","tram"]`.
    * Server-only merge input; not part of the client contract. */
   modes?: string[];
-  /** When this marker is the merge of several coincident transit stops (task
-   * 047), the absorbed stops' identities+coords so the popup can union their
+  /** When this marker is the merge of several coincident transit stops, the absorbed stops' identities+coords so the popup can union their
    * serving lines. Present only on a merged marker (length ≥ 2). */
   members?: TransitStopMember[];
   /** `members.length` — present only on a merged marker (≥ 2). */
   mergedCount?: number;
-  /** Which ring band this place belongs to (task 065) — the INNERMOST band its
+  /** Which ring band this place belongs to — the INNERMOST band its
    * geometry reaches into, so a park straddling a boundary is attributed to the
    * band the user can already see it in. Drives client-side band visibility: the
    * markers shown are those whose band is currently shaded
@@ -148,7 +145,7 @@ export interface Amenity {
   distanceMeters?: number;
 }
 
-/** One transit stop absorbed into a merged marker (task 047). Carries the OSM
+/** One transit stop absorbed into a merged marker. Carries the OSM
  * identity for the per-stop line lookup and in-area coords for its `/api/stop-lines`
  * out-of-area guard. */
 export interface TransitStopMember {
@@ -162,7 +159,7 @@ export interface TransitStopMember {
 export type AmenityCounts = Record<AmenityCategoryKey, number>;
 
 /**
- * TRUE pre-cap totals per category, broken down by ring band (task 065).
+ * TRUE pre-cap totals per category, broken down by ring band.
  *
  * A flat per-category total is no longer enough to be honest: the default ring
  * filter shades ONE band (`DEFAULT_RING_FILTER`), so chips summed over the whole
@@ -212,7 +209,7 @@ const LABEL_BY_KEY = Object.fromEntries(AMENITY_CATEGORIES.map((c) => [c.key, c.
 >;
 
 /** Human label for a category key ("groceries" → "Groceries"); unknown keys get
- * a generic fallback — used as popup title/subtitle for unnamed POIs (task 024). */
+ * a generic fallback — used as popup title/subtitle for unnamed POIs. */
 export function amenityCategoryLabel(key: string): string {
   return (LABEL_BY_KEY as Record<string, string>)[key] ?? "Place";
 }
@@ -246,7 +243,7 @@ export function categoryForTags(tags: Record<string, string> | undefined): Ameni
   return null;
 }
 
-/** OSM tags → the set of transit modes a stop belongs to (task 047). Modelled as
+/** OSM tags → the set of transit modes a stop belongs to. Modelled as
  * a SET (not a single mode) so a dual-tagged platform — e.g. a `highway=bus_stop`
  * that also carries `tram=yes` — is correctly seen as serving both, which the
  * coincident-stop merge uses to tell an interchange (different modes) from two
@@ -261,7 +258,7 @@ export function deriveTransitModes(tags: Record<string, string> | null | undefin
   return modes;
 }
 
-/** Parse the popup `members` value (task 047): the keyboard `inspectAmenity` path
+/** Parse the popup `members` value: the keyboard `inspectAmenity` path
  * passes the raw array, while MapLibre flattens feature properties to primitives
  * so a WebGL-marker click delivers a JSON string. Returns only members with a
  * usable OSM identity + finite coords; `[]` when absent or garbled. */
@@ -299,7 +296,7 @@ export function countByCategory(items: Amenity[]): AmenityCounts {
 }
 
 /**
- * Label-placement sort key for an amenity (task 061).
+ * Label-placement sort key for an amenity.
  *
  * MapLibre gives placement priority to the LOWER `symbol-sort-key`, so returning
  * the walking distance means that when labels must be thinned, the names that
@@ -315,8 +312,7 @@ export function countByCategory(items: Amenity[]): AmenityCounts {
  * Honest limit on that tie-break: the nudge is up to +0.999 m, so two places whose true
  * distances differ by LESS than a metre can swap label priority. That is deliberate — it
  * buys deterministic thinning — and it only ever affects which of two effectively
- * equidistant names survives, never a visible ordering. An earlier version of this
- * comment claimed it "never reorders genuinely different distances", which overstated it.
+ * equidistant names survives, never a visible ordering.
  */
 export function amenityDistanceSort(distanceMeters: number | undefined, index: number): number {
   const base =
@@ -330,12 +326,12 @@ export function amenityDistanceSort(distanceMeters: number | undefined, index: n
 
 /** Amenities → GeoJSON points carrying the per-category color so one circle
  * layer paints via `["get","color"]` (the isochrone-layer pattern). `osmType`/
- * `osmId` ride along so a click on a transit marker can look up its lines
- * (task 021); omitted when absent so `feature.properties` never carries
+ * `osmId` ride along so a click on a transit marker can look up its lines;
+ * omitted when absent so `feature.properties` never carries
  * `undefined` (MapLibre would stringify it).
  *
  * Each feature carries an **explicit numeric `id`** (its payload index). The
- * source clusters (task 061), and MapLibre's `generateId` is unavailable on a
+ * source clusters, and MapLibre's `generateId` is unavailable on a
  * clustered source — but supercluster preserves an author-supplied id, verified
  * stable across tile seams and zoom changes, which is exactly what hover
  * feature-state needs. The index is stable for the lifetime of one payload, and
@@ -353,14 +349,14 @@ export function buildAmenityFeatures(items: Amenity[]): GeoJSON.Feature[] {
     if (typeof a.distanceMeters === "number" && Number.isFinite(a.distanceMeters)) {
       properties.distanceMeters = a.distanceMeters;
     }
-    // The ring band this place sits in (task 065). Band VISIBILITY is applied in the
+    // The ring band this place sits in. Band VISIBILITY is applied in the
     // data path before this runs, so the property is not what filters the map — it
     // rides along so rendered state can be asserted (e2e reads it back off the source)
     // and so a popup or future band-aware affordance has it without a lookup.
     if (a.band !== undefined) properties.band = a.band;
     if (a.osmType) properties.osmType = a.osmType;
     if (typeof a.osmId === "number") properties.osmId = a.osmId;
-    // Merged transit marker (task 047): stringify members so the flat-prop
+    // Merged transit marker: stringify members so the flat-prop
     // contract holds; the popup unions their lines. Omitted for single stops.
     if (a.members && a.members.length > 1) {
       properties.members = JSON.stringify(a.members);

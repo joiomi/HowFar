@@ -3,14 +3,14 @@ import type { Band } from "@/features/isochrones/bands";
 import { normalizeAmenityName } from "@/features/amenities/server/catalogue-normalize";
 
 /**
- * Merge coincident transit-stop markers into one (task 047). The catalogue
+ * Merge coincident transit-stop markers into one. The catalogue
  * ingests every OSM `bus_stop`/`tram_stop`/`station` node separately, so one
  * physical place surfaces as several markers — a bus + tram interchange, or the
  * same stop under spelling variants. This read-time pass (the immutable
  * catalogue and the ODbL export stay untouched) fuses those into a single marker
  * that carries its members so the popup can union all their serving lines.
  *
- * CONSERVATIVE by owner decision: when unsure, keep separate. Radii are
+ * CONSERVATIVE by design: when unsure, keep separate. Radii are
  * calibrated on real Bucharest data — genuine coincident stops sit ≤~15m apart
  * (Savinesti tram/tram 14.6m; Vitan-Bârzești cross-mode ~3m), while genuinely
  * distinct stops (opposite kerbs, same-street-different-stop) sit ≥26m apart —
@@ -23,7 +23,7 @@ const R_SAME_M = 18; // identical mode sets — additionally requires an exact n
 // "genuinely distinct" floor (the Stadionul Dinamo opposite-kerb pair) so no
 // chain of ≤18m edges — e.g. a mid-road stop bridging the two kerbs — can ever
 // fuse a pair the calibration keeps separate, while still clearing the observed
-// ~17m diameter of the real Savinesti/Stadion cluster. (impl-panel finding F1.)
+// ~17m diameter of the real Savinesti/Stadion cluster.
 const MAX_SPAN_M = 24;
 
 // Leading OSM street generics that don't change stop identity: "Șoseaua Vitan-
@@ -67,13 +67,12 @@ function modesEqual(a: readonly string[] = [], b: readonly string[] = []): boole
  * Fuse coincident transit stops. Non-transit items pass through untouched and keep their
  * order. Input is expected sorted by distance (the catalogue query's ORDER BY), and the
  * representative marker is the nearest member **that sits in the innermost band any member
- * occupies** — not simply the nearest member. (That header used to say "the nearest member
- * of a cluster is the representative", the pre-fix model whose band/coordinate mismatch
- * rendered markers outside the shading.)
+ * occupies** — not simply the nearest member, which could sit in an outer band and
+ * render a marker outside the shading.
  *
  * Returns the rewritten list, the absorbed-duplicate total (Σ members−1), and
  * **`transitBandAdjustments`: the NET per-band decrement** the caller must apply to its
- * per-(category, band) counts (task 065).
+ * per-(category, band) counts.
  *
  * Why a net adjustment rather than "absorbed per band". A merged group is nominally one
  * physical place (members within `R_CROSS_M`/`R_SAME_M` = 18 m), but 18 m is enough to
@@ -118,7 +117,7 @@ export function mergeCoincidentTransitStops<T extends Amenity>(
       const bModes = b.modes ?? [];
       // Cross-mode (merge without a name check) requires BOTH stops to have a
       // known, differing mode set. An unknown (empty) mode set fails safe to the
-      // same-mode rule, so it can never trigger a name-free merge. (F3 latent.)
+      // same-mode rule, so it can never trigger a name-free merge.
       const crossMode = aModes.length > 0 && bModes.length > 0 && !modesEqual(aModes, bModes);
       const merge = crossMode
         ? d <= R_CROSS_M
@@ -227,9 +226,7 @@ export function mergeCoincidentTransitStops<T extends Amenity>(
     if (innermost !== undefined) adjust(innermost, -1);
     // Emitted at THIS position (the nearest member's slot). The payload is the chosen
     // representative's row, which may be a farther one, so the caller re-sorts the final
-    // list by distance — see the re-sort in `catalogue.ts`. This comment used to claim the
-    // emission "keeps the input's distance ordering", which is the belief the re-sort
-    // exists to correct.
+    // list by distance — see the re-sort in `catalogue.ts`.
     out.push({ ...items[repIndex], members, mergedCount: members.length });
   }
 

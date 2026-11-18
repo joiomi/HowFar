@@ -8,11 +8,11 @@ import {
 import { db } from "@/lib/db";
 
 /**
- * Region cross-check for the active amenity catalogue (task 013).
+ * Region cross-check for the active amenity catalogue.
  *
  * The amenity dataset records the bbox it was imported under in its `validation`
  * JSON (`source.bbox`, written by `catalogue-import.ts` — see `CatalogueValidation`).
- * Once the map extent is config-driven (`NEXT_PUBLIC_MAP_BBOX`, task 007), flipping
+ * Once the map extent is config-driven (`NEXT_PUBLIC_MAP_BBOX`), flipping
  * to another city while the OLD city's dataset is still active would serve
  * new-city rings ∩ old-city places = an honest-looking empty 200 with no operator
  * signal. This module is the SINGLE place that decides "does the active dataset's
@@ -31,7 +31,7 @@ import { db } from "@/lib/db";
  * (search `bbox: LAUNCH_BBOX` there).
  *
  * The THREE states matter for fail-closed correctness: a legacy dataset that
- * predates the task-007 bbox write has NO `source.bbox`
+ * predates recording the bbox has NO `source.bbox`
  * key at all (`"absent"`) and may be grandfathered under the default extent; a
  * present-but-unparseable box (writer/reader drift, corruption, wrong types —
  * `"malformed"`) must NOT be trusted — collapsing it into the same `null` as
@@ -72,10 +72,10 @@ export function readValidationBbox(validation: unknown): BboxReadout {
  *   dataset's recorded box ≠ the new extent ⇒ fail closed.
  * - A `"malformed"` recorded bbox (present but unparseable) ⇒ **fail closed always**,
  *   regardless of extent — we cannot prove the region, so we refuse.
- * - A LEGACY `"absent"` bbox (imported before task 007 added the `source.bbox` write)
+ * - A LEGACY `"absent"` bbox (imported before `source.bbox` was recorded)
  *   is trusted ONLY when the resolved extent is still the default box: such a dataset
  *   was geofenced to the default city at import, so under the default extent serving
- *   it is correct and byte-identical to today (this keeps the existing prod
+ *   it is correct and byte-identical to today (this keeps an existing
  *   deployment's healthcheck green). Under a FLIPPED extent it fails closed.
  */
 export function datasetMatchesExtent(validation: unknown): boolean {

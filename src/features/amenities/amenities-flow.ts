@@ -1,16 +1,13 @@
 /**
  * Pure decision helpers for the client-side amenities fetch, split out of
- * `AppMap` so the race-sensitive rule is unit-testable (the task 012/013 lesson:
- * flow decisions live in the owning feature root, not the component).
+ * `AppMap` so the race-sensitive rule is unit-testable (flow decisions live in
+ * the owning feature root, not the component).
  *
- * **Task 065 retired the "amenities describe an ADDRESS, not a travel mode"
- * contract.** They used to be keyed by the rounded origin alone (plus pace, once the
- * clip became pace-dependent in 051), because every mode shared one 15-minute WALK
- * clip — so a Walk↔Transit toggle recomputed the same origin, kept the same key, and
- * the markers persisted with no refetch. The clip is now the reach area of the
- * CURRENT mode at the CURRENT departure/traffic context, so the very same toggle
- * changes which places are in range: the identity has to include mode and the time
- * context, and a toggle MUST refetch.
+ * **Amenities describe the reach area of the CURRENT mode, not just an address.**
+ * Keying them by the rounded origin alone (plus pace) would not work: the clip is
+ * the reach area of the current mode at the current departure/traffic context, so a
+ * Walk↔Transit toggle changes which places are in range. The identity has to
+ * include mode and the time context, and a toggle MUST refetch.
  *
  * `originKey` rounds to 5 decimals so the key computed from a pre-round geocode
  * result matches the one from the isochrone's already-rounded origin.
@@ -40,9 +37,9 @@ export function originKey(lat: number, lng: number): string {
  * geometries in one provider response.
  *
  * **The time context is keyed by PRESET id, not by the resolved departure**, even
- * though the server's cache key uses the resolved ISO. A review finding argued the
- * client should follow the resolved value, so that a tab left open across the weekly
- * strictly-future roll refetches. Checked and rejected on the code: rings and
+ * though the server's cache key uses the resolved ISO. Following the resolved value
+ * would make a tab left open across the weekly strictly-future roll refetch, but that
+ * is not needed: rings and
  * amenities are fetched by the SAME select flow (`select-flow-controller` calls
  * `maybeFetchAmenities` on every resolve, including recomputes), and every recompute
  * trigger — mode, pace, time — also changes this key. So there is no path that
