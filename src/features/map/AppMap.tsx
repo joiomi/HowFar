@@ -167,6 +167,9 @@ export default function AppMap() {
   // The address bar's ✕ (clear-address-controller). Set by the map effect once
   // the map exists; the ✕ only shows for a resolved place, so it is always set then.
   const clearAddressRef = useRef<(() => void) | null>(null);
+  // Takes the origin pin off the map (selection-render), for the first-open effect
+  // below. Set by the map effect once the map exists.
+  const hideOriginRef = useRef<(() => void) | null>(null);
 
   // Amenities: keyed by `amenityFetchKey` — origin + mode + effective pace + departure
   // context (NOT the selection token, which every recompute bumps). The
@@ -593,6 +596,7 @@ export default function AppMap() {
     });
     const { showOrigin, renderSelection, reselectPreset, clearSelection } = selectionRender;
     reselectPresetRef.current = reselectPreset;
+    hideOriginRef.current = selectionRender.hideOrigin;
     // Stash the rendered rings+mode+origin for the right-click reach popup, and
     // clear them whenever the selection is dropped, so a right-click never reads
     // stale geometry.
@@ -1025,6 +1029,7 @@ export default function AppMap() {
             amenityClustersRef.current = null;
             amenityClusterDisposeRef.current = null;
             reselectPresetRef.current = null;
+            hideOriginRef.current = null;
             clearAddressRef.current = null;
             selectRef.current = null;
             reachControllerRef.current = null;
@@ -1209,6 +1214,16 @@ export default function AppMap() {
   useEffect(() => {
     cameraRef.current?.applyCameraPaddingSafe();
   }, [reachActive]);
+
+  // The pin goes up before a run resolves, so a run given up with nothing to
+  // recompute (a first search cancelled by a mode switch, or a failed first place
+  // that a mode, pace or time change settles at idle) would leave it behind. Back
+  // at first open — idle, no place — no pin stays. Read from the live ref, so a
+  // run started since this render keeps its pin.
+  useEffect(() => {
+    const live = selRef.current;
+    if (live.status === "idle" && live.lastSelection === null) hideOriginRef.current?.();
+  }, [sel.status, sel.lastSelection]);
 
   return (
     <div

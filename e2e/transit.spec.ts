@@ -130,16 +130,35 @@ test("toggling mode while the first search is still loading does not strand the 
     route.fulfill({ json: WALK });
   });
   await page.route("**/api/transit**", (route) => route.fulfill({ json: TRANSIT }));
+  await page.route("**/api/reverse**", (route) => route.fulfill({ status: 422, json: { error: "outside" } }));
 
-  await waitForMap(page);
+  const map = await waitForMap(page);
+  const pin = page.locator(".hf-origin-marker");
   await search(page, "Piata Unirii");
 
   // Loading: the shell reports the selection as loading. Wait for it so the
-  // toggle is genuinely mid-flight (no prior selection to fall back on).
+  // toggle is genuinely mid-flight (no prior selection to fall back on). The pin
+  // is already up while the reach loads.
   await expectSearchBusy(page);
+  await expect(pin).toHaveCount(1);
   await pickMode(page, "transit");
 
   // Aborting the in-flight search must return the UI to idle immediately — well
-  // before the 5 s isochrone would resolve.
+  // before the 5 s isochrone would resolve — and back to first open: the cancelled
+  // search leaves no pin behind, and the first-open pulse returns.
   await expectSearchIdle(page);
+  await expect(pin).toHaveCount(0);
+  await expect(page.getByTestId("first-open-pulse")).toBeVisible();
+
+  // A tap outside Bucharest pins the tapped point and fails; a mode switch gives that
+  // place up (there is nothing to recompute), and its pin goes with it.
+  // x clears the left-docked control column so this stays a bare-map click.
+  await map.click({ position: { x: 760, y: 320 } });
+  await expect(page.getByTestId("error-banner")).toContainText("Locul e în afara Bucureștiului.");
+  await expect(pin).toHaveCount(1);
+  await pickMode(page, "walk");
+  await expectSearchIdle(page);
+  await expect(page.getByTestId("error-banner")).toHaveCount(0);
+  await expect(pin).toHaveCount(0);
+  await expect(page.getByTestId("first-open-pulse")).toBeVisible();
 });

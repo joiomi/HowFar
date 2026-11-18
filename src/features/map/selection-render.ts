@@ -131,6 +131,12 @@ export function createSelectionRender({
     marker.setLngLat([origin.lng, origin.lat]).addTo(map);
   }
 
+  /** Take the origin pin off the map (a run given up before it drew anything). */
+  function hideOrigin() {
+    marker?.remove();
+    marker = null;
+  }
+
   function renderSelection(origin: Origin, label: string, rings: Ring[], mode: Mode) {
     if (!loadState.styleLoaded) {
       loadState.pending = { origin, label, rings, mode };
@@ -221,6 +227,7 @@ export function createSelectionRender({
 
   return {
     showOrigin,
+    hideOrigin,
     renderSelection,
     reselectPreset,
     clearSelection,
