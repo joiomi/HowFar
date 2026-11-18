@@ -619,8 +619,7 @@ test("selection failure remains understandable and composed", async ({ page }) =
   await page.goto("/");
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await page.getByRole("combobox").fill("Piața Romană");
-  await page.getByRole("button", { name: "Go" }).click();
+  await search(page, "Piața Romană");
   const resultSheet = page.getByTestId("result-sheet");
   await expect(resultSheet.getByRole("alert")).toBeVisible();
   await expect(resultSheet).toBeInViewport();
