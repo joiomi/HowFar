@@ -53,7 +53,7 @@ test("search renders a marker, 3 isochrone rings, and the address label", async 
     route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
   );
   // Typing now also fires /api/suggest (autocomplete) — stub it empty to keep
-  // this test hermetic; the "Go" button still exercises the geocode path.
+  // this test hermetic; submitting with Enter still exercises the geocode path.
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
   await stubIsochrone(page);
 
@@ -64,6 +64,37 @@ test("search renders a marker, 3 isochrone rings, and the address label", async 
   await expect(map).toHaveAttribute("data-selection", /Piața Unirii/);
   await expect(page.getByText("Piața Unirii, București")).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("the clear button returns to first open", async ({ page }) => {
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
+  );
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  // Walk preset contours (10 and 20 min), so the reach is actually painted before the clear.
+  await page.route("**/api/isochrone**", (route) =>
+    route.fulfill({ json: { origin: ISOCHRONE.origin, rings: [ring(10, 0.01), ring(20, 0.02)] } }),
+  );
+
+  const map = await waitForMap(page);
+  const combobox = page.getByRole("combobox");
+  await search(page, "Piata Unirii");
+  // The bar shows the resolved address, not the typed query.
+  await expect(combobox).toHaveValue("Piața Unirii, București");
+  await expect(map).toHaveAttribute("data-preset-contours", /\d/);
+
+  await page.getByTestId("clear-address").click();
+  await expect(map).not.toHaveAttribute("data-selection");
+  await expect(map).not.toHaveAttribute("data-preset-contours");
+  await expect(combobox).toHaveValue("");
+  await expect(combobox).toHaveAttribute("placeholder", "Caută o adresă sau atinge harta");
+  await expect(page.getByTestId("first-run")).toBeVisible();
+  await expect(page.getByTestId("clear-address")).toHaveCount(0);
+
+  // Choosing the same place again is a fresh selection: the bar shows its address again.
+  await search(page, "Piata Unirii");
+  await expect(combobox).toHaveValue("Piața Unirii, București");
+  await expect(page.getByTestId("clear-address")).toHaveCount(1);
 });
 
 test("clicking the map reverse-geocodes and renders the isochrone", async ({ page }) => {

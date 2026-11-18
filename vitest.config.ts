@@ -57,7 +57,6 @@ export default defineConfig({
         // Pure-props presentation leaves extracted from AppMap — no state, no
         // fetch, render-only branching over already-decided values (show/hide
         // decisions live in tested feature modules, e.g. shouldShowSuggestList).
-        "src/features/map/SearchForm.tsx",
         "src/features/map/SuggestList.tsx",
         "src/features/map/ModeToggle.tsx",
         "src/features/map/SelectionCard.tsx",

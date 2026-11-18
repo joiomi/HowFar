@@ -82,7 +82,7 @@ Rows marked **(parked)** are kept but not live; see [Parked code](#parked-code).
 | `src/features/map/selection-flow.ts` | Selection state machine (token staleness, mode snapshot, failure mapping) and the reach request URL (`isochroneUrl`); owns the `Mode`/`Ring`/`Origin` types |
 | `src/features/map/map-setup.ts` | Pure basemap style plus source/layer specs (unit-tested) |
 | `src/features/map/reach.ts` | Pure right-click helpers: point-in-ring banding and MOTIS trip → display steps |
-| `src/features/map/{SearchForm,SuggestList,ModePresetBar,PresetChips,LegendPill,SelectionCard,PaceControl,TimeContextControl,ReachPanel,StatePill,RingHint,EmptyState,MapPlaceholder,AttributionBadge}.tsx` | Presentation leaves of the phone-first shell |
+| `src/features/map/{TopBar,SuggestList,ModePresetBar,PresetChips,LegendPill,SelectionCard,PaceControl,TimeContextControl,ReachPanel,StatePill,RingHint,EmptyState,MapPlaceholder,AttributionBadge}.tsx`, `icons.tsx`, `copy.ts` | Presentation leaves of the phone-first shell. `TopBar` is the address bar (search combobox, suggestions, clear); `icons.tsx` is the shared 24px stroke icon set; `copy.ts` holds Romanian strings used in more than one place |
 | `src/features/search/combobox.ts`, `search-suggest-controller.ts` | Autocomplete state machine (generation staleness, keyboard nav); debounce plus fetch/abort glue |
 | `src/features/search/server/{nominatim,photon}.ts` | Geocode/reverse and type-ahead provider clients |
 | `src/features/isochrones/preset-reach.ts` | Calibrated preset minutes, the pure range generator, and the strict `?model` parser |
@@ -272,7 +272,7 @@ decision on accounts. Do not build on it, and do not remove it piecemeal outside
 - **Quarantined e2e specs.** `amenities`, `amenity-legibility`, `ring-filter` and `stop-lines`
   are skipped whole, and individual tests in `reach-journey`, `ui-mobile` and `ui-redesign` are
   skipped. All are kept as-is apart from comments so the amenity pass can re-enable them.
-- **Auth and `SavedSearch`.** Auth.js with optional Google/GitHub sign-in (the header shows a
-  sign-in control, or "Sign-in unavailable" when no provider is configured) and the `SavedSearch`
-  table. Signing in unlocks nothing yet, and no code reads or writes `SavedSearch`. Kept until a
-  decision on accounts.
+- **Auth and `SavedSearch`.** Auth.js with optional Google/GitHub sign-in and the `SavedSearch`
+  table. The page renders no sign-in control (`AuthControl` is kept but not mounted); the
+  `/api/auth` routes still serve. Signing in unlocks nothing yet, and no code reads or writes
+  `SavedSearch`. Kept until a decision on accounts.

@@ -12,12 +12,12 @@ const MODE_NAME: Record<ShellMode, string> = {
   car: "Car",
 };
 
-// Type the query into the combobox and submit it with the Go button.
+// Type the query into the address bar's combobox and submit it with Enter.
 export async function search(page: Page, query: string): Promise<void> {
   const combobox = page.getByRole("combobox");
   await combobox.fill(query);
   await expect(combobox).toHaveValue(query); // controlled input committed
-  await page.getByRole("button", { name: "Go" }).click();
+  await combobox.press("Enter");
 }
 
 export function modeButton(page: Page, mode: ShellMode): Locator {
@@ -42,13 +42,14 @@ export async function pickPreset(page: Page, minutes: number): Promise<void> {
   await page.getByTestId(`preset-chip-${minutes}`).click();
 }
 
-// While a search is in flight the submit button's accessible name is "Searching".
+// The shell root mirrors the selection status in `data-sel-status`: "loading" while a
+// selection is in flight, "idle" once it settles or is abandoned.
 export async function expectSearchBusy(page: Page): Promise<void> {
-  await expect(page.getByRole("button", { name: "Searching" })).toBeVisible({ timeout: 5000 });
+  await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sel-status", "loading", { timeout: 5000 });
 }
 
 export async function expectSearchIdle(page: Page): Promise<void> {
-  await expect(page.getByRole("button", { name: "Go" })).toBeEnabled({ timeout: 2000 });
+  await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sel-status", "idle", { timeout: 2000 });
 }
 
 // Point-sample a 20px grid over the viewport and return the percentage of points

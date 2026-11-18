@@ -21,7 +21,7 @@ built.
 
 TypeScript (strict) · Next.js 16 (App Router, one full-stack repo) · React 19 · Tailwind CSS 4 ·
 MapLibre GL + self-served [Protomaps](https://protomaps.com) tiles · PostgreSQL 17/PostGIS 3.5 +
-Prisma 7 · Auth.js v5 (optional Google/GitHub sign-in) · Vitest + Playwright
+Prisma 7 · Auth.js v5 (parked; not shown in the UI) · Vitest + Playwright
 
 Data sources, all called server-side: Nominatim (geocoding) · Photon (type-ahead) ·
 OpenRouteService (walking and driving reach, and the walking part of transit reach) ·

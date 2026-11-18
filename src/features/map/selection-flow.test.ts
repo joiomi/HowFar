@@ -191,6 +191,7 @@ describe("selectionReducer — token monotonicity (property)", () => {
       fc.constant<SelectionAction>({ type: "resolved", token: -1, origin: ORIGIN, label: "x" }),
       fc.constant<SelectionAction>({ type: "failed", token: -1, stage: "isochrone", httpStatus: 502 }),
       fc.constant<SelectionAction>({ type: "crash", token: -1 }),
+      fc.constant<SelectionAction>({ type: "clear" }),
     );
     fc.assert(
       fc.property(fc.array(actionArb, { maxLength: 60 }), fc.array(fc.boolean(), { minLength: 60 }), (actions, fresh) => {
@@ -211,6 +212,46 @@ describe("selectionReducer — token monotonicity (property)", () => {
         });
         return true;
       }),
+    );
+  });
+});
+
+describe("selectionReducer — clear", () => {
+  it("clear forgets the place, message and in-flight run but keeps mode, pace and time", () => {
+    const c = selectionReducer(
+      {
+        ...initialSelectionState,
+        mode: "transit",
+        pace: "slow",
+        token: 4,
+        status: "error",
+        label: "X",
+        message: "m",
+        lastSelection: { lat: 1, lng: 2, label: "X" },
+      },
+      { type: "clear" },
+    );
+    expect(c).toMatchObject({
+      mode: "transit",
+      pace: "slow",
+      token: 5,
+      status: "idle",
+      label: null,
+      message: null,
+      lastSelection: null,
+      departure: null,
+      car: null,
+    });
+  });
+
+  it("a response from the run that clear abandoned is dropped", () => {
+    const loading = start("car");
+    const cleared = selectionReducer(loading, { type: "clear" });
+    expect(selectionReducer(cleared, { type: "resolved", token: loading.token, origin: ORIGIN, label: "late" })).toBe(
+      cleared,
+    );
+    expect(selectionReducer(cleared, { type: "failed", token: loading.token, stage: "isochrone", httpStatus: 502 })).toBe(
+      cleared,
     );
   });
 });

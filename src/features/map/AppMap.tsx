@@ -2,7 +2,6 @@
 
 import type maplibregl from "maplibre-gl";
 import type { Protocol as PmtilesProtocol } from "pmtiles";
-import type { ReactNode } from "react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -75,11 +74,10 @@ import ModePresetBar from "@/features/map/ModePresetBar";
 import PaceControl from "@/features/map/PaceControl";
 import LegendPill from "@/features/map/LegendPill";
 import MapPlaceholder from "@/features/map/MapPlaceholder";
-import SearchForm from "@/features/map/SearchForm";
 import RingHint from "@/features/map/RingHint";
 import SelectionCard from "@/features/map/SelectionCard";
 import TimeContextControl from "@/features/map/TimeContextControl";
-import SuggestList from "@/features/map/SuggestList";
+import TopBar from "@/features/map/TopBar";
 import {
   comboboxReducer,
   initialComboboxState,
@@ -152,11 +150,7 @@ function hasResultSurface(
   return reachActive || sel.status === "loading" || Boolean(sel.label || sel.message) || amenityStatus !== "idle";
 }
 
-interface AppMapProps {
-  utilityHeader?: ReactNode;
-}
-
-export default function AppMap({ utilityHeader }: AppMapProps) {
+export default function AppMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const selectRef = useRef<((input: SelectInput, opts?: { recompute?: boolean }) => void) | null>(null);
@@ -185,6 +179,9 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
   // callback (below) — NOT in a [reachView] effect, which would lag a rotate/
   // resize by one tick and drop the dock padding.
   const reachActiveRef = useRef(false);
+  // Removes the drawn reach, the marker and the reach stash, for the address
+  // bar's ✕. Set by the map effect once the map exists.
+  const clearSelectionRef = useRef<(() => void) | null>(null);
 
   // Amenities: keyed by `amenityFetchKey` — origin + mode + effective pace + departure
   // context (NOT the selection token, which every recompute bumps). The
@@ -321,7 +318,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
   }, []);
 
   // Defer the MapLibre engine (327 KB gz) off the first-load critical path: the eager
-  // shell above (search, header, controls) is already interactive; only the map canvas waits.
+  // shell above (address bar, controls) is already interactive; only the map canvas waits.
   // `hf:interactive` marks the split the bundle instrument reads (JS requested AFTER it is LAZY);
   // the engine is dynamically imported on the first idle slot after that mark, so it lands in a
   // lazy chunk and never blocks TTI. The map then fades in behind the shell.
@@ -645,6 +642,9 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
         userSheetExpandedRef.current = false;
         setUserDockOpen(false);
         setUserSheetExpanded(false);
+        // The address bar shows the place that was resolved, whichever way it
+        // was chosen (typed search, picked suggestion, map tap).
+        dispatchCombo({ type: "showLabel", label });
       }
       renderSelection(origin, label, rings, mode);
       // Camera-race guard: a cross-mode right-click
@@ -659,6 +659,13 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     const clearSelectionReach = () => {
       reachRef.current = null;
       clearSelection();
+    };
+    // The ✕ also forgets the last resolved origin, so choosing the same place
+    // again counts as a new origin: the bar shows its address and the phone
+    // dock collapses, as on any first selection.
+    clearSelectionRef.current = () => {
+      lastResolvedOrigin = null;
+      clearSelectionReach();
     };
     const selectFlow = createSelectFlowController({
       dispatchSel,
@@ -780,7 +787,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
     // with no focusable container of its own (its hub is a marker button, and focus
     // may well be in the search field), so this has to be a document listener —
     // the same shape `ReachPanel` uses for the directions dock. Guarded on `isOpen`
-    // so it never swallows an Escape meant for the search command surface.
+    // so it never swallows an Escape meant for the address search.
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || !spider.isOpen()) return;
       spider.close();
@@ -1042,6 +1049,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
             amenityClustersRef.current = null;
             amenityClusterDisposeRef.current = null;
             reselectPresetRef.current = null;
+            clearSelectionRef.current = null;
             selectRef.current = null;
             reachControllerRef.current = null;
           },
@@ -1087,6 +1095,19 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
   function runUserSelect(input: SelectInput) {
     if (selectRef.current) selectRef.current(input);
     else pendingSelectRef.current = input;
+  }
+
+  // The address bar's ✕: back to first open. Mode, pace and time stay as set.
+  function clearAddress() {
+    abortRef.current?.abort();
+    dispatchSel({ type: "clear" });
+    // Nothing left to re-issue on a pace/time change or to replay at map ready.
+    pendingInputRef.current = null;
+    pendingSelectRef.current = null;
+    clearSelectionRef.current?.();
+    reachControllerRef.current?.close();
+    suggestRef.current?.cancel();
+    dispatchCombo({ type: "queryChanged", value: "" });
   }
 
   function switchMode(next: Mode) {
@@ -1224,10 +1245,26 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       data-has-results={hasResults ? "true" : "false"}
       data-dock-state={shell.dock}
       data-sheet-state={shell.sheet}
+      data-sel-status={sel.status}
     >
       {/* The overlay plane stays pointer-transparent. Individual command/result
           surfaces opt back in, keeping the map usable through every gap. */}
       <div className="pointer-events-none absolute inset-0 z-20">
+        {/* First in the DOM so keyboard navigation starts with the address search. */}
+        <TopBar
+          combo={combo}
+          hasSelection={sel.lastSelection !== null}
+          firstOpen={sel.lastSelection === null && sel.status === "idle"}
+          mode={sel.mode}
+          onSubmit={onSubmit}
+          onQueryChange={onQueryChange}
+          onKeyDown={onSearchKeyDown}
+          onFocus={() => dispatchCombo({ type: "focus" })}
+          onBlur={closeSuggest}
+          onPick={pickSuggestion}
+          onHover={(index) => dispatchCombo({ type: "hover", index })}
+          onClear={clearAddress}
+        />
         {/* Mobile ring-meaning hint: the SelectionCard explainer is hidden by
             the default peek sheet, so first-time mobile users get this
             dismissible floating one-liner instead (see RingHint). */}
@@ -1251,9 +1288,16 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
               loading={sel.status === "loading"}
               onExpand={() => {
                 setDockOpen(true);
-                // Disclosure pattern: focus lands in the expanded controls.
+                // Disclosure pattern: focus lands in the expanded controls, on
+                // the active travel mode — unless focus already moved on since the
+                // tap (e.g. into the address bar): taking it back would blur the
+                // field and cancel its suggestion request.
                 requestAnimationFrame(() => {
-                  document.querySelector<HTMLInputElement>('.hf-command-search input[role="combobox"]')?.focus();
+                  const active = document.activeElement;
+                  if (active && active !== document.body) return;
+                  document
+                    .querySelector<HTMLButtonElement>('[data-testid="mode-preset-bar"] [aria-pressed="true"]')
+                    ?.focus();
                 });
               }}
             />
@@ -1289,24 +1333,6 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
                   </button>
                 ) : null}
               </div>
-            </div>
-            <div className="hf-command-search relative z-20">
-              <SearchForm
-                query={combo.query}
-                open={combo.open}
-                activeIndex={combo.activeIndex}
-                loading={sel.status === "loading"}
-                onSubmit={onSubmit}
-                onQueryChange={onQueryChange}
-                onKeyDown={onSearchKeyDown}
-                onFocus={() => dispatchCombo({ type: "focus" })}
-                onBlur={closeSuggest}
-              />
-              <SuggestList
-                combo={combo}
-                onPick={pickSuggestion}
-                onHover={(index) => dispatchCombo({ type: "hover", index })}
-              />
             </div>
             {/* One compact ~48px bar (phone-first design): three mode icons +
                 the active mode's two calibrated presets, inline. Replaces the
@@ -1482,8 +1508,6 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
         </div>
       ) : null}
 
-      {utilityHeader}
-
       {/* First-paint realistic map placeholder (phone-first design): sits behind the map
           canvas so no state ever shows a dark void; covered + hidden once MapLibre
           mounts. Inline SVG, no network/JS on the critical path. */}
@@ -1495,7 +1519,7 @@ export default function AppMap({ utilityHeader }: AppMapProps) {
       <div
         ref={containerRef}
         data-testid="app-map"
-        aria-label="Interactive map of travel reach and nearby places in Bucharest"
+        aria-label="Harta: zona până unde ajungi"
         // tabIndex -1 so directions can return focus here on close: the map container is otherwise not focusable.
         tabIndex={-1}
         className="h-full w-full outline-none"

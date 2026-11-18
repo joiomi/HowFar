@@ -20,7 +20,7 @@ export const MOBILE_CAMERA_PAD_TOP_PX = 188;
 export const MOBILE_CAMERA_PAD_BOTTOM_PX = 228;
 export const MOBILE_SHORT_CAMERA_PAD_TOP_PX = 152;
 export const MOBILE_SHORT_CAMERA_PAD_BOTTOM_PX = 168;
-/** Collapsed dock = header (~64px) + state pill (~48px at top-[4.7rem]) + breathing room. */
+/** Collapsed dock = address bar (~64px) + state pill (~48px at top-[4.7rem]) + breathing room. */
 export const MOBILE_CAMERA_PAD_TOP_COLLAPSED_PX = 140;
 /** Peek sheet = one-line bar (~62px) above the 2.8rem bottom offset + breathing room. */
 export const MOBILE_CAMERA_PAD_BOTTOM_PEEK_PX = 124;
@@ -39,7 +39,7 @@ export interface CameraPadding {
  * the left-only rail model plus a small perimeter breathing room.
  *
  * `shell` is the mobile dock/sheet state: a collapsed dock leaves
- * only the header + state pill up top, and a peek sheet only a one-line bar at
+ * only the address bar + state pill up top, and a peek sheet only a one-line bar at
  * the bottom, so the framed map area grows to match. Desktop branches ignore
  * it (shell-state is always expanded/expanded at `md+`). Defaults to the
  * expanded shell so callers and tests that omit it keep their exact insets.

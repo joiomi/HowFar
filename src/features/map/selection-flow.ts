@@ -100,7 +100,8 @@ export type SelectionAction =
   | { type: "crash"; token: number }
   | { type: "toggle"; next: Mode }
   | { type: "setPace"; pace: Pace }
-  | { type: "setTimeContext"; timeContext: TimeContext };
+  | { type: "setTimeContext"; timeContext: TimeContext }
+  | { type: "clear" };
 
 export const GENERIC_ERROR = "Something went wrong. Try again.";
 const OUT_OF_AREA = "That spot is outside Bucharest.";
@@ -277,6 +278,19 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       }
       return { ...state, timeContext: action.timeContext, token };
     }
+    case "clear":
+      // The address bar's ✕: back to first open. The token bump drops any run
+      // still in flight; mode, pace and time stay as the user set them.
+      return {
+        ...state,
+        token: state.token + 1,
+        status: "idle",
+        label: null,
+        message: null,
+        departure: null,
+        car: null,
+        lastSelection: null,
+      };
   }
 }
 

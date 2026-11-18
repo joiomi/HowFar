@@ -161,6 +161,30 @@ describe("comboboxReducer — pick / close", () => {
     // scheduled in between and must be invalidated too.
     expect(comboboxReducer(closed, { type: "close" }).generation).toBe(closed.generation + 1);
   });
+
+  it("showLabel shows the resolved address without fetching or opening", () => {
+    const s = comboboxReducer(
+      { ...initialComboboxState, query: "piata", open: true, suggestions: [SUGGESTIONS[0]!], activeIndex: 0 },
+      { type: "showLabel", label: "Piața Unirii, București" },
+    );
+    expect(s).toMatchObject({
+      query: "Piața Unirii, București",
+      open: false,
+      suggestions: [],
+      activeIndex: -1,
+      suppress: true,
+    });
+    expect(s.generation).toBe(initialComboboxState.generation + 1);
+    expect(shouldFetchSuggest(s)).toBe(false);
+  });
+
+  it("showLabel settles a loading list to idle, so a late response for the old query is dropped", () => {
+    const loading = run({ type: "queryChanged", value: "Uni" }, { type: "fetchStarted", generation: 1 });
+    expect(loading.status).toBe("loading");
+    const shown = comboboxReducer(loading, { type: "showLabel", label: "Piața Unirii, București" });
+    expect(shown.status).toBe("idle");
+    expect(comboboxReducer(shown, { type: "suggestionsLoaded", generation: 1, suggestions: SUGGESTIONS })).toBe(shown);
+  });
 });
 
 describe("comboboxReducer — keyboard navigation", () => {

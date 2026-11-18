@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { pickMode, pickPreset, sampleMapClearPercent, search } from "./shell";
+import { modeButton, pickMode, pickPreset, sampleMapClearPercent, search } from "./shell";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 
 function ring(minutes: number, distance: number) {
@@ -543,10 +543,11 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
     page.locator(".maplibregl-ctrl-attrib").getByRole("link", { name: "ESA WorldCover" }),
   ).toBeVisible();
 
-  // Pill → dock: one tap re-opens the full controls with focus in search.
+  // Pill → dock: one tap re-opens the full controls with focus on the active
+  // travel mode (Walk — nothing in this journey has switched it).
   await pill.tap();
   await expect(page.getByTestId("command-surface")).toBeVisible();
-  await expect(page.getByRole("combobox")).toBeFocused();
+  await expect(modeButton(page, "walk")).toBeFocused();
   // Change the reach preset (the larger 20-min chip), hand the map back with the
   // collapse control, and the pill reflects the new state WITHOUT another resolution
   // (the chip is pure client-side visibility — the route already returned both contours).
@@ -586,4 +587,37 @@ test("mobile shell: collapsed dock + peek sheet reclaim the map; state stays vis
   await expect(page.getByTestId("command-surface")).toBeVisible();
   await expect(shell).toHaveAttribute("data-sheet-state", "expanded");
   await expect(page.getByText(/Could not compute/)).toBeVisible();
+});
+
+// The state pill hands focus to the active travel mode one frame after the tap. If
+// focus has already moved on by then (here: straight into the address bar, in the
+// same script turn as the tap, so the frame always comes later), the pill must leave
+// it there — stealing it would blur the field and drop the suggestion request.
+test("mobile shell: moving into the address bar right after the pill tap keeps focus there", async ({ page }) => {
+  await page.route("**/api/suggest**", (route) =>
+    route.fulfill({ json: { suggestions: [{ label: "Piața Unirii, București", lat: 44.4268, lng: 26.1025 }] } }),
+  );
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  const search = page.getByRole("combobox");
+  await search.tap();
+  await search.fill("Unirii");
+  await page.getByRole("option", { name: "Piața Unirii, București" }).tap();
+  await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  await expect(page.getByTestId("state-pill")).toBeVisible();
+
+  await page.evaluate(() => {
+    document.querySelector<HTMLElement>('[data-testid="state-pill"]')!.click();
+    document.querySelector<HTMLElement>('[role="combobox"]')!.focus();
+  });
+  // Let the pill's deferred focus frame run.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await expect(page.getByTestId("command-surface")).toBeVisible();
+  await expect(search).toBeFocused();
+  await search.fill("Unirii");
+  await expect(page.getByRole("option", { name: "Piața Unirii, București" })).toBeVisible();
 });

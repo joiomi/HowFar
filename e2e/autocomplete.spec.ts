@@ -129,5 +129,5 @@ test("a query with no matches shows the empty state, not a stuck spinner or hidd
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
   await waitForMap(page);
   await page.getByRole("combobox").fill("Zzzzz");
-  await expect(page.getByText("No matches in Bucharest")).toBeVisible();
+  await expect(page.getByText("Nicio adresă găsită în București")).toBeVisible();
 });

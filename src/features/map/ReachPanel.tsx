@@ -62,12 +62,12 @@ export default function ReachPanel({ view, onHighlight, onClose }: ReachPanelPro
   // Escape closes the directions from ANYWHERE: after the user
   // pans/clicks the map, focus leaves the panel, so a panel-scoped handler would
   // go dead. Listen at document level while mounted — but skip when the event
-  // originates in the search command surface, whose own Escape dismisses the
-  // autocomplete (don't yank the directions out from under that).
+  // originates in the address bar, whose own Escape dismisses the autocomplete
+  // (don't yank the directions out from under that).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if ((e.target as HTMLElement | null)?.closest?.('[data-testid="command-surface"]')) return;
+      if ((e.target as HTMLElement | null)?.closest?.('[data-testid="top-bar"]')) return;
       onClose();
     };
     document.addEventListener("keydown", onKey);

@@ -54,6 +54,7 @@ export type ComboboxAction =
   | { type: "suggestionsLoaded"; generation: number; suggestions: Suggestion[] }
   | { type: "fetchError"; generation: number }
   | { type: "pick"; suggestion: Suggestion }
+  | { type: "showLabel"; label: string }
   | { type: "close" }
   | { type: "arrowDown" }
   | { type: "arrowUp" }
@@ -108,6 +109,20 @@ export function comboboxReducer(state: ComboboxState, action: ComboboxAction): C
         open: false,
         suggestions: [],
         activeIndex: -1,
+      };
+    case "showLabel":
+      // A newly resolved place (searched, picked or tapped on the map) puts its
+      // address in the field. Same shape as `pick`: closed, suppressed so the
+      // programmatic text never fetches, and any in-flight list is invalidated.
+      return {
+        ...state,
+        generation: state.generation + 1,
+        query: action.label,
+        suppress: true,
+        open: false,
+        suggestions: [],
+        activeIndex: -1,
+        status: "idle",
       };
     case "close":
       // Always bumps the generation — its whole job is to invalidate a pending

@@ -130,12 +130,12 @@ test("toggling mode while the first search is still loading does not strand the 
   await waitForMap(page);
   await search(page, "Piata Unirii");
 
-  // Loading: the submit button's accessible name becomes "Searching". Wait for
-  // it so the toggle is genuinely mid-flight (no prior selection to fall back on).
+  // Loading: the shell reports the selection as loading. Wait for it so the
+  // toggle is genuinely mid-flight (no prior selection to fall back on).
   await expectSearchBusy(page);
   await pickMode(page, "transit");
 
-  // Aborting the in-flight search must return the UI to idle immediately — the
-  // "Go" button reappears and is enabled well before the 5 s isochrone would resolve.
+  // Aborting the in-flight search must return the UI to idle immediately — well
+  // before the 5 s isochrone would resolve.
   await expectSearchIdle(page);
 });

@@ -102,15 +102,15 @@ test("a map click with a malformed reverse-geocode body still renders the isochr
   expect(errors).toEqual([]);
 });
 
-// B3 — a suggest network failure must surface the error state, not hang on "Searching…".
+// B3 — a suggest network failure must surface the error state, not hang on "Caut…".
 test("a suggest network error shows the error state, not a stuck spinner", async ({ page }) => {
   await page.route("**/api/suggest**", (route) => route.abort("failed"));
 
   await waitForMap(page);
   await page.getByRole("combobox").fill("Unirii");
 
-  await expect(page.getByText(/couldn.?t load suggestions/i)).toBeVisible({ timeout: 5000 });
-  await expect(page.getByText(/searching/i)).toHaveCount(0);
+  await expect(page.getByText(/nu am putut încărca sugestiile/i)).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText("Caut…", { exact: true })).toHaveCount(0);
 });
 
 // B3-adjacent — a malformed suggest response (valid JSON, no array) must not crash.
@@ -123,6 +123,6 @@ test("a malformed suggest response shows the error state instead of crashing", a
   await waitForMap(page);
   await page.getByRole("combobox").fill("Unirii");
 
-  await expect(page.getByText(/couldn.?t load suggestions/i)).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText(/nu am putut încărca sugestiile/i)).toBeVisible({ timeout: 5000 });
   expect(errors).toEqual([]); // no ".length of undefined" crash
 });

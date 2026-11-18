@@ -320,16 +320,18 @@ test("short-mobile autocomplete stays anchored, unclipped, and dismisses with Es
   );
   await page.goto("/");
   const input = page.getByRole("combobox");
+  const field = page.getByTestId("search-field");
   await input.fill("Unirii");
   const list = page.getByRole("listbox");
   await expect(list).toBeVisible();
   // Measure only after the 280ms surface-entry transition finishes — retry the
   // real anchor predicate (poll the actual geometry) instead of a fixed sleep.
+  // The list hangs 8px under the whole search field, aligned to its left edge.
   await expect(async () => {
-    const [inputBox, listBox] = await Promise.all([input.boundingBox(), list.boundingBox()]);
-    if (!inputBox || !listBox) throw new Error("autocomplete boxes unavailable");
-    expect(Math.abs(listBox.x - inputBox.x)).toBeLessThanOrEqual(3);
-    expect(Math.abs(listBox.y - (inputBox.y + inputBox.height + 8))).toBeLessThanOrEqual(2);
+    const [fieldBox, listBox] = await Promise.all([field.boundingBox(), list.boundingBox()]);
+    if (!fieldBox || !listBox) throw new Error("autocomplete boxes unavailable");
+    expect(Math.abs(listBox.x - fieldBox.x)).toBeLessThanOrEqual(3);
+    expect(Math.abs(listBox.y - (fieldBox.y + fieldBox.height + 8))).toBeLessThanOrEqual(2);
     expect(listBox.y + listBox.height).toBeLessThanOrEqual(600);
   }).toPass({ timeout: 10_000 });
   await expect(page.getByRole("option")).toHaveCount(3);
@@ -338,7 +340,26 @@ test("short-mobile autocomplete stays anchored, unclipped, and dismisses with Es
   await expect(list).toHaveCount(0);
 });
 
-test("server-rendered utility header leaves its visual gaps map-interactive", async ({ page }) => {
+test("the focused address field shows one accent ring, on the whole field", async ({ page }) => {
+  await page.goto("/");
+  const input = page.getByRole("combobox");
+  await page.keyboard.press("Tab"); // the address search is first in tab order
+  await expect(input).toBeFocused();
+  const outline = (locator: typeof input) =>
+    locator.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { style: style.outlineStyle, width: style.outlineWidth, color: style.outlineColor };
+    });
+  expect(await outline(page.getByTestId("search-field"))).toEqual({
+    style: "solid",
+    width: "3px",
+    color: "rgb(199, 243, 107)",
+  });
+  // The bare input draws no second ring inside the field's.
+  expect((await outline(input)).style).toBe("none");
+});
+
+test("the top strip beside the top bar is live map", async ({ page }) => {
   await stubPopulatedState(page);
   await page.route("**/api/reverse**", (route) =>
     route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Header gap point" } }),
@@ -351,7 +372,6 @@ test("server-rendered utility header leaves its visual gaps map-interactive", as
   ).toBe(true);
   await page.mouse.click(640, 40);
   await expect(map).toHaveAttribute("data-selection", "Header gap point");
-  await expect(page.locator("text=/Sign in with|Sign-in unavailable/").first()).toBeVisible();
 });
 
 test("first-run guidance is search-first but lets a map click pass through and dismiss it", async ({ page }) => {

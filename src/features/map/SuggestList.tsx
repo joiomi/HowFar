@@ -18,22 +18,22 @@ export default function SuggestList({ combo, onPick, onHover }: SuggestListProps
     <ul
       id="suggest-list"
       role="listbox"
-      aria-label="Address suggestions"
+      aria-label="Sugestii de adrese"
       aria-live="polite"
-      className="pointer-events-auto hf-surface-in absolute left-0 right-14 top-[calc(100%+.5rem)] z-50 max-h-[min(19rem,45dvh)] overflow-y-auto overscroll-contain rounded-[1rem] border border-white/[.13] bg-[#0c100d]/98 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,.48)] backdrop-blur-2xl"
+      className="pointer-events-auto hf-surface-in absolute left-0 right-0 top-[calc(100%+.5rem)] z-50 max-h-[min(19rem,45dvh)] overflow-y-auto overscroll-contain rounded-[1rem] border border-white/[.13] bg-[#0c100d]/98 p-1.5 shadow-[0_20px_50px_rgba(0,0,0,.48)] backdrop-blur-2xl"
     >
       {combo.status === "loading" ? (
         <li className="flex min-h-11 items-center gap-2.5 px-3 text-sm text-[#9ca9a0]">
           <span className="hf-spinner size-3.5 rounded-full border border-[#c7f36b]/25 border-t-[#c7f36b]" />
-          Searching…
+          Caut…
         </li>
       ) : combo.status === "error" ? (
         <li role="status" className="flex min-h-11 items-center px-3 text-sm text-[#f6c86b]">
-          Couldn’t load suggestions. Try again.
+          Nu am putut încărca sugestiile.
         </li>
       ) : combo.suggestions.length === 0 ? (
         <li role="status" className="flex min-h-11 items-center px-3 text-sm text-[#9ca9a0]">
-          No matches in Bucharest
+          Nicio adresă găsită în București
         </li>
       ) : (
         combo.suggestions.map((s, i) => (
