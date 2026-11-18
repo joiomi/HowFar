@@ -255,9 +255,15 @@ export default function AppMap() {
   function dispatchSel(action: SelectionAction): SelectionState {
     // Every selection path (search, pick, map tap, ✕) goes through here, so a stale
     // locate failure, and any locate still waiting on a fix, ends with the new choice.
+    // A recompute (mode, pace or time change) only retires a stale failure banner: a
+    // fix still pending is for the same wish and selects normally when it arrives.
     if (action.type === "start" || action.type === "clear") {
-      locateEpochRef.current += 1;
       setLocateFailure(null);
+      if (action.type === "clear" || !action.preserveLast) {
+        locateEpochRef.current += 1;
+        locatingRef.current = false;
+        setLocating(false);
+      }
     }
     const next = selectionReducer(selRef.current, action);
     if (next !== selRef.current) {
@@ -1123,8 +1129,12 @@ export default function AppMap() {
         setLocateFailure(error instanceof LocateError ? error.reason : "unavailable");
       }
     } finally {
-      locatingRef.current = false;
-      setLocating(false);
+      // Only the request still current frees the button: a retired one must not
+      // release a newer request's hold.
+      if (epoch === locateEpochRef.current) {
+        locatingRef.current = false;
+        setLocating(false);
+      }
     }
   }
 
