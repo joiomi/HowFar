@@ -124,6 +124,42 @@ test("clicking the map reverse-geocodes and renders the isochrone", async ({ pag
   expect(errors).toEqual([]);
 });
 
+// The bar is the only text naming the place. A tap elsewhere names the tapped point while
+// it loads, and still does once it fails: it never keeps the previous address over a pin
+// that has moved on.
+test("a failed map tap names the tapped point in the bar, not the place before it", async ({ page }) => {
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
+  );
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await stubIsochrone(page);
+  let releaseReverse: () => void = () => {};
+  const reverseHeld = new Promise<void>((resolve) => {
+    releaseReverse = resolve;
+  });
+  await page.route("**/api/reverse**", async (route) => {
+    await reverseHeld;
+    await route.fulfill({ status: 422, json: { error: "outside the launch area" } });
+  });
+
+  const map = await waitForMap(page);
+  const combobox = page.getByRole("combobox");
+  await search(page, "Piata Unirii");
+  await expect(combobox).toHaveValue("Piața Unirii, București");
+  await expect(map).toHaveAttribute("data-camera-settled", "true", { timeout: 10_000 });
+
+  // Inside the drawn zone, clear of the pin and of the edge label.
+  const pin = await page.locator(".hf-origin-marker").boundingBox();
+  if (!pin) throw new Error("the origin pin has no box");
+  await page.mouse.click(pin.x + pin.width / 2 + 60, pin.y + pin.height / 2 + 40);
+  await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sel-status", "loading");
+  await expect(combobox).toHaveValue("Punct pe hartă");
+
+  releaseReverse();
+  await expect(page.getByTestId("error-banner")).toContainText("Locul e în afara Bucureștiului.");
+  await expect(combobox).toHaveValue("Punct pe hartă");
+});
+
 test("a superseded slow selection never overwrites the newer one", async ({ page }) => {
   let call = 0;
   await page.route("**/api/reverse**", async (route) => {

@@ -51,6 +51,32 @@ test.describe("my location", () => {
     await expect(page.getByRole("combobox")).toHaveValue("Strada Doamnei 1");
   });
 
+  // The second fix is the cached one (a fix up to a minute old is accepted), so it lands on
+  // exactly the coordinates of the first: it is still a new choice, and the bar must name it.
+  test("my location again after a search that found nothing puts the address back in the bar", async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({ latitude: 44.4268, longitude: 26.1025 });
+    await openMap(page, (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Strada Doamnei 1" } }));
+    await page.route("**/api/geocode**", (route) => route.fulfill({ status: 404, json: { error: "not found" } }));
+    const combobox = page.getByRole("combobox");
+    const status = page.getByTestId("status-announcer");
+
+    await page.getByTestId("locate").click();
+    await expect(status).toHaveText("Strada Doamnei 1: circa 10 minute pe jos");
+    await expect(combobox).toHaveValue("Strada Doamnei 1");
+
+    await search(page, "Strada Inexistentă 99");
+    await expect(page.getByTestId("error-banner")).toContainText("Nu am găsit adresa.");
+    await expect(combobox).toHaveValue("Strada Inexistentă 99");
+
+    await page.getByTestId("locate").click();
+    await expect(status).toHaveText("Strada Doamnei 1: circa 10 minute pe jos");
+    await expect(combobox).toHaveValue("Strada Doamnei 1");
+  });
+
   test("blocked location shows the Romanian banner and the map still works", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator.geolocation, "getCurrentPosition", {

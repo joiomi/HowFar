@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createClearAddressController, createOriginTracker } from "@/features/map/clear-address-controller";
+import {
+  createAddressField,
+  createClearAddressController,
+  createOriginTracker,
+} from "@/features/map/clear-address-controller";
 import { createSelectFlowController } from "@/features/map/select-flow-controller";
 import {
   initialSelectionState,
@@ -173,6 +177,7 @@ describe("clear address during a recompute", () => {
       maybeFetchAmenities: vi.fn(),
       renderSelection,
       showOrigin: vi.fn(),
+      onFreshStart: vi.fn(),
     });
     // The response ignores the abort and arrives anyway, so only the token can stop it.
     const signals: AbortSignal[] = [];
@@ -202,5 +207,133 @@ describe("clear address during a recompute", () => {
     expect(signals.at(-1)?.aborted).toBe(true);
     expect(renderSelection).toHaveBeenCalledTimes(1); // only the first place was ever drawn
     expect(h.selRef.current).toMatchObject({ status: "idle", lastSelection: null, label: null });
+  });
+});
+
+/** The address field driven by the real combobox reducer; `type` is the user typing. */
+function fieldHarness() {
+  const comboRef = { current: initialComboboxState as ComboboxState };
+  const dispatchCombo = (action: ComboboxAction) => (comboRef.current = comboboxReducer(comboRef.current, action));
+  const field = createAddressField({ origins: createOriginTracker(), dispatchCombo });
+  const type = (value: string) => dispatchCombo({ type: "queryChanged", value });
+  return { field, comboRef, dispatchCombo, type };
+}
+
+const HOME = { lat: 44.4268, lng: 26.1025 };
+const SUGGESTION = { label: "Bulevardul Unirii 1, București", lat: 44.4262, lng: 26.1109 };
+
+describe("the address field across selections", () => {
+  it("a fresh selection at the last place's coordinates shows its address, whatever a failed attempt left there", () => {
+    const failedAttempts = [
+      (h: ReturnType<typeof fieldHarness>) => {
+        h.type("Strada Inexistentă 99");
+        h.field.freshStart({ kind: "search", query: "Strada Inexistentă 99" });
+        return "Strada Inexistentă 99";
+      },
+      (h: ReturnType<typeof fieldHarness>) => {
+        h.dispatchCombo({ type: "pick", suggestion: SUGGESTION });
+        h.field.freshStart({ kind: "point", ...SUGGESTION });
+        return SUGGESTION.label;
+      },
+    ];
+    for (const fail of failedAttempts) {
+      const h = fieldHarness();
+      // My location: the fix resolves to its address.
+      h.field.freshStart({ kind: "click", ...HOME });
+      h.field.resolved(HOME, "Strada Doamnei 1");
+      expect(h.comboRef.current.query).toBe("Strada Doamnei 1");
+      // A search that finds nothing, or a suggestion whose reach fails: the field
+      // keeps what was asked for, and nothing resolves.
+      const asked = fail(h);
+      expect(h.comboRef.current.query).toBe(asked);
+      // My location again within a minute: the same cached fix, the same served origin.
+      h.field.freshStart({ kind: "click", ...HOME });
+      h.field.resolved(HOME, "Strada Doamnei 1");
+      expect(h.comboRef.current.query).toBe("Strada Doamnei 1");
+    }
+  });
+
+  it("a fresh map tap names the tapped point while it runs and if it fails, never the place before it", () => {
+    const h = fieldHarness();
+    h.type("Piata Unirii");
+    h.field.freshStart({ kind: "search", query: "Piata Unirii" });
+    h.field.resolved(HOME, "Piața Unirii, București");
+    expect(h.comboRef.current.query).toBe("Piața Unirii, București");
+
+    // A tap, my location or a dragged pin: the field names the point at once...
+    h.field.freshStart({ kind: "click", lat: 44.45, lng: 26.08 });
+    expect(h.comboRef.current).toMatchObject({ query: "Punct pe hartă", suppress: true, open: false });
+    // ...and, when it resolves, its address.
+    h.field.resolved({ lat: 44.45, lng: 26.08 }, "Strada Fabricii 4");
+    expect(h.comboRef.current.query).toBe("Strada Fabricii 4");
+  });
+
+  it("a typed search and a picked suggestion keep what was typed or picked while they run", () => {
+    const h = fieldHarness();
+    h.field.resolved(HOME, "Piața Unirii, București");
+    h.type("Strada Fabricii");
+    h.field.freshStart({ kind: "search", query: "Strada Fabricii" });
+    expect(h.comboRef.current.query).toBe("Strada Fabricii");
+    h.dispatchCombo({ type: "pick", suggestion: SUGGESTION });
+    h.field.freshStart({ kind: "point", ...SUGGESTION });
+    expect(h.comboRef.current.query).toBe(SUGGESTION.label);
+  });
+
+  it("a recompute of the place on screen leaves the field as it is", () => {
+    const h = fieldHarness();
+    h.field.freshStart({ kind: "click", ...HOME });
+    h.field.resolved(HOME, "Strada Doamnei 1");
+    // The user starts typing, then changes the mode: the same place is re-run.
+    h.type("Str");
+    h.field.resolved(HOME, "Strada Doamnei 1");
+    expect(h.comboRef.current.query).toBe("Str");
+  });
+
+  it("a recompute that resolves with nothing resolved before it shows the address", () => {
+    const h = fieldHarness();
+    // A first search whose transit reach failed, then the switch to walking re-runs it.
+    h.type("Piata Unirii");
+    h.field.freshStart({ kind: "search", query: "Piata Unirii" });
+    h.field.resolved(HOME, "Piața Unirii, București");
+    expect(h.comboRef.current.query).toBe("Piața Unirii, București");
+  });
+});
+
+describe("the address field through the selection flow", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("my location, a search that finds nothing, my location again: the field and the status line name the same place", async () => {
+    const h = fieldHarness();
+    const selRef = { current: initialSelectionState as SelectionState };
+    const dispatchSel = (action: SelectionAction) => (selRef.current = selectionReducer(selRef.current, action));
+    const flow = createSelectFlowController({
+      dispatchSel,
+      selRef,
+      pendingInputRef: { current: null },
+      abortRef: { current: null },
+      clearSelection: vi.fn(),
+      clearAmenities: vi.fn(),
+      maybeFetchAmenities: vi.fn(),
+      renderSelection: (origin, label) => h.field.resolved(origin, label),
+      showOrigin: vi.fn(),
+      onFreshStart: (input) => h.field.freshStart(input),
+    });
+    vi.stubGlobal("fetch", async (url: string) => {
+      if (url.startsWith("/api/geocode")) return { ok: false, status: 404, json: async () => ({}) };
+      if (url.startsWith("/api/reverse")) return { ok: true, status: 200, json: async () => ({ label: "Strada Doamnei 1" }) };
+      return { ok: true, status: 200, json: async () => ({ origin: HOME, rings: [] }) };
+    });
+
+    await flow.select({ kind: "click", ...HOME });
+    expect(h.comboRef.current.query).toBe("Strada Doamnei 1");
+
+    h.type("Strada Inexistentă 99");
+    await flow.select({ kind: "search", query: "Strada Inexistentă 99" });
+    expect(selRef.current).toMatchObject({ status: "error", message: "Nu am găsit adresa." });
+    expect(h.comboRef.current.query).toBe("Strada Inexistentă 99");
+
+    await flow.select({ kind: "click", ...HOME });
+    expect(selRef.current).toMatchObject({ status: "idle", label: "Strada Doamnei 1" });
+    expect(h.comboRef.current.query).toBe(selRef.current.label);
   });
 });

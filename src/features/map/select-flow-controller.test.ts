@@ -37,6 +37,7 @@ function makeHarness(startMode: Mode = "walk") {
   const maybeFetchAmenities = vi.fn();
   const renderSelection = vi.fn();
   const showOrigin = vi.fn();
+  const onFreshStart = vi.fn();
   const pendingInputRef = { current: null };
   const controller = createSelectFlowController({
     dispatchSel,
@@ -48,8 +49,19 @@ function makeHarness(startMode: Mode = "walk") {
     maybeFetchAmenities,
     renderSelection,
     showOrigin,
+    onFreshStart,
   });
-  return { controller, selRef, dispatched, clearSelection, clearAmenities, maybeFetchAmenities, renderSelection, showOrigin };
+  return {
+    controller,
+    selRef,
+    dispatched,
+    clearSelection,
+    clearAmenities,
+    maybeFetchAmenities,
+    renderSelection,
+    showOrigin,
+    onFreshStart,
+  };
 }
 
 beforeEach(() => {
@@ -362,5 +374,29 @@ describe("select() — the origin pin shows while the reach loads", () => {
     await run;
     expect(h.showOrigin).not.toHaveBeenCalled();
     expect(fetchedUrls.some((u) => u.startsWith("/api/isochrone"))).toBe(false);
+  });
+});
+
+describe("select() — a fresh selection reports its start", () => {
+  it("reports each fresh selection once, with its input, as it starts; a recompute reports nothing", async () => {
+    const h = makeHarness();
+    const tap = { kind: "click", lat: 44.4, lng: 26.1 } as const;
+    let startedBeforeAnyRequest = false;
+    fetchImpl = (url) => {
+      fetchedUrls.push(url);
+      if (fetchedUrls.length === 1) startedBeforeAnyRequest = h.onFreshStart.mock.calls.length === 1;
+      return res(200, { origin: { lat: 44.4, lng: 26.1 }, rings: [] });
+    };
+    await h.controller.select(tap);
+    expect(h.onFreshStart.mock.calls).toEqual([[tap]]);
+    expect(startedBeforeAnyRequest).toBe(true);
+
+    // A mode, pace or time change, or ↻, re-runs the same place: not a new start.
+    await h.controller.select({ kind: "point", lat: 44.4, lng: 26.1, label: "X" }, { recompute: true });
+    expect(h.onFreshStart).toHaveBeenCalledTimes(1);
+
+    const search = { kind: "search", query: "Piata Unirii" } as const;
+    await h.controller.select(search);
+    expect(h.onFreshStart.mock.calls).toEqual([[tap], [search]]);
   });
 });

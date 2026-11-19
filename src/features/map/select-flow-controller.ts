@@ -74,6 +74,7 @@ export function createSelectFlowController({
   maybeFetchAmenities,
   renderSelection,
   showOrigin,
+  onFreshStart,
 }: {
   dispatchSel: (action: SelectionAction) => SelectionState;
   selRef: { current: SelectionState };
@@ -85,6 +86,8 @@ export function createSelectFlowController({
   renderSelection: (origin: Origin, label: string, rings: Ring[], mode: Mode) => void;
   /** Places (or moves) the origin pin while the reach loads: no reach, no camera move. */
   showOrigin: (origin: Origin, mode: Mode) => void;
+  /** A fresh selection (not a recompute) has started, before any request goes out. */
+  onFreshStart: (input: SelectInput) => void;
 }) {
   async function select(input: SelectInput, opts?: { recompute?: boolean }) {
     // Record the input so a pace/time change before this resolves can re-issue
@@ -119,6 +122,9 @@ export function createSelectFlowController({
     // request. A mode toggle does not blanketly leave them in place: the clip follows
     // the mode, so those markers would describe an area the user is no longer looking at.
     if (!opts?.recompute) clearAmenities();
+    // A fresh selection is a new place even at the last one's coordinates; the
+    // shell's address field follows it from here (clear-address-controller).
+    if (!opts?.recompute) onFreshStart(input);
 
     try {
       // Resolve the origin (what the isochrone + marker use) and its label.

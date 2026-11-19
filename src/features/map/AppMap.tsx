@@ -48,7 +48,11 @@ import {
 import { createAmenitySpiderController } from "@/features/map/amenity-spider-controller";
 import { createAmenitiesController, type AmenityUi } from "@/features/map/amenities-controller";
 import { createCameraController, type CameraController } from "@/features/map/camera-controller";
-import { createClearAddressController, createOriginTracker } from "@/features/map/clear-address-controller";
+import {
+  createAddressField,
+  createClearAddressController,
+  createOriginTracker,
+} from "@/features/map/clear-address-controller";
 import { DESKTOP_BREAKPOINT_PX } from "@/features/map/camera";
 import { selectionAnnouncement } from "@/features/map/copy";
 import FirstOpenPulse from "@/features/map/FirstOpenPulse";
@@ -635,19 +639,19 @@ export default function AppMap() {
     // Stash the rendered rings+mode+origin for the right-click reach popup, and
     // clear them whenever the selection is dropped, so a right-click never reads
     // stale geometry.
-    // Origin of the last RESOLVED selection — tells a new place (whose address
-    // the bar then shows) from a recompute at the same origin.
+    // Origin of the last RESOLVED selection, which the address field reads to
+    // tell a new place from a recompute at the same origin.
     const origins = createOriginTracker();
+    const addressField = createAddressField({ origins, dispatchCombo });
     const renderSelectionStash = (origin: Origin, label: string, rings: Ring[], mode: Mode) => {
       // `dispatchSel({type:"resolved",…,car})` runs synchronously BEFORE this in
       // the controller, so `selRef.current.car` is the fresh basis for THIS
       // resolution (null for walk/transit) — snapshot it into the atomic reach
       // stash so a right-click car band names the traffic it was computed for.
       reachRef.current = { rings, mode, origin, car: selRef.current.car };
-      // A NEW place: the address bar shows the place that was resolved,
-      // whichever way it was chosen (typed search, picked suggestion, map tap).
-      // A same-origin recompute (pace/time/mode change) leaves the bar alone.
-      if (origins.note(origin)) dispatchCombo({ type: "showLabel", label });
+      // The address bar shows the resolved place, unless this is a recompute of
+      // the place already on screen (clear-address-controller's address field).
+      addressField.resolved(origin, label);
       renderSelection(origin, label, rings, mode);
       // The first resolved place of the page may bring the one-time hold hint.
       holdHintRef.current?.resolved();
@@ -688,6 +692,7 @@ export default function AppMap() {
       maybeFetchAmenities: () => {},
       renderSelection: renderSelectionStash,
       showOrigin,
+      onFreshStart: addressField.freshStart,
     });
     selectRef.current = selectFlow.select;
     // Replay a selection the user made while the engine was still loading: the shell's
