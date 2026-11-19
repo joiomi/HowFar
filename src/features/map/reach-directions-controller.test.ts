@@ -357,7 +357,7 @@ describe("reach-directions-controller — Romanian copy", () => {
         { mode: "SUBWAY", line: "M2", headsign: "Pipera", fromName: "Piața Unirii", toName: "Piața Romană", minutes: 6 },
         { mode: "BUS", line: "131", headsign: "Gara de Nord", fromName: "Piața Romană", toName: "Gara de Nord", minutes: 12 },
         { mode: "TRAM", line: "", headsign: "", fromName: "Gara de Nord", toName: "Basarab", minutes: 7 },
-        { mode: "WALK", fromName: "Basarab", toName: "END", minutes: 3 },
+        { mode: "walk", fromName: "Basarab", toName: "END", minutes: 3 },
       ],
     };
     vi.stubGlobal("fetch", vi.fn(ok(plan)) as never);
@@ -367,6 +367,8 @@ describe("reach-directions-controller — Romanian copy", () => {
     const steps = views.at(-1)!.steps!;
     expect(steps.map((s) => s.chip)).toEqual(plan.legs.map((l) => stepChip(l)));
     expect(steps.map((s) => s.chip.text)).toEqual(["4", "M2", "131", "7 min", "3"]);
+    // The mode arrives normalised (the last leg was sent in lower case).
     expect(steps.map((s) => s.mode)).toEqual(["WALK", "SUBWAY", "BUS", "TRAM", "WALK"]);
+    expect(steps[4].primary).toBe("Pe jos 3 min");
   });
 });

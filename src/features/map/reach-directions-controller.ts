@@ -2,6 +2,7 @@ import type { ReachPlan } from "@/features/isochrones/server/transit-plan";
 import {
   buildReachSteps,
   hasTransitLeg,
+  legMode,
   reachSummary,
   stepChip,
   type ReachRequest,
@@ -46,7 +47,7 @@ import type { EdgeInsets } from "@/features/map/route-framing";
 export const REACH_TIMEOUT_MS = 15000;
 
 /** One trip step as the sheet shows it: its chip, with the two-line step as the
- * chip's accessible name. `mode` is the leg's MOTIS mode. */
+ * chip's accessible name. `mode` is the leg's MOTIS mode in upper case (`legMode`). */
 export interface ReachStepView {
   primary: string;
   secondary: string;
@@ -194,7 +195,7 @@ export function createReachDirectionsController({
         }
         const steps: ReachStepView[] = buildReachSteps(plan.legs).map((s, i) => ({
           ...s,
-          mode: plan.legs[i].mode,
+          mode: legMode(plan.legs[i]),
           chip: stepChip(plan.legs[i]),
         }));
         // A real public-transport journey: DRAW it and, only if it produced

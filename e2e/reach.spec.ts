@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { besidePin, expectBannerClear, expectNotCovered, openInfo, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
+import { longTrip, overlaps } from "./reach-fixtures";
 
 // Right-click "how do I get there?". Provider calls stubbed by EXACT
 // path. Walk reach is answered client-side (point-in-ring on the drawn rings);
@@ -48,31 +49,9 @@ const PLAN = {
   ],
 };
 
-// A long trip (eleven legs) whose chips wrap onto several rows: the tallest directions
-// card the overlap checks below can meet.
-const LONG_PLAN = (() => {
-  const rides: [string, string?][] = [
-    ["WALK"], ["BUS", "243"], ["WALK"], ["TRAM", "1"], ["WALK"], ["SUBWAY", "M2"],
-    ["WALK"], ["BUS", "131"], ["WALK"], ["TRAM", "41"], ["WALK"],
-  ];
-  const at = (i: number) => ({ lat: 44.4268 + i * 0.002, lng: 26.1025 - i * 0.001 });
-  const legs = rides.map(([mode, line], i) => ({
-    mode,
-    ...(line ? { line, headsign: "Nord" } : {}),
-    fromName: i === 0 ? "START" : `Stația ${i}`,
-    toName: i === rides.length - 1 ? "END" : `Stația ${i + 1}`,
-    minutes: 6,
-    from: at(i),
-    to: at(i + 1),
-    path: [[at(i).lng, at(i).lat], [at(i + 1).lng, at(i + 1).lat]],
-  }));
-  return { reachable: true, totalMinutes: 66, transfers: 4, legs };
-})();
-
-type Box = { x: number; y: number; width: number; height: number };
-function overlaps(a: Box, b: Box): boolean {
-  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
-}
+// A 31-leg trip: its chips wrap onto so many rows that, unbounded, the card would reach
+// the failure banner even at 800×600.
+const TALL_TRIP = longTrip(31);
 
 async function setup(page: Page) {
   const reachCalls: string[] = [];
@@ -301,9 +280,9 @@ test("a failed mode recompute clears the drawn reach and flags the mode — no '
 
 // From 768 px the directions are a card in the left column and a failure banner sits
 // at the bottom centre. A right-click from walking switches to public transport; when
-// that reach fails while the trip is shown, both are on screen at once. On a short
-// landscape screen a long trip's card would reach down into the banner: the card
-// shortens while the banner shows, so neither covers the other's buttons.
+// that reach fails while the trip is shown, both are on screen at once. A trip this
+// long would reach down into the banner: the card shortens while the banner shows, so
+// neither covers the other's buttons.
 for (const viewport of [
   { width: 800, height: 600 },
   { width: 844, height: 390 },
@@ -319,7 +298,7 @@ for (const viewport of [
     await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
     await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK }));
     await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
-    await page.route("**/api/reach**", (route) => route.fulfill({ json: LONG_PLAN }));
+    await page.route("**/api/reach**", (route) => route.fulfill({ json: TALL_TRIP }));
     await page.goto("/");
     const map = page.getByTestId("app-map");
     await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
@@ -329,13 +308,20 @@ for (const viewport of [
     await expect(map).toHaveAttribute("data-reach-state", "transit");
     const banner = page.getByTestId("error-banner");
     await expect(banner).toContainText("Nu am putut calcula zona cu transportul public.");
-    await expect(page.getByTestId("reach-panel").locator("li[data-step-mode]")).toHaveCount(LONG_PLAN.legs.length);
+    await expect(page.getByTestId("reach-panel").locator("li[data-step-mode]")).toHaveCount(TALL_TRIP.legs.length);
 
     const sheet = page.getByTestId("result-sheet");
     await expect(sheet).toBeInViewport({ ratio: 1 });
     await expect(banner).toBeInViewport({ ratio: 1 });
-    const [sheetBox, bannerBox] = await Promise.all([sheet.boundingBox(), banner.boundingBox()]);
-    if (!sheetBox || !bannerBox) throw new Error("the directions card or the error banner has no box");
+    const [sheetBox, bannerBox, panelBox] = await Promise.all([
+      sheet.boundingBox(),
+      banner.boundingBox(),
+      page.getByTestId("reach-panel").boundingBox(),
+    ]);
+    if (!sheetBox || !bannerBox || !panelBox) throw new Error("the directions card, its panel or the error banner has no box");
+    // The trip is tall enough that its content alone would reach the banner: only the
+    // card's shortened height keeps them apart.
+    expect(panelBox.height, "the trip is long enough to reach the banner").toBeGreaterThan(bannerBox.y - sheetBox.y);
     expect(overlaps(sheetBox, bannerBox), "the directions card overlaps the error banner").toBe(false);
     await expectNotCovered(banner.getByTestId("banner-retry"));
     await expectNotCovered(banner.getByTestId("banner-walk"));

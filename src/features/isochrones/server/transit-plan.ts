@@ -50,7 +50,7 @@ const RETRY_BACKOFF_MS = 250;
 // few hours of reuse is safe and keeps repeat right-clicks instant.
 const TTL_MS = 6 * 60 * 60 * 1000;
 /** Short TTL for answers WITHOUT a useful transit leg (unreachable / walk-only /
- * walk-dominated). These render as "No public-transport route", so caching one
+ * walk-dominated). These render as "Niciun traseu cu transportul public", so caching one
  * for 6h pins a possibly-transient miss (provider hiccup, boundary case) to its
  * ~1.1m coordinate cell. A genuine no-service answer is cheap to re-derive. */
 const NO_TRANSIT_TTL_MS = 5 * 60 * 1000;
@@ -461,7 +461,7 @@ async function fetchAndParse(
   if (plan === null) throw new ProviderError("transitous plan request failed: no response");
   // TTL by answer kind: only a real public-transport answer is stable enough to
   // keep for hours; a plan with no transit leg (unreachable, or the walk/bike
-  // direct fallback — both rendered as "No public-transport route") heals in
+  // direct fallback — both rendered as "Niciun traseu cu transportul public") heals in
   // minutes instead of pinning a possibly-transient miss to this cell for 6h.
   const ttl = plan.reachable && hasTransitLeg(plan.legs) ? TTL_MS : NO_TRANSIT_TTL_MS;
   await setCachedSafe(key, plan, new Date(Date.now() + ttl));

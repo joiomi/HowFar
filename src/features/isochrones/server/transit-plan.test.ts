@@ -526,7 +526,7 @@ describe("planTrip", () => {
       .mockRejectedValueOnce(new TypeError("network blip")); // transient confirmation failure
     await expect(planTrip(FROM, TO, DEP)).rejects.toThrow(/request failed/);
     expect(providerFetch).toHaveBeenCalledTimes(2);
-    // Nothing cached: a distrusted empty must not be pinned as "No public-transport route".
+    // Nothing cached: a distrusted empty must not be pinned as "Niciun traseu cu transportul public".
     expect(store.size).toBe(0);
   });
 

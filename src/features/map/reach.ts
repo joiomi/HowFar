@@ -38,25 +38,32 @@ export function reachBand(point: [number, number], rings: RingLike[]): number | 
   return null;
 }
 
+/** A leg's MOTIS mode in upper case: the one form every mode check here
+ * compares, whatever case the plan used. */
+export function legMode(leg: Pick<ReachLeg, "mode">): string {
+  return leg.mode.toUpperCase();
+}
+
+/** Every MOTIS rail mode: each reads "Tren" and draws a train. */
+const TRAIN_MODES = new Set(["RAIL", "REGIONAL_RAIL", "REGIONAL_FAST_RAIL", "LONG_DISTANCE", "SUBURBAN", "HIGHSPEED_RAIL", "NIGHT_RAIL"]);
+
 const MODE_LABELS: Record<string, string> = {
   WALK: "Pe jos",
   BUS: "Autobuz",
   TRAM: "Tramvai",
   SUBWAY: "Metrou",
   METRO: "Metrou",
-  RAIL: "Tren",
-  REGIONAL_RAIL: "Tren",
   COACH: "Autocar",
   FERRY: "Feribot",
   TROLLEYBUS: "Troleibuz",
 };
 
-/** Romanian label for a MOTIS mode (e.g. SUBWAY → "Metrou"). */
+/** Romanian label for a MOTIS mode (e.g. SUBWAY → "Metrou", any rail mode →
+ * "Tren"). Any other mode reads "Transport public": never a raw enum. */
 export function transitModeLabel(mode: string): string {
-  const known = MODE_LABELS[mode.toUpperCase()];
-  if (known) return known;
-  // Title-case an unknown mode defensively (never render a raw enum).
-  return mode.charAt(0).toUpperCase() + mode.slice(1).toLowerCase();
+  const m = legMode({ mode });
+  if (TRAIN_MODES.has(m)) return "Tren";
+  return MODE_LABELS[m] ?? "Transport public";
 }
 
 /** MOTIS uses "START"/"END" for the trip endpoints; give them human names. */
@@ -93,7 +100,7 @@ export interface ReachStep {
  */
 export function buildReachSteps(legs: ReachLeg[]): ReachStep[] {
   return legs.map((leg) => {
-    if (leg.mode === "WALK") {
+    if (legMode(leg) === "WALK") {
       return { primary: `Pe jos ${leg.minutes} min`, secondary: `până la ${stopLabel(leg.toName)}` };
     }
     const label = transitModeLabel(leg.mode);
@@ -125,14 +132,14 @@ export interface StepChip {
 
 /**
  * The chip for one leg. WALK shows its minutes; SUBWAY/METRO shows its line, or
- * "M" without one; TRAM draws a tram, RAIL/REGIONAL_RAIL a train, and any other
+ * "M" without one; TRAM draws a tram, every rail mode a train, and any other
  * vehicle a bus, each showing its line, or its minutes without one.
  */
 export function stepChip(leg: ReachLeg): StepChip {
-  const mode = leg.mode.toUpperCase();
+  const mode = legMode(leg);
   if (mode === "WALK") return { icon: "walk", text: String(leg.minutes), tone: "walk" };
   if (mode === "SUBWAY" || mode === "METRO") return { icon: "metro", text: leg.line || "M", tone: "metro" };
-  const icon: StepIcon = mode === "TRAM" ? "tram" : mode === "RAIL" || mode === "REGIONAL_RAIL" ? "train" : "bus";
+  const icon: StepIcon = mode === "TRAM" ? "tram" : TRAIN_MODES.has(mode) ? "train" : "bus";
   return { icon, text: leg.line || `${leg.minutes} min`, tone: "surface" };
 }
 
@@ -198,7 +205,7 @@ export function journeyLegs(legs: ReachLeg[]): ReachJourneyLeg[] {
         [leg.to.lng, leg.to.lat],
       ];
     }
-    if (coords.length >= 2) out.push({ index, isWalk: leg.mode === "WALK", coords });
+    if (coords.length >= 2) out.push({ index, isWalk: legMode(leg) === "WALK", coords });
   });
   return out;
 }
@@ -214,7 +221,7 @@ export function journeyStops(legs: ReachLeg[]): ReachJourneyStop[] {
   type Raw = { pt: ReachPoint; name: string; legIndex: number };
   const raw: Raw[] = [];
   legs.forEach((leg, index) => {
-    if (leg.mode === "WALK") return; // only vehicle legs contribute used stops
+    if (legMode(leg) === "WALK") return; // only vehicle legs contribute used stops
     if (leg.from) raw.push({ pt: leg.from, name: leg.fromName, legIndex: index });
     if (leg.to) raw.push({ pt: leg.to, name: leg.toName, legIndex: index });
   });

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import type { ReachLeg } from "@/features/isochrones/server/transit-plan";
 import { TRANSITOUS_SOURCES_URL } from "@/features/map/credits";
+import { Icon, type IconName } from "@/features/map/icons";
 import { buildReachSteps, stepChip } from "@/features/map/reach";
 import type { ReachView } from "@/features/map/reach-directions-controller";
 import ReachPanel from "@/features/map/ReachPanel";
@@ -52,6 +53,18 @@ function attr(tag: string, name: string): string | undefined {
   return tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
 }
 
+/** The markup of one icon, to find exactly that drawing inside the panel. */
+function icon(name: IconName, size: number): string {
+  return renderToStaticMarkup(<Icon name={name} size={size} />);
+}
+
+/** The markup between the opening tag of the element carrying `data-testid` and its first child's end. */
+function inner(html: string, testId: string): string {
+  const tag = openTag(html, `data-testid="${testId}"`);
+  const start = html.indexOf(tag) + tag.length;
+  return html.slice(start, html.indexOf("</span>", html.indexOf("</svg>", start)));
+}
+
 describe("ReachPanel", () => {
   it("is a region named Traseu, with a 44 px close button named Închide", () => {
     const html = render(TRANSIT);
@@ -69,12 +82,26 @@ describe("ReachPanel", () => {
     expect(html).toContain(">Cu transportul public</h2>");
     expect(html).toContain("~70 min · 1 schimbare — dincolo de zona ta de ~40 min.");
     expect(openTag(html, 'data-testid="reach-icon"')).toMatch(/class="[^"]*text-\[var\(--hf-transit\)\]/);
+    // The drawing itself is the bus, not just the hue around it.
+    expect(inner(html, "reach-icon")).toContain(icon("bus", 20));
+  });
+
+  it("keeps the header with the close button pinned to the top of the scrolling sheet", () => {
+    const header = openTag(render(TRANSIT), 'data-testid="reach-header"');
+    expect(header).toMatch(/class="[^"]*\bsticky\b[^"]*\btop-0\b/);
+    expect(header).toMatch(/class="[^"]*bg-\[var\(--hf-panel-strong\)\]/);
+    const html = render(TRANSIT);
+    const start = html.indexOf('data-testid="reach-header"');
+    expect(html.indexOf('aria-label="Închide"', start)).toBeGreaterThan(start);
+    expect(html.indexOf('aria-label="Închide"')).toBeLessThan(html.indexOf('data-testid="reach-steps"'));
   });
 
   it("lists the steps as chips named by the full step and showing only the short text", () => {
     const html = render(TRANSIT);
     expect(attr(openTag(html, 'data-testid="reach-steps"'), "aria-label")).toBe("Pașii călătoriei");
     expect(openTag(html, 'data-testid="reach-steps"')).toMatch(/^<ol/);
+    // Without list markers Safari drops the list role unless it is stated.
+    expect(attr(openTag(html, 'data-testid="reach-steps"'), "role")).toBe("list");
     const list = chips(html);
     expect(list.map((c) => attr(c.tag, "aria-label"))).toEqual([
       "Pe jos 9 min, până la Emil Racovita",
@@ -90,6 +117,16 @@ describe("ReachPanel", () => {
     expect(list.every((c) => attr(c.tag, "tabindex") === "0")).toBe(true);
   });
 
+  it("marks the focused chip with an outline that forced-colors mode keeps", () => {
+    // The ring is a box-shadow, which High Contrast drops; a transparent outline is
+    // invisible normally and drawn in the system colour there.
+    for (const chip of chips(render(TRANSIT))) {
+      const cls = chip.inner.match(/<span class="([^"]*inline-flex[^"]*)"/)?.[1] ?? "";
+      expect(cls).toMatch(/\bgroup-focus-visible:outline-2\b/);
+      expect(cls).toMatch(/\bgroup-focus-visible:outline-transparent\b/);
+    }
+  });
+
   it("colours the metro blue, surface vehicles violet and walking neutral, each chip with its icon", () => {
     const [walk, bus, metro] = chips(render(TRANSIT));
     expect(bus.inner).toMatch(/class="[^"]*\bbg-\[#5b4a9e\][^"]*\btext-white\b/);
@@ -99,6 +136,10 @@ describe("ReachPanel", () => {
     expect(walk.inner.match(/<svg/g)).toHaveLength(1);
     expect(bus.inner.match(/<svg/g)).toHaveLength(2);
     expect(metro.inner.match(/<svg/g)).toHaveLength(2);
+    expect(walk.inner).toContain(icon("walk", 17));
+    expect(bus.inner).toContain(icon("bus", 17));
+    expect(metro.inner).toContain(icon("metro", 17));
+    expect(bus.inner).toContain(icon("arrow", 14));
   });
 
   it("joins the chips with hidden arrows", () => {

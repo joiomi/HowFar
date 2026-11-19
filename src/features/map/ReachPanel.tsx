@@ -62,8 +62,14 @@ export default function ReachPanel({ view, onHighlight, onClose }: ReachPanelPro
   const steps = view.state === "transit" ? view.steps : undefined;
 
   return (
-    <section data-testid="reach-panel" data-state={view.state} aria-label="Traseu" className="px-4 pt-3">
-      <div className="flex items-start gap-3">
+    <section data-testid="reach-panel" data-state={view.state} aria-label="Traseu" className="px-4">
+      {/* Pinned to the sheet's top edge on an opaque panel, like the footer below:
+          a long trip scrolls inside the sheet, and the ✕ must stay in reach (a
+          phone has no Escape key). */}
+      <div
+        data-testid="reach-header"
+        className="sticky top-0 z-10 flex items-start gap-3 bg-[var(--hf-panel-strong)] pb-1 pt-3"
+      >
         <span
           data-testid="reach-icon"
           className="relative mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-[var(--hf-transit)]/15 text-[var(--hf-transit)]"
@@ -102,17 +108,19 @@ export default function ReachPanel({ view, onHighlight, onClose }: ReachPanelPro
       </div>
 
       {steps ? (
+        // role="list": without list markers Safari drops the list semantics.
         <ol
           data-testid="reach-steps"
+          role="list"
           aria-label="Pașii călătoriei"
-          className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-2"
+          className="mt-2 flex flex-wrap items-center gap-x-1 gap-y-2"
         >
           {steps.map((step, index) => {
             const label = `${step.primary}, ${step.secondary}`;
             return (
               <li
                 key={index}
-                data-step-mode={step.mode.toUpperCase() === "WALK" ? "walk" : "transit"}
+                data-step-mode={step.mode === "WALK" ? "walk" : "transit"}
                 tabIndex={0}
                 aria-label={label}
                 title={label}
@@ -128,8 +136,11 @@ export default function ReachPanel({ view, onHighlight, onClose }: ReachPanelPro
                     <Icon name="arrow" size={14} />
                   </span>
                 ) : null}
+                {/* Focus shows as a ring (a box-shadow) plus a transparent outline,
+                    which forced-colors mode draws in the system colour where it
+                    drops the shadow. */}
                 <span
-                  className={`inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-[0.84rem] font-semibold tabular-nums transition-shadow group-hover:shadow-[0_0_0_2px_var(--hf-border-strong)] group-focus-visible:shadow-[0_0_0_3px_var(--hf-accent)] ${CHIP_TONE[step.chip.tone]}`}
+                  className={`inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-[0.84rem] font-semibold tabular-nums transition-shadow group-hover:shadow-[0_0_0_2px_var(--hf-border-strong)] group-focus-visible:shadow-[0_0_0_3px_var(--hf-accent)] group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-transparent ${CHIP_TONE[step.chip.tone]}`}
                 >
                   <Icon name={step.chip.icon} size={17} />
                   {step.chip.text}

@@ -6,6 +6,7 @@ import {
   hasTransitLeg,
   journeyLegs,
   journeyStops,
+  legMode,
   reachBand,
   reachSummary,
   stepChip,
@@ -85,8 +86,35 @@ describe("transitModeLabel", () => {
     expect(transitModeLabel("subway")).toBe("Metrou");
   });
 
-  it("title-cases an unknown mode rather than showing the raw enum", () => {
-    expect(transitModeLabel("GONDOLA")).toBe("Gondola");
+  it("names every MOTIS rail mode Tren", () => {
+    for (const mode of ["LONG_DISTANCE", "REGIONAL_FAST_RAIL", "SUBURBAN", "HIGHSPEED_RAIL", "NIGHT_RAIL", "night_rail"]) {
+      expect(transitModeLabel(mode)).toBe("Tren");
+    }
+  });
+
+  it("names any other unknown mode Transport public, never the raw enum", () => {
+    for (const mode of ["GONDOLA", "FUNICULAR", "AERIAL_LIFT", "Long_distance_bus"]) {
+      expect(transitModeLabel(mode)).toBe("Transport public");
+    }
+    expect(buildReachSteps([{ mode: "GONDOLA", line: "7", fromName: "A", toName: "B", minutes: 4 }])[0].primary).toBe(
+      "Transport public 7",
+    );
+  });
+});
+
+describe("legMode", () => {
+  it("is the leg's mode in upper case, the one form every check compares", () => {
+    expect(legMode({ mode: "walk" })).toBe("WALK");
+    expect(legMode({ mode: "Subway" })).toBe("SUBWAY");
+    expect(legMode({ mode: "BUS" })).toBe("BUS");
+  });
+
+  it("treats a lower-case walk leg as walking everywhere", () => {
+    const lower: ReachLeg = { mode: "walk", fromName: "START", toName: "Emil Racovita", minutes: 4, from: { lat: 44.42, lng: 26.1 }, to: { lat: 44.43, lng: 26.1 } };
+    expect(buildReachSteps([lower])[0]).toEqual({ primary: "Pe jos 4 min", secondary: "până la Emil Racovita" });
+    expect(stepChip(lower)).toEqual({ icon: "walk", text: "4", tone: "walk" });
+    expect(journeyLegs([lower])[0].isWalk).toBe(true);
+    expect(journeyStops([lower])).toEqual([]);
   });
 });
 
@@ -135,6 +163,9 @@ describe("stepChip", () => {
   it("draws trains as a train and every other vehicle as a bus", () => {
     expect(stepChip({ ...leg, mode: "RAIL", line: "IR 1581" })).toMatchObject({ icon: "train", tone: "surface" });
     expect(stepChip({ ...leg, mode: "REGIONAL_RAIL", line: "R 9021" })).toMatchObject({ icon: "train", tone: "surface" });
+    for (const mode of ["LONG_DISTANCE", "REGIONAL_FAST_RAIL", "SUBURBAN", "HIGHSPEED_RAIL", "NIGHT_RAIL"]) {
+      expect(stepChip({ ...leg, mode, line: "IC 532" })).toEqual({ icon: "train", text: "IC 532", tone: "surface" });
+    }
     for (const mode of ["TROLLEYBUS", "COACH", "FERRY", "FUNICULAR"]) {
       expect(stepChip({ ...leg, mode, line: "70" })).toEqual({ icon: "bus", text: "70", tone: "surface" });
     }
