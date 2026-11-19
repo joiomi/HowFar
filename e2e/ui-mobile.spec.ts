@@ -1324,7 +1324,8 @@ async function openDirections(page: Page) {
   const pt = [{ x, y, radiusX: 3, radiusY: 3, force: 1, id: 1 }];
   await expect(async () => {
     await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pt });
-    await page.waitForTimeout(650); // > long-press hold threshold, no move
+    // The long-press hold duration (> 500 ms, no move) inside a toPass retry, not a wait for an event.
+    await page.waitForTimeout(650);
     await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await expect(map).toHaveAttribute("data-reach-state", "transit", { timeout: 2000 });
   }).toPass({ timeout: 20_000 });
@@ -1429,7 +1430,8 @@ async function readShell(page: Page) {
   }, STUBBED_PLACE_LABELS);
 }
 
-test("the shell speaks Romanian in every state", async ({ page }) => {
+for (const size of PHONE_SIZES)
+test(`the shell speaks Romanian in every state at ${size.width}x${size.height}`, async ({ page }) => {
   const MIN_TARGET = ["locate", "clear-address", "info-button", "banner-retry", "banner-walk", "directions-close"];
   const sized = new Set<string>();
 
@@ -1455,20 +1457,23 @@ test("the shell speaks Romanian in every state", async ({ page }) => {
   }
 
   await stubShell(page);
-  const map = await openMap(page, { width: 390, height: 844 });
-  await expect(page.getByTestId("info-popover")).toBeVisible();
+  const map = await openMap(page, size);
   await sweep("first open");
 
   await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   await waitForQuietShell(page);
   await sweep("walk");
+  await openInfo(page);
+  await sweep("walk with the info popover open");
+  await page.getByTestId("info-button").click();
   await toggleSlowPace(page);
   await sweep("walk at a slow pace");
 
   await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
   await sweep("transit");
+  // A popover the user opened stays open (the first-load one closes itself after 5 s).
   await openInfo(page);
   await sweep("transit with the info popover open");
   await page.getByTestId("info-button").click();
@@ -1501,9 +1506,10 @@ test("the shell speaks Romanian in every state", async ({ page }) => {
 
 // A keyboard-focused step chip scrolls into view clear of the sticky header on top and the
 // pinned credit at the bottom, even when it was already partly in view under one of them.
-test("a focused step chip scrolls clear of the directions sheet's sticky header and footer", async ({ page }) => {
+for (const size of PHONE_SIZES)
+test(`a focused step chip scrolls clear of the directions sheet's sticky header and footer at ${size.width}x${size.height}`, async ({ page }) => {
   const trip = await stubShell(page, { legs: 31 });
-  const map = await openMap(page, { width: 390, height: 844 });
+  const map = await openMap(page, size);
   await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-isochrone-rings", "3");
   await openDirections(page);
