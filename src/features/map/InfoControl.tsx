@@ -38,7 +38,9 @@ function Credit({ credit }: { credit: CreditLink }) {
  * decides the first-load opening and the closes on a map tap, a pan or the address
  * field). Escape inside the control closes the popover and puts focus back on the
  * button. The open popover sits above every other floating control (z-50), so
- * nothing covers its credits.
+ * nothing covers its credits. From md it is at most 360 px wide and narrows to
+ * leave the left column (16 + 400 px, plus an 8 px gap and its own 16 px edge)
+ * free, so between 768 and 800 px it never reaches over the directions card.
  *
  * A press on the button means what it meant when it started: a press that begins
  * while the popover is closed opens it. The press itself can open it in between
@@ -98,7 +100,7 @@ export default function InfoControl({ open, onOpenChange, mode, transitState }: 
           data-testid="info-popover"
           role="dialog"
           aria-label={INFO_LABEL}
-          className="pointer-events-auto absolute left-3 right-3 top-[7.25rem] z-50 rounded-[1.25rem] border border-[var(--hf-border)] bg-[var(--hf-panel-strong)] p-3.5 shadow-[var(--hf-shadow-float)] backdrop-blur-2xl md:left-auto md:right-4 md:top-[4.5rem] md:w-[360px]"
+          className="pointer-events-auto absolute left-3 right-3 top-[7.25rem] z-50 rounded-[1.25rem] border border-[var(--hf-border)] bg-[var(--hf-panel-strong)] p-3.5 shadow-[var(--hf-shadow-float)] backdrop-blur-2xl md:left-auto md:right-4 md:top-[4.5rem] md:w-[min(360px,calc(100vw-27.5rem))]"
         >
           <p className="flex gap-2 text-[0.84rem] leading-5 text-[var(--hf-text)]">
             <span aria-hidden="true" className="shrink-0 font-bold text-[var(--hf-accent)]">

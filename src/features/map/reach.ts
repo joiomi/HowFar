@@ -6,8 +6,8 @@ import type { ReachLeg, ReachPlan, ReachPoint } from "@/features/isochrones/serv
 /**
  * Pure helpers for the right-click "how do I get there?" directions (public-transport only): client-side reachability banding
  * (point-in-polygon on the SAME transit rings the map drew) and the display
- * formatting of a MOTIS trip into human steps. Kept pure + unit-tested so the
- * directions controller only does DOM + fetch.
+ * formatting of a MOTIS trip into human steps and step chips. Kept pure +
+ * unit-tested so the directions controller only does DOM + fetch.
  */
 
 interface RingLike {
@@ -39,19 +39,19 @@ export function reachBand(point: [number, number], rings: RingLike[]): number | 
 }
 
 const MODE_LABELS: Record<string, string> = {
-  WALK: "Walk",
-  BUS: "Bus",
-  TRAM: "Tram",
-  SUBWAY: "Metro",
-  METRO: "Metro",
-  RAIL: "Train",
-  REGIONAL_RAIL: "Train",
-  COACH: "Coach",
-  FERRY: "Ferry",
-  TROLLEYBUS: "Trolleybus",
+  WALK: "Pe jos",
+  BUS: "Autobuz",
+  TRAM: "Tramvai",
+  SUBWAY: "Metrou",
+  METRO: "Metrou",
+  RAIL: "Tren",
+  REGIONAL_RAIL: "Tren",
+  COACH: "Autocar",
+  FERRY: "Feribot",
+  TROLLEYBUS: "Troleibuz",
 };
 
-/** Human label for a MOTIS mode (e.g. SUBWAY → "Metro"). */
+/** Romanian label for a MOTIS mode (e.g. SUBWAY → "Metrou"). */
 export function transitModeLabel(mode: string): string {
   const known = MODE_LABELS[mode.toUpperCase()];
   if (known) return known;
@@ -61,8 +61,8 @@ export function transitModeLabel(mode: string): string {
 
 /** MOTIS uses "START"/"END" for the trip endpoints; give them human names. */
 function stopLabel(name: string): string {
-  if (name === "END" || name === "") return "your destination";
-  if (name === "START") return "your start";
+  if (name === "END" || name === "") return "destinație";
+  if (name === "START") return "punctul de plecare";
   return name;
 }
 
@@ -78,22 +78,23 @@ export type ReachRequest =
   | { kind: "hint"; coords: [number, number] }
   | { kind: "transit"; coords: [number, number]; band: number; url: string };
 
-/** A popup step: two lines of already-safe text (rendered via textContent). */
+/** A trip step: two lines of untrusted text, rendered as React text nodes. */
 export interface ReachStep {
   primary: string;
   secondary: string;
 }
 
 /**
- * Format a planned trip's legs into display steps. WALK legs read "Walk N min /
- * to <place>"; transit legs read "<Mode> <line> → <headsign> / Board at <stop> ·
- * N min". Untrusted OSM names/headsigns are returned as plain strings and MUST be
- * rendered with textContent by the caller (never innerHTML).
+ * Format a planned trip's legs into display steps. WALK legs read "Pe jos N min /
+ * până la <place>"; transit legs read "<Mode> <line> → <headsign> / Urcă la
+ * <stop> → coboară la <stop> · N min". Untrusted OSM names/headsigns are
+ * returned as plain strings and MUST be rendered as text by the caller (never
+ * innerHTML).
  */
 export function buildReachSteps(legs: ReachLeg[]): ReachStep[] {
   return legs.map((leg) => {
     if (leg.mode === "WALK") {
-      return { primary: `Walk ${leg.minutes} min`, secondary: `to ${stopLabel(leg.toName)}` };
+      return { primary: `Pe jos ${leg.minutes} min`, secondary: `până la ${stopLabel(leg.toName)}` };
     }
     const label = transitModeLabel(leg.mode);
     const line = leg.line ? ` ${leg.line}` : "";
@@ -102,13 +103,41 @@ export function buildReachSteps(legs: ReachLeg[]): ReachStep[] {
       primary: `${label}${line}${headsign}`,
       // Show BOTH endpoints — the rider needs to know where to get off, not only
       // where to board.
-      secondary: `Board ${stopLabel(leg.fromName)} → alight ${stopLabel(leg.toName)} · ${leg.minutes} min`,
+      secondary: `Urcă la ${stopLabel(leg.fromName)} → coboară la ${stopLabel(leg.toName)} · ${leg.minutes} min`,
     };
   });
 }
 
+/** The icon a step chip carries. */
+export type StepIcon = "walk" | "metro" | "bus" | "tram" | "train";
+
+/**
+ * A step as one compact chip in the directions sheet: an icon and a short text
+ * (the walk minutes, or the line), coloured by `tone` — the metro has its own
+ * colour, every other vehicle shares the surface one, walking is neutral. The
+ * full step stays in the chip's accessible name.
+ */
+export interface StepChip {
+  icon: StepIcon;
+  text: string;
+  tone: "walk" | "metro" | "surface";
+}
+
+/**
+ * The chip for one leg. WALK shows its minutes; SUBWAY/METRO shows its line, or
+ * "M" without one; TRAM draws a tram, RAIL/REGIONAL_RAIL a train, and any other
+ * vehicle a bus, each showing its line, or its minutes without one.
+ */
+export function stepChip(leg: ReachLeg): StepChip {
+  const mode = leg.mode.toUpperCase();
+  if (mode === "WALK") return { icon: "walk", text: String(leg.minutes), tone: "walk" };
+  if (mode === "SUBWAY" || mode === "METRO") return { icon: "metro", text: leg.line || "M", tone: "metro" };
+  const icon: StepIcon = mode === "TRAM" ? "tram" : mode === "RAIL" || mode === "REGIONAL_RAIL" ? "train" : "bus";
+  return { icon, text: leg.line || `${leg.minutes} min`, tone: "surface" };
+}
+
 /** Transit classification (does this plan deserve the public-transport
- * treatment — draw, declutter, "By public transport" copy) is shared with the
+ * treatment — draw, declutter, "Cu transportul public" copy) is shared with the
  * server, which picks its cache TTL by the same rule: see
  * `features/isochrones/transit-classify.ts`. Re-exported so existing consumers
  * keep one import site. */
@@ -119,7 +148,7 @@ export { hasTransitLeg } from "@/features/isochrones/transit-classify";
 // leg lines and the stops the rider actually uses (board → transfer(s) →
 // alight). Kept here (unit-tested) rather than in the coverage-excluded draw
 // controller (the classification must have a pure home). The step
-// list from `buildReachSteps` is 1:1 with `legs`, so a popup step's index maps
+// list from `buildReachSteps` is 1:1 with `legs`, so a step chip's index maps
 // straight to `journeyLegs(...).index` for the hover→highlight link.
 
 export type ReachStopKind = "board" | "transfer" | "alight";
@@ -137,7 +166,7 @@ export interface ReachJourneyStop {
 /** A leg to draw as a line: its coordinates (the decoded `path`, or a straight
  * from→to fallback when the path was empty/budget-dropped so a transfer/egress
  * is never silently missing), whether it is a walking leg (for dashed styling),
- * and its index in the `legs` array (== popup step index). */
+ * and its index in the `legs` array (== step chip index). */
 export interface ReachJourneyLeg {
   index: number;
   isWalk: boolean;
@@ -208,10 +237,10 @@ export function journeyStops(legs: ReachLeg[]): ReachJourneyStop[] {
   }));
 }
 
-/** One-line summary for a trip header: "~57 min · 1 transfer" (pluralised). */
+/** One-line trip summary: "~57 min · 1 schimbare" ("fără schimbări", "N schimbări"). */
 export function reachSummary(plan: Extract<ReachPlan, { reachable: true }>): string {
   const t = plan.transfers;
-  const transfers = t === 0 ? "no transfers" : t === 1 ? "1 transfer" : `${t} transfers`;
+  const transfers = t === 0 ? "fără schimbări" : t === 1 ? "1 schimbare" : `${t} schimbări`;
   return `~${plan.totalMinutes} min · ${transfers}`;
 }
 

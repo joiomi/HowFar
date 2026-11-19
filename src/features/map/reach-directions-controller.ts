@@ -3,7 +3,9 @@ import {
   buildReachSteps,
   hasTransitLeg,
   reachSummary,
+  stepChip,
   type ReachRequest,
+  type StepChip,
 } from "@/features/map/reach";
 import type { ReachJourneyController } from "@/features/map/reach-journey-controller";
 import type { EdgeInsets } from "@/features/map/route-framing";
@@ -43,10 +45,13 @@ import type { EdgeInsets } from "@/features/map/route-framing";
  * failure slower. */
 export const REACH_TIMEOUT_MS = 15000;
 
+/** One trip step as the sheet shows it: its chip, with the two-line step as the
+ * chip's accessible name. `mode` is the leg's MOTIS mode. */
 export interface ReachStepView {
   primary: string;
   secondary: string;
   mode: string;
+  chip: StepChip;
 }
 
 /** What `ReachPanel` renders. `state` drives the `data-reach-state` stamp and
@@ -126,8 +131,8 @@ export function createReachDirectionsController({
     if (req.kind === "hint") {
       setView({
         state: "hint",
-        title: "How do I get there?",
-        detail: "Pick a starting point first, then right-click anywhere to see the way.",
+        title: "Cum ajung acolo?",
+        detail: "Alege întâi o adresă, apoi ține apăsat pe hartă (clic dreapta pe calculator).",
       });
       return;
     }
@@ -140,7 +145,8 @@ export function createReachDirectionsController({
     const gen = ++reachGen;
     const controller = new AbortController();
     reachAbort = controller;
-    setView({ state: "loading", title: "Planning your trip…", detail: "Finding the best public-transport route." });
+    // No sentence under the title: the sheet shows a pulsing bus while it loads.
+    setView({ state: "loading", title: "Caut un traseu…", detail: "" });
 
     const timer = setTimeout(() => {
       if (gen === reachGen) {
@@ -148,7 +154,7 @@ export function createReachDirectionsController({
         // just before the abort could otherwise still pass the gen check and
         // draw/declutter after we gave up.
         reachGen += 1;
-        setView({ state: "error", title: "Couldn’t plan this trip", detail: "The routing service is slow — please try again." });
+        setView({ state: "error", title: "Nu am găsit traseul", detail: "Serviciul de rute răspunde greu. Încearcă din nou." });
       }
       controller.abort();
     }, REACH_TIMEOUT_MS);
@@ -157,32 +163,40 @@ export function createReachDirectionsController({
       .then(async (res) => {
         if (gen !== reachGen) return;
         if (res.status === 422) {
-          return void setView({ state: "outside", title: "Outside the area", detail: "That point is outside the Bucharest area we cover." });
+          return void setView({ state: "outside", title: "În afara zonei", detail: "Punctul e în afara Bucureștiului." });
         }
         if (!res.ok) {
-          return void setView({ state: "error", title: "Couldn’t plan this trip", detail: "Please try again in a moment." });
+          return void setView({ state: "error", title: "Nu am găsit traseul", detail: "Încearcă din nou peste puțin timp." });
         }
         const plan = (await res.json()) as ReachPlan;
         if (gen !== reachGen) return;
         if (!plan.reachable) {
-          return void setView({ state: "none", title: "No public-transport route", detail: "No trip was found for this departure time." });
+          return void setView({
+            state: "none",
+            title: "Niciun traseu cu transportul public",
+            detail: "Nu am găsit o călătorie la ora aleasă.",
+          });
         }
         // A plan with no transit leg is a walk-only (or bike-direct) fallback. A
         // walk/car band answer is not useful here, so a right-click that yields
-        // no public-transport leg is reported as "no
-        // public-transport route" (same as an unreachable result), NOT an "On
-        // foot" walk-band. No draw, no declutter. The prior draw was torn down by
-        // the arbiter above. (Deliberately ONLY this — a short vehicle hop with
-        // long access walks is a real answer whose steps show the walking
-        // honestly; see transit-classify.)
+        // no public-transport leg is reported as "Niciun traseu cu transportul
+        // public" (same as an unreachable result), NOT a walk-band answer. No
+        // draw, no declutter. The prior draw was torn down by the arbiter above.
+        // (Deliberately ONLY this — a short vehicle hop with long access walks
+        // is a real answer whose steps show the walking honestly; see
+        // transit-classify.)
         if (!hasTransitLeg(plan.legs)) {
           return void setView({
             state: "none",
-            title: "No public-transport route",
-            detail: "No public-transport trip was found for this point.",
+            title: "Niciun traseu cu transportul public",
+            detail: "Până aici nu există o călătorie cu transportul public.",
           });
         }
-        const steps = buildReachSteps(plan.legs).map((s, i) => ({ ...s, mode: plan.legs[i].mode }));
+        const steps: ReachStepView[] = buildReachSteps(plan.legs).map((s, i) => ({
+          ...s,
+          mode: plan.legs[i].mode,
+          chip: stepChip(plan.legs[i]),
+        }));
         // A real public-transport journey: DRAW it and, only if it produced
         // drawable features, declutter + frame so the trip is legible beside the
         // sheet (a transit plan with no drawable coords must not hide markers
@@ -192,25 +206,25 @@ export function createReachDirectionsController({
           reachDeclutter.set(true);
           journey.frame(applyCameraPadding());
         }
-        // Band honesty: "a little beyond" only
-        // while the overshoot is small (≤4/3 of the band); a 60-min trip against
-        // a 15-min band is plainly "beyond".
+        // Band honesty: "puțin peste" (a little over) only while the overshoot
+        // is small (≤4/3 of the band); a 60-min trip against a 15-min band is
+        // plainly "dincolo" (beyond).
         const detail =
           plan.totalMinutes <= band
-            ? `Within your ~${band}-min reach — journey ${reachSummary(plan)}.`
+            ? `În zona ta de ~${band} min — ${reachSummary(plan)}.`
             : plan.totalMinutes <= (band * 4) / 3
-              ? `Journey ${reachSummary(plan)} — a little beyond your ~${band}-min reach.`
-              : `Journey ${reachSummary(plan)} — beyond your ~${band}-min reach.`;
+              ? `${reachSummary(plan)} — puțin peste zona ta de ~${band} min.`
+              : `${reachSummary(plan)} — dincolo de zona ta de ~${band} min.`;
         setView({
           state: "transit",
-          title: "By public transport",
+          title: "Cu transportul public",
           detail,
           steps,
         });
       })
       .catch((err) => {
         if ((err as Error)?.name === "AbortError" || gen !== reachGen) return;
-        setView({ state: "error", title: "Couldn’t plan this trip", detail: "Please try again in a moment." });
+        setView({ state: "error", title: "Nu am găsit traseul", detail: "Încearcă din nou peste puțin timp." });
       })
       .finally(() => clearTimeout(timer));
   }

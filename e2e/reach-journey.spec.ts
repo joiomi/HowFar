@@ -6,7 +6,7 @@ import { emptyAmenities } from "./amenity-fixtures";
 // in ANY mode auto-switches to Public transport and DRAWS the trip on the map
 // (`data-reach-journey`), and ties popup-step hover to on-map highlight
 // (`data-reach-hover`); closing / a new selection / a mode change clears the draw.
-// A plan with no transit leg is reported as "No public-transport route" (no draw).
+// A plan with no transit leg is reported as "Niciun traseu cu transportul public" (no draw).
 // The preset client suppresses amenity markers (deferred to the planned amenity pass), so the amenity
 // DECLUTTER half is out of scope here — the journey draw/clear
 // behaviour is what this file now proves. Provider calls stubbed by exact path;
@@ -190,7 +190,7 @@ test("transit right-click DRAWS the journey", async ({ page }) => {
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   // 3 leg lines drawn (WALK + BUS + WALK), stamped once the source holds features.
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
-  await expect(page.getByTestId("reach-panel")).toContainText("By public transport");
+  await expect(page.getByTestId("reach-panel")).toContainText("Cu transportul public");
 
   // RENDERED-state truth (not the code's own stamps): the map paints 3 leg lines
   // + the 2 used stops (board + alight).
@@ -255,7 +255,7 @@ test("hovering a popup step highlights its leg on the map", async ({ page }) => 
   await steps.nth(1).hover();
   await expect(map).toHaveAttribute("data-reach-hover", "1");
   // Leaving the step clears the highlight.
-  await page.getByTestId("reach-panel").getByText("By public transport").hover();
+  await page.getByTestId("reach-panel").getByText("Cu transportul public").hover();
   await expect(map).not.toHaveAttribute("data-reach-hover", /.*/);
 });
 
@@ -266,7 +266,7 @@ test("closing the popup clears the drawn journey", async ({ page }) => {
   await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-journey", "3", { timeout: 5000 });
 
-  await page.getByRole("button", { name: "Back to your area" }).click();
+  await page.getByRole("button", { name: "Închide" }).click();
   await expect(map).not.toHaveAttribute("data-reach-journey", /.*/);
   // Rendered truth: reach-path emptied.
   await expect.poll(() => reachRenderedCounts(page)).toEqual({ lines: 0, stops: 0 });
@@ -337,7 +337,7 @@ test("camera race: a transit recompute that lands AFTER the plan does not clip t
   await expect.poll(() => coordsInView(page, PLAN_EXTENT)).toBe(true);
 });
 
-test("a walk-only plan → 'No public-transport route' (no walk-band answer), no draw", async ({ page }) => {
+test("a walk-only plan → 'Niciun traseu cu transportul public' (no walk-band answer), no draw", async ({ page }) => {
   const { map } = await setup(page);
   // Override /api/reach to return a direct walk-only plan for this test.
   await page.route("**/api/reach**", (route) => route.fulfill({ json: WALK_ONLY_PLAN }));
@@ -345,7 +345,7 @@ test("a walk-only plan → 'No public-transport route' (no walk-band answer), no
   await toTransit(page, map);
   await rightClickBesidePin(page);
 
-  await expect(page.getByTestId("reach-panel")).toContainText("No public-transport route");
+  await expect(page.getByTestId("reach-panel")).toContainText("Niciun traseu cu transportul public");
   await expect(map).not.toHaveAttribute("data-reach-journey", /.*/);
 });
 

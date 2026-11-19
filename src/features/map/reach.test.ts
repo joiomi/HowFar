@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import type { ReachLeg, ReachPlan } from "@/features/isochrones/server/transit-plan";
-import { buildReachSteps, hasTransitLeg, journeyLegs, journeyStops, reachBand, reachSummary, transitModeLabel } from "@/features/map/reach";
+import {
+  buildReachSteps,
+  hasTransitLeg,
+  journeyLegs,
+  journeyStops,
+  reachBand,
+  reachSummary,
+  stepChip,
+  transitModeLabel,
+} from "@/features/map/reach";
 
 // A square Polygon centred at (clng, clat), half-width halfDeg, as a ring's geometry.
 function square(clat: number, clng: number, halfDeg: number) {
@@ -52,43 +61,83 @@ describe("reachBand", () => {
 
 
 
+// Leg builders for the step and chip tests.
+function walk(minutes: number, fromName = "A", toName = "B"): ReachLeg {
+  return { mode: "WALK", fromName, toName, minutes };
+}
+const leg: ReachLeg = { mode: "BUS", line: "", headsign: "", fromName: "A", toName: "B", minutes: 12 };
+const bus243: ReachLeg = {
+  mode: "BUS",
+  line: "243",
+  headsign: "Bd. Lacul Tei",
+  fromName: "Emil Racovita",
+  toName: "Soseaua Colentina",
+  minutes: 50,
+};
+
 describe("transitModeLabel", () => {
-  it("maps known MOTIS modes and title-cases unknown ones", () => {
-    expect(transitModeLabel("SUBWAY")).toBe("Metro");
-    expect(transitModeLabel("BUS")).toBe("Bus");
-    expect(transitModeLabel("TRAM")).toBe("Tram");
-    expect(transitModeLabel("RAIL")).toBe("Train");
+  it("names every MOTIS mode in Romanian", () => {
+    expect(["BUS", "TRAM", "SUBWAY", "METRO", "RAIL", "TROLLEYBUS", "FERRY", "COACH"].map(transitModeLabel)).toEqual(
+      ["Autobuz", "Tramvai", "Metrou", "Metrou", "Tren", "Troleibuz", "Feribot", "Autocar"],
+    );
+    expect(transitModeLabel("REGIONAL_RAIL")).toBe("Tren");
+    expect(transitModeLabel("WALK")).toBe("Pe jos");
+    expect(transitModeLabel("subway")).toBe("Metrou");
+  });
+
+  it("title-cases an unknown mode rather than showing the raw enum", () => {
     expect(transitModeLabel("GONDOLA")).toBe("Gondola");
   });
 });
 
 describe("buildReachSteps", () => {
-  const legs: ReachLeg[] = [
-    { mode: "WALK", fromName: "START", toName: "Emil Racovita", minutes: 9 },
-    { mode: "BUS", line: "243", headsign: "Bd. Lacul Tei", fromName: "Emil Racovita", toName: "Soseaua Colentina", minutes: 50 },
-    { mode: "WALK", fromName: "Fabrica de Glucoza", toName: "END", minutes: 5 },
-  ];
-
-  it("formats walk legs and transit legs into two-line steps", () => {
-    const steps = buildReachSteps(legs);
-    expect(steps[0]).toEqual({ primary: "Walk 9 min", secondary: "to Emil Racovita" });
-    expect(steps[1]).toEqual({ primary: "Bus 243 → Bd. Lacul Tei", secondary: "Board Emil Racovita → alight Soseaua Colentina · 50 min" });
-    // END maps to a human destination label.
-    expect(steps[2]).toEqual({ primary: "Walk 5 min", secondary: "to your destination" });
+  it("formats walk legs and transit legs into two-line Romanian steps", () => {
+    expect(buildReachSteps([walk(9, "START", "Emil Racovita")])[0]).toEqual({
+      primary: "Pe jos 9 min",
+      secondary: "până la Emil Racovita",
+    });
+    expect(buildReachSteps([bus243])[0]).toEqual({
+      primary: "Autobuz 243 → Bd. Lacul Tei",
+      secondary: "Urcă la Emil Racovita → coboară la Soseaua Colentina · 50 min",
+    });
   });
 
   it("omits an absent line/headsign gracefully", () => {
     const [step] = buildReachSteps([{ mode: "TRAM", fromName: "A", toName: "B", minutes: 3 }]);
-    expect(step.primary).toBe("Tram");
+    expect(step.primary).toBe("Tramvai");
   });
 
-  it("labels the trip endpoints (START/END) as human places", () => {
-    const steps = buildReachSteps([
-      { mode: "BUS", line: "5", fromName: "START", toName: "Market", minutes: 4 },
-      { mode: "WALK", fromName: "Market", toName: "END", minutes: 3 },
-    ]);
-    expect(steps[0].secondary).toBe("Board your start → alight Market · 4 min");
-    expect(steps[1].secondary).toBe("to your destination");
+  it("names the trip endpoints (START/END, or no name) as places", () => {
+    expect(buildReachSteps([walk(5, "X", "END")])[0].secondary).toBe("până la destinație");
+    expect(buildReachSteps([walk(5, "X", "")])[0].secondary).toBe("până la destinație");
+    const [ride] = buildReachSteps([{ mode: "BUS", line: "5", fromName: "START", toName: "Market", minutes: 4 }]);
+    expect(ride.secondary).toBe("Urcă la punctul de plecare → coboară la Market · 4 min");
+  });
+});
+
+describe("stepChip", () => {
+  it("shows a walk leg as its minutes on a neutral chip", () => {
+    expect(stepChip(walk(4))).toEqual({ icon: "walk", text: "4", tone: "walk" });
+  });
+
+  it("shows the metro as its line, or M when the line is missing", () => {
+    expect(stepChip({ ...leg, mode: "SUBWAY", line: "M2" })).toEqual({ icon: "metro", text: "M2", tone: "metro" });
+    expect(stepChip({ ...leg, mode: "METRO", line: "" })).toEqual({ icon: "metro", text: "M", tone: "metro" });
+    expect(stepChip({ ...leg, mode: "subway", line: "M4" })).toEqual({ icon: "metro", text: "M4", tone: "metro" });
+  });
+
+  it("shows a surface vehicle as its line, or its minutes when the line is missing", () => {
+    expect(stepChip({ ...leg, mode: "BUS", line: "131" })).toEqual({ icon: "bus", text: "131", tone: "surface" });
+    expect(stepChip({ ...leg, mode: "TRAM", line: "", minutes: 7 })).toEqual({ icon: "tram", text: "7 min", tone: "surface" });
+    expect(stepChip({ ...leg, mode: "TRAM", line: undefined, minutes: 7 })).toEqual({ icon: "tram", text: "7 min", tone: "surface" });
+  });
+
+  it("draws trains as a train and every other vehicle as a bus", () => {
+    expect(stepChip({ ...leg, mode: "RAIL", line: "IR 1581" })).toMatchObject({ icon: "train", tone: "surface" });
+    expect(stepChip({ ...leg, mode: "REGIONAL_RAIL", line: "R 9021" })).toMatchObject({ icon: "train", tone: "surface" });
+    for (const mode of ["TROLLEYBUS", "COACH", "FERRY", "FUNICULAR"]) {
+      expect(stepChip({ ...leg, mode, line: "70" })).toEqual({ icon: "bus", text: "70", tone: "surface" });
+    }
   });
 });
 
@@ -198,10 +247,16 @@ describe("journeyLegs (drawable leg lines)", () => {
 });
 
 describe("reachSummary", () => {
-  it("pluralises transfers", () => {
-    const base = { reachable: true as const, totalMinutes: 57, legs: [] };
-    expect(reachSummary({ ...base, transfers: 0 })).toBe("~57 min · no transfers");
-    expect(reachSummary({ ...base, transfers: 1 })).toBe("~57 min · 1 transfer");
-    expect(reachSummary({ ...base, transfers: 2 } as Extract<ReachPlan, { reachable: true }>)).toBe("~57 min · 2 transfers");
+  const plan = (totalMinutes: number, transfers: number): Extract<ReachPlan, { reachable: true }> => ({
+    reachable: true,
+    totalMinutes,
+    transfers,
+    legs: [],
+  });
+
+  it("states the trip time and the transfers in Romanian", () => {
+    expect(reachSummary(plan(57, 1))).toBe("~57 min · 1 schimbare");
+    expect(reachSummary(plan(20, 0))).toBe("~20 min · fără schimbări");
+    expect(reachSummary(plan(40, 2))).toBe("~40 min · 2 schimbări");
   });
 });

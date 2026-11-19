@@ -6,6 +6,7 @@ import {
   DESKTOP_CAMERA_PAD_LEFT_PX,
   MOBILE_CAMERA_PAD_BOTTOM_PX,
   MOBILE_CAMERA_PAD_TOP_PX,
+  mobileSheetPadBottom,
 } from "./camera";
 
 describe("cameraPadding", () => {
@@ -19,9 +20,21 @@ describe("cameraPadding", () => {
   });
 
   it("reserves the directions sheet at the bottom of a phone while it is open, by height", () => {
-    expect(cameraPadding(390, 844, true).bottom).toBe(228);
-    expect(cameraPadding(390, 640, true).bottom).toBe(168);
+    expect(cameraPadding(390, 844, true).bottom).toBe(300);
+    expect(cameraPadding(360, 780, true).bottom).toBe(300);
+    expect(cameraPadding(390, 600, true).bottom).toBe(252);
     expect(cameraPadding(390, 844, true)).toMatchObject({ top: 76, right: 12, left: 12 });
+  });
+
+  it("sizes the sheet reserve as the sheet's cap, min(40% of the height, 288 px), plus 12 px", () => {
+    // The cap binds from 720 px up.
+    expect(mobileSheetPadBottom(844)).toBe(300);
+    expect(mobileSheetPadBottom(720)).toBe(300);
+    // Below it the reserve follows 40% of the height, rounded to a whole pixel.
+    expect(mobileSheetPadBottom(700)).toBe(292);
+    expect(mobileSheetPadBottom(647)).toBe(271); // 258.8 rounds up
+    expect(mobileSheetPadBottom(646)).toBe(270); // 258.4 rounds down
+    expect(mobileSheetPadBottom(600)).toBe(252);
   });
 
   it("reserves the desktop left column at md+ widths, sheet open or not", () => {

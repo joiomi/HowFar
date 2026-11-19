@@ -1306,6 +1306,9 @@ export default function AppMap() {
       // during MapLibre load.
       className="hf-map-shell absolute inset-0 isolate"
       data-sel-status={sel.status}
+      // Open directions: on a phone the sheet takes the bottom edge and the mode
+      // pill steps aside (globals.css).
+      data-directions={reachActive ? "open" : undefined}
       ref={shellRef}
     >
       {/* The overlay plane stays pointer-transparent. Individual command/result
@@ -1359,15 +1362,27 @@ export default function AppMap() {
 
         {/* The result sheet opens only for right-click / long-press directions
             and holds nothing else; a chosen place is the pin, the reach and the
-            address in the bar, with no card. */}
+            address in the bar, with no card. On a phone it is a bottom sheet flush
+            with the screen edges, at most min(40dvh, 18rem) tall (the camera
+            reserves that cap, see camera.ts); from md it is a card in the left
+            column under the mode pill. While a failure banner shows, the sheet
+            yields to it: on a phone it gives up 4rem of its cap so the banner fits
+            above it inside the same camera reserve, clear of the framed trip; from
+            md the card stops 5.5rem above the bottom, clear of the banner at the
+            bottom centre. The panel inside is the labelled region; the sheet is only
+            its container. Near-opaque, so it takes no backdrop blur of its own:
+            the ⓘ popover may open over it. */}
         {reachActive ? (
-          <section
+          <div
             data-testid="result-sheet"
-            aria-label="Directions"
-            className="hf-result-sheet pointer-events-auto absolute inset-x-3 bottom-[max(2.8rem,calc(env(safe-area-inset-bottom)+2.3rem))] z-20 max-h-[min(30dvh,14.5rem)] overflow-y-auto overscroll-contain rounded-[1.5rem] border border-white/[.11] bg-[#0d110e]/94 p-2.5 shadow-[0_24px_70px_rgba(0,0,0,.4)] backdrop-blur-2xl sm:inset-x-4 md:bottom-auto md:left-4 md:right-auto md:top-[9rem] md:max-h-[calc(100dvh-10rem)] md:w-[388px] md:p-3"
+            className={`hf-result-sheet pointer-events-auto absolute inset-x-0 bottom-0 z-20 overflow-y-auto overscroll-contain rounded-t-[1.5rem] border-t border-[var(--hf-border)] bg-[var(--hf-panel-strong)] pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_40px_rgba(0,0,0,.38)] md:bottom-auto md:left-4 md:right-auto md:top-[9rem] md:w-[400px] md:rounded-[1.5rem] md:border md:shadow-[var(--hf-shadow-panel)] ${
+              errorMessage
+                ? "max-h-[calc(min(40dvh,18rem)-4rem)] md:max-h-[calc(100dvh-14.5rem)]"
+                : "max-h-[min(40dvh,18rem)] md:max-h-[calc(100dvh-10rem)]"
+            }`}
           >
             <ReachPanel view={reachView!} onHighlight={(i) => reachControllerRef.current?.highlight(i)} onClose={closeReachPanel} />
-          </section>
+          </div>
         ) : null}
 
         {/* First open: a pointer-transparent pulse at the framed map centre says
@@ -1381,23 +1396,33 @@ export default function AppMap() {
 
         {/* The basemap credits (OSM · ESA WorldCover · Natural Earth) are in the ⓘ
             popover, present in every state. The Transitous credit is the ADDITIONAL
-            transit obligation: besides its line in the popover it stays visible here
+            transit obligation: besides its line in the popover it stays visible
             whenever transit data is displayed: a transit reach, or a right-click
             journey (MOTIS/Transitous). Not on walk/car states, where showing it
-            would imply transit data that isn't there.
+            would imply transit data that isn't there. While the directions are open
+            it is in their sheet's footer, so the floating one here steps aside:
+            exactly one credit is on screen.
             A failed selection shows as the error banner: ↻ retries, and a failed
             transit or car reach (the flagged mode, never a missing address or a
             place outside Bucharest) also offers walking. The map stays live
             around it.
             On a phone the two share one column just above the mode pill: the credit
             on the right, the banner full width beneath it, so the banner can never
-            cover the credit. From md the column dissolves
-            (`md:contents`): the credit sits at the bottom right beside the zoom
-            control, the banner at the bottom centre. The open ⓘ popover (z-50)
-            paints over both where they meet on a short phone; it credits
+            cover the credit. With directions open the column rises into the top of
+            the sheet's reserve (its height cap, which the camera keeps clear) and
+            the sheet shortens under it, so the banner and the sheet never cover
+            each other and neither covers the framed trip.
+            From md the column dissolves (`md:contents`): the credit sits at the
+            bottom right beside the zoom control, the banner at the bottom centre,
+            below the directions card (which shortens for it). The open ⓘ popover
+            (z-50) paints over both where they meet on a short phone; it credits
             Transitous too. */}
-        <div className="pointer-events-none absolute inset-x-3 bottom-[4.25rem] z-20 flex flex-col items-end gap-2 md:contents">
-          {transitState ? (
+        <div
+          className={`pointer-events-none absolute inset-x-3 z-20 flex flex-col items-end gap-2 md:contents ${
+            reachActive ? "bottom-[calc(min(40dvh,18rem)-3.25rem)]" : "bottom-[4.25rem]"
+          }`}
+        >
+          {transitState && !reachActive ? (
             <div className="pointer-events-auto md:absolute md:bottom-3 md:right-14 md:z-20">
               <TransitousCredit />
             </div>

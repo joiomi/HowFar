@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { besidePin, expectBannerClear, pickMode, search } from "./shell";
+import { besidePin, expectBannerClear, expectNotCovered, openInfo, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
 
 // Right-click "how do I get there?". Provider calls stubbed by EXACT
@@ -48,6 +48,32 @@ const PLAN = {
   ],
 };
 
+// A long trip (eleven legs) whose chips wrap onto several rows: the tallest directions
+// card the overlap checks below can meet.
+const LONG_PLAN = (() => {
+  const rides: [string, string?][] = [
+    ["WALK"], ["BUS", "243"], ["WALK"], ["TRAM", "1"], ["WALK"], ["SUBWAY", "M2"],
+    ["WALK"], ["BUS", "131"], ["WALK"], ["TRAM", "41"], ["WALK"],
+  ];
+  const at = (i: number) => ({ lat: 44.4268 + i * 0.002, lng: 26.1025 - i * 0.001 });
+  const legs = rides.map(([mode, line], i) => ({
+    mode,
+    ...(line ? { line, headsign: "Nord" } : {}),
+    fromName: i === 0 ? "START" : `Stația ${i}`,
+    toName: i === rides.length - 1 ? "END" : `Stația ${i + 1}`,
+    minutes: 6,
+    from: at(i),
+    to: at(i + 1),
+    path: [[at(i).lng, at(i).lat], [at(i + 1).lng, at(i + 1).lat]],
+  }));
+  return { reachable: true, totalMinutes: 66, transfers: 4, legs };
+})();
+
+type Box = { x: number; y: number; width: number; height: number };
+function overlaps(a: Box, b: Box): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
 async function setup(page: Page) {
   const reachCalls: string[] = [];
   await page.route("**/api/amenities**", (route) =>
@@ -93,7 +119,7 @@ test("right-click with no selection shows the hint", async ({ page }) => {
   const { map } = await setup(page);
   await rightClickCentre(page);
   await expect(map).toHaveAttribute("data-reach-state", "hint");
-  await expect(page.getByTestId("reach-panel")).toContainText("Pick a starting point");
+  await expect(page.getByTestId("reach-panel")).toContainText("Alege întâi o adresă");
 });
 
 test("a right-click on the origin pin opens no directions", async ({ page }) => {
@@ -131,7 +157,7 @@ test("walk mode: right-click auto-switches to Public transport and plans the tri
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   const popup = page.getByTestId("reach-panel");
   await expect(popup).toBeVisible();
-  await expect(popup).toContainText("By public transport");
+  await expect(popup).toContainText("Cu transportul public");
   expect(reachCalls).toHaveLength(1); // now a real MOTIS plan fetch
 });
 
@@ -144,10 +170,11 @@ test("public-transport mode: right-click shows the planned trip with a specific 
   await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   const panel = page.getByTestId("reach-panel");
-  await expect(panel).toContainText("By public transport");
-  await expect(panel).toContainText("~57 min · 1 transfer");
-  await expect(panel).toContainText("Bus 243 → Bd. Lacul Tei");
-  await expect(panel).toContainText("Walk 9 min");
+  await expect(panel).toContainText("Cu transportul public");
+  await expect(panel).toContainText("~57 min · 1 schimbare");
+  // Each step is a chip: its short text on screen, the whole step as its name.
+  await expect(panel.locator('li[data-step-mode][aria-label*="Autobuz 243 → Bd. Lacul Tei"]')).toHaveText("243");
+  await expect(panel.locator('li[data-step-mode][aria-label^="Pe jos 9 min"]')).toHaveText("9");
   // The trip was fetched with both endpoints AND the selection's resolved
   // departure ISO (so the plan matches the painted rings' time).
   expect(reachCalls.length).toBeGreaterThan(0);
@@ -155,7 +182,7 @@ test("public-transport mode: right-click shows the planned trip with a specific 
   expect(decodeURIComponent(reachCalls[0])).toContain("departure=2026-07-29T05:30");
 });
 
-test("directions open the result sheet — it holds only the directions, no reach popup, Back closes it", async ({ page }) => {
+test("directions open the result sheet — it holds only the directions and the one Transitous credit, no reach popup, Închide closes it", async ({ page }) => {
   const { map } = await setup(page);
   await searchAndWait(page, map);
   await pickMode(page, "transit");
@@ -168,15 +195,24 @@ test("directions open the result sheet — it holds only the directions, no reac
   await expect(map).toHaveAttribute("data-reach-state", "transit");
   // The directions render IN the result sheet (not a map-anchored popup)…
   await expect(sheet.getByTestId("reach-panel")).toBeVisible();
-  await expect(sheet).toHaveAttribute("aria-label", "Directions");
+  await expect(sheet.getByRole("region", { name: "Traseu" })).toBeVisible();
   // …and there is NO MapLibre reach popup covering the map.
   await expect(page.locator(".maplibregl-popup")).toHaveCount(0);
+  // The trip is Transitous data: its credit is in the sheet's footer, and the floating
+  // one steps aside, so exactly one is on screen, readable.
+  const credit = page.getByTestId("transitous-credit");
+  await expect(credit).toHaveCount(1);
+  await expect(sheet.getByTestId("reach-panel").getByTestId("transitous-credit")).toHaveCount(1);
+  await expectNotCovered(credit);
 
-  // Back clears the directions and closes the sheet; the place stays chosen.
-  await page.getByRole("button", { name: "Back to your area" }).click();
+  // ✕ clears the directions and closes the sheet; the place stays chosen.
+  await page.getByRole("button", { name: "Închide" }).click();
   await expect(page.getByTestId("reach-panel")).toHaveCount(0);
   await expect(sheet).toHaveCount(0);
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
+  // The transit reach is still drawn, so the floating credit is back: still exactly one.
+  await expect(credit).toHaveCount(1);
+  await expectNotCovered(credit);
 });
 
 test("public-transport mode: a point outside the drawn rings STILL plans the trip (no gate skips the fetch)", async ({ page }) => {
@@ -206,7 +242,7 @@ test("public-transport mode: a point outside the drawn rings STILL plans the tri
   // band-honesty copy, not a silent no-fetch).
   await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-state", "transit");
-  await expect(page.getByTestId("reach-panel")).toContainText("By public transport");
+  await expect(page.getByTestId("reach-panel")).toContainText("Cu transportul public");
   expect(reachCalls).toHaveLength(1);
   expect(decodeURIComponent(reachCalls[0])).toContain("maxMinutes=20");
 });
@@ -229,7 +265,7 @@ test("public-transport mode: no route found is reported", async ({ page }) => {
   await pickMode(page, "transit");
   await rightClickBesidePin(page);
   await expect(map).toHaveAttribute("data-reach-state", "none");
-  await expect(page.getByTestId("reach-panel")).toContainText("No public-transport route");
+  await expect(page.getByTestId("reach-panel")).toContainText("Niciun traseu cu transportul public");
 });
 
 test("a failed mode recompute clears the drawn reach and flags the mode — no '~N min' claim over a blank map", async ({ page }) => {
@@ -261,4 +297,69 @@ test("a failed mode recompute clears the drawn reach and flags the mode — no '
   await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
   await expect(page.getByTestId("result-sheet")).toHaveCount(0);
   await expectBannerClear(page);
+});
+
+// From 768 px the directions are a card in the left column and a failure banner sits
+// at the bottom centre. A right-click from walking switches to public transport; when
+// that reach fails while the trip is shown, both are on screen at once. On a short
+// landscape screen a long trip's card would reach down into the banner: the card
+// shortens while the banner shows, so neither covers the other's buttons.
+for (const viewport of [
+  { width: 800, height: 600 },
+  { width: 844, height: 390 },
+]) {
+  test(`at ${viewport.width}×${viewport.height} a failure banner and a long directions card do not overlap`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.route("**/api/amenities**", (route) =>
+      route.fulfill({ json: emptyAmenities({ lat: 44.4268, lng: 26.1025 }) }),
+    );
+    await page.route("**/api/geocode**", (route) =>
+      route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }),
+    );
+    await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+    await page.route("**/api/isochrone**", (route) => route.fulfill({ json: WALK }));
+    await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
+    await page.route("**/api/reach**", (route) => route.fulfill({ json: LONG_PLAN }));
+    await page.goto("/");
+    const map = page.getByTestId("app-map");
+    await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+    await searchAndWait(page, map);
+
+    await rightClickBesidePin(page);
+    await expect(map).toHaveAttribute("data-reach-state", "transit");
+    const banner = page.getByTestId("error-banner");
+    await expect(banner).toContainText("Nu am putut calcula zona cu transportul public.");
+    await expect(page.getByTestId("reach-panel").locator("li[data-step-mode]")).toHaveCount(LONG_PLAN.legs.length);
+
+    const sheet = page.getByTestId("result-sheet");
+    await expect(sheet).toBeInViewport({ ratio: 1 });
+    await expect(banner).toBeInViewport({ ratio: 1 });
+    const [sheetBox, bannerBox] = await Promise.all([sheet.boundingBox(), banner.boundingBox()]);
+    if (!sheetBox || !bannerBox) throw new Error("the directions card or the error banner has no box");
+    expect(overlaps(sheetBox, bannerBox), "the directions card overlaps the error banner").toBe(false);
+    await expectNotCovered(banner.getByTestId("banner-retry"));
+    await expectNotCovered(banner.getByTestId("banner-walk"));
+    await expectNotCovered(sheet.getByRole("button", { name: "Închide" }));
+    await expectNotCovered(sheet.getByTestId("transitous-credit"));
+  });
+}
+
+// At 768 px the left column (16 + 400 px) and the ⓘ popover at the top right share
+// the width: the open popover narrows to stay clear of the directions card and its ✕.
+test("at 768 px the open info popover stays clear of the directions card", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 800 });
+  const { map } = await setup(page);
+  await searchAndWait(page, map);
+  await rightClickBesidePin(page);
+  await expect(map).toHaveAttribute("data-reach-state", "transit");
+  await expect(map).toHaveAttribute("data-reach-framed", "true", { timeout: 5000 });
+  await expect(map).toHaveAttribute("data-camera-settled", "true");
+
+  const popover = await openInfo(page);
+  await expect(popover).toBeInViewport({ ratio: 1 });
+  const sheet = page.getByTestId("result-sheet");
+  const [popoverBox, sheetBox] = await Promise.all([popover.boundingBox(), sheet.boundingBox()]);
+  if (!popoverBox || !sheetBox) throw new Error("the info popover or the directions card has no box");
+  expect(overlaps(popoverBox, sheetBox), "the info popover overlaps the directions card").toBe(false);
+  await expectNotCovered(sheet.getByRole("button", { name: "Închide" }));
 });

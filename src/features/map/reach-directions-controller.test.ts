@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { stepChip } from "@/features/map/reach";
 import { createReachDirectionsController, REACH_TIMEOUT_MS, type ReachView } from "@/features/map/reach-directions-controller";
 
 // A minimal fake journey controller recording the calls the directions
@@ -129,11 +130,11 @@ describe("reach-directions-controller — transit fetch", () => {
     expect(reachDeclutter.set).toHaveBeenCalledWith(true);
     expect(journey.frame).toHaveBeenCalledTimes(1);
     const v = views.at(-1)!;
-    expect(v.title).toBe("By public transport");
+    expect(v.title).toBe("Cu transportul public");
     expect(v.steps).toHaveLength(2);
   });
 
-  it("a walk-only direct plan → 'No public-transport route' (no walk-band answer), NO draw", async () => {
+  it("a walk-only direct plan → 'Niciun traseu cu transportul public' (no walk-band answer), NO draw", async () => {
     const walkOnly = { reachable: true, totalMinutes: 12, transfers: 0, legs: [{ mode: "WALK", line: "", headsign: "", fromName: "START", toName: "END", minutes: 12 }] };
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(walkOnly) })) as never);
     const { controller, journey, reachDeclutter, views } = makeController();
@@ -141,7 +142,7 @@ describe("reach-directions-controller — transit fetch", () => {
     await vi.waitFor(() => expect(views.at(-1)?.state).toBe("none"));
     expect(journey.draw).not.toHaveBeenCalled();
     expect(reachDeclutter.set).not.toHaveBeenCalledWith(true);
-    expect(views.at(-1)?.title).toBe("No public-transport route");
+    expect(views.at(-1)?.title).toBe("Niciun traseu cu transportul public");
   });
 
   it("a late json resolving after the deadline fired cannot draw (gen guard)", async () => {
@@ -181,7 +182,7 @@ describe("reach-directions-controller — transit fetch", () => {
   });
 
   it("a transit plan whose legs produced NO drawable coords: no declutter, no frame, band-honesty when over band", async () => {
-    const overBand = { ...reachablePlan, totalMinutes: 40 }; // > band 30 → 'a little beyond'
+    const overBand = { ...reachablePlan, totalMinutes: 40 }; // > band 30 → 'puțin peste'
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(overBand) })) as never);
     const { controller, journey, reachDeclutter, views } = makeController({ drawReturns: false });
     controller.open({ kind: "transit", coords: [26.1, 44.4], band: 30, url: "/api/reach?x=1" });
@@ -189,7 +190,7 @@ describe("reach-directions-controller — transit fetch", () => {
     expect(journey.draw).toHaveBeenCalled();
     expect(reachDeclutter.set).not.toHaveBeenCalledWith(true); // draw returned false
     expect(journey.frame).not.toHaveBeenCalled();
-    expect(views.at(-1)?.detail).toContain("a little beyond");
+    expect(views.at(-1)?.detail).toContain("puțin peste");
   });
 
   it("a short vehicle hop with long access walks DRAWS — its walk steps carry the honesty", async () => {
@@ -214,23 +215,23 @@ describe("reach-directions-controller — transit fetch", () => {
     expect(views.at(-1)?.steps).toHaveLength(3); // both walks visible to the rider
   });
 
-  it("far over-band trips read 'beyond', not 'a little beyond' (band honesty precision)", async () => {
+  it("far over-band trips read 'dincolo', not 'puțin peste' (band honesty precision)", async () => {
     const farOver = { ...reachablePlan, totalMinutes: 60 }; // band 15 → 4× over
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(farOver) })) as never);
     const { controller, views } = makeController({ drawReturns: true });
     controller.open({ kind: "transit", coords: [26.1, 44.4], band: 15, url: "/api/reach?x=1" });
     await vi.waitFor(() => expect(views.at(-1)?.state).toBe("transit"));
-    expect(views.at(-1)?.detail).toContain("— beyond your ~15-min reach");
-    expect(views.at(-1)?.detail).not.toContain("a little beyond");
+    expect(views.at(-1)?.detail).toContain("— dincolo de zona ta de ~15 min");
+    expect(views.at(-1)?.detail).not.toContain("puțin peste");
   });
 
-  it("a bike-direct fallback (no transit leg) → 'No public-transport route', text-only", async () => {
+  it("a bike-direct fallback (no transit leg) → 'Niciun traseu cu transportul public', text-only", async () => {
     const bikeDirect = { reachable: true, totalMinutes: 14, transfers: 0, legs: [{ mode: "BIKE", line: "", headsign: "", fromName: "START", toName: "END", minutes: 14 }] };
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(bikeDirect) })) as never);
     const { controller, journey, views } = makeController();
     controller.open({ kind: "transit", coords: [26.1, 44.4], band: 30, url: "/api/reach?x=1" });
     await vi.waitFor(() => expect(views.at(-1)?.state).toBe("none"));
-    expect(views.at(-1)?.title).toBe("No public-transport route"); // no draw, no walk-band answer
+    expect(views.at(-1)?.title).toBe("Niciun traseu cu transportul public"); // no draw, no walk-band answer
     expect(journey.draw).not.toHaveBeenCalled();
   });
 
@@ -265,5 +266,107 @@ describe("reach-directions-controller — transit fetch", () => {
     controller.reframe();
     expect(journey.frame).not.toHaveBeenCalled();
     expect(applyCameraPadding).not.toHaveBeenCalled();
+  });
+});
+
+describe("reach-directions-controller — Romanian copy", () => {
+  // The title and detail of the last view after a transit open whose fetch resolves with `respond`.
+  async function settledCopy(respond: () => Promise<unknown>, band = 30) {
+    vi.stubGlobal("fetch", vi.fn(respond) as never);
+    const { controller, views } = makeController({ drawReturns: true });
+    controller.open({ kind: "transit", coords: [26.1, 44.4], band, url: "/api/reach?x=1" });
+    await vi.waitFor(() => expect(views.at(-1)?.state).not.toBe("loading"));
+    const v = views.at(-1)!;
+    return { state: v.state, title: v.title, detail: v.detail };
+  }
+  const ok = (body: unknown) => () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+  const direct = (totalMinutes: number) => ({ ...reachablePlan, totalMinutes, transfers: 0 });
+
+  it("words the hint and the loading view", () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})) as never);
+    const { controller, views } = makeController();
+    controller.open({ kind: "hint", coords: [26.1, 44.4] });
+    expect(views.at(-1)).toEqual({
+      state: "hint",
+      title: "Cum ajung acolo?",
+      detail: "Alege întâi o adresă, apoi ține apăsat pe hartă (clic dreapta pe calculator).",
+    });
+    controller.open({ kind: "transit", coords: [26.1, 44.4], band: 30, url: "/api/reach?x=1" });
+    expect(views.at(-1)).toEqual({ state: "loading", title: "Caut un traseu…", detail: "" });
+  });
+
+  it("words a deadline that passes before the routing service answers", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})) as never);
+    const { controller, views } = makeController();
+    controller.open({ kind: "transit", coords: [26.1, 44.4], band: 30, url: "/api/reach?x=1" });
+    await vi.advanceTimersByTimeAsync(REACH_TIMEOUT_MS + 1);
+    expect(views.at(-1)).toEqual({
+      state: "error",
+      title: "Nu am găsit traseul",
+      detail: "Serviciul de rute răspunde greu. Încearcă din nou.",
+    });
+  });
+
+  it("words a point outside the area, a failed answer and a failed request", async () => {
+    expect(await settledCopy(() => Promise.resolve({ ok: false, status: 422, json: () => Promise.resolve({}) }))).toEqual({
+      state: "outside",
+      title: "În afara zonei",
+      detail: "Punctul e în afara Bucureștiului.",
+    });
+    const failed = { state: "error", title: "Nu am găsit traseul", detail: "Încearcă din nou peste puțin timp." };
+    expect(await settledCopy(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) }))).toEqual(failed);
+    expect(await settledCopy(() => Promise.reject(new TypeError("Failed to fetch")))).toEqual(failed);
+  });
+
+  it("words an unreachable point and a trip with no public-transport leg", async () => {
+    expect(await settledCopy(ok({ reachable: false }))).toEqual({
+      state: "none",
+      title: "Niciun traseu cu transportul public",
+      detail: "Nu am găsit o călătorie la ora aleasă.",
+    });
+    const walkOnly = { reachable: true, totalMinutes: 12, transfers: 0, legs: [{ mode: "WALK", fromName: "START", toName: "END", minutes: 12 }] };
+    expect(await settledCopy(ok(walkOnly))).toEqual({
+      state: "none",
+      title: "Niciun traseu cu transportul public",
+      detail: "Până aici nu există o călătorie cu transportul public.",
+    });
+  });
+
+  it("frames a trip against the drawn reach: within it, a little over, or beyond", async () => {
+    expect(await settledCopy(ok(direct(25)))).toEqual({
+      state: "transit",
+      title: "Cu transportul public",
+      detail: "În zona ta de ~30 min — ~25 min · fără schimbări.",
+    });
+    // 30 min is still within, and 4/3 of the band (40) is still "a little over".
+    expect((await settledCopy(ok(direct(30)))).detail).toBe("În zona ta de ~30 min — ~30 min · fără schimbări.");
+    expect((await settledCopy(ok(direct(38)))).detail).toBe("~38 min · fără schimbări — puțin peste zona ta de ~30 min.");
+    expect((await settledCopy(ok(direct(40)))).detail).toBe("~40 min · fără schimbări — puțin peste zona ta de ~30 min.");
+    expect((await settledCopy(ok(direct(41)))).detail).toBe("~41 min · fără schimbări — dincolo de zona ta de ~30 min.");
+    expect((await settledCopy(ok(direct(60)))).detail).toBe("~60 min · fără schimbări — dincolo de zona ta de ~30 min.");
+  });
+
+  it("gives every transit step the chip of its leg", async () => {
+    const plan = {
+      reachable: true,
+      totalMinutes: 40,
+      transfers: 1,
+      legs: [
+        { mode: "WALK", fromName: "START", toName: "Piața Unirii", minutes: 4 },
+        { mode: "SUBWAY", line: "M2", headsign: "Pipera", fromName: "Piața Unirii", toName: "Piața Romană", minutes: 6 },
+        { mode: "BUS", line: "131", headsign: "Gara de Nord", fromName: "Piața Romană", toName: "Gara de Nord", minutes: 12 },
+        { mode: "TRAM", line: "", headsign: "", fromName: "Gara de Nord", toName: "Basarab", minutes: 7 },
+        { mode: "WALK", fromName: "Basarab", toName: "END", minutes: 3 },
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn(ok(plan)) as never);
+    const { controller, views } = makeController({ drawReturns: true });
+    controller.open({ kind: "transit", coords: [26.1, 44.4], band: 45, url: "/api/reach?x=1" });
+    await vi.waitFor(() => expect(views.at(-1)?.state).toBe("transit"));
+    const steps = views.at(-1)!.steps!;
+    expect(steps.map((s) => s.chip)).toEqual(plan.legs.map((l) => stepChip(l)));
+    expect(steps.map((s) => s.chip.text)).toEqual(["4", "M2", "131", "7 min", "3"]);
+    expect(steps.map((s) => s.mode)).toEqual(["WALK", "SUBWAY", "BUS", "TRAM", "WALK"]);
   });
 });

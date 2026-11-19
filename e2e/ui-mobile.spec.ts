@@ -374,19 +374,30 @@ test("mobile: long-press transit directions show a compact card and draw the jou
     await expect(map).toHaveAttribute("data-reach-state", "transit", { timeout: 2000 });
   }).toPass({ timeout: 20_000 });
 
-  // Directions open the result sheet at the bottom, capped at
-  // min(30dvh,14.5rem) — never a full-screen slab (Pixel 7 is 412px wide). The
-  // sheet scrolls; the panel is inside it.
+  // Directions open the result sheet at the bottom edge, capped at
+  // min(40dvh,18rem) — never a full-screen slab. The sheet scrolls; the whole panel
+  // inside it fits that cap.
   const panel = await page.getByTestId("reach-panel").boundingBox();
   expect(panel).not.toBeNull();
   const vh = await page.evaluate(() => window.innerHeight);
-  expect(panel!.height).toBeLessThanOrEqual(vh * 0.7);
+  expect(panel!.height).toBeLessThanOrEqual(vh * 0.4 + 1);
+  // The sheet takes the bottom edge, so the mode pill steps aside while it is open,
+  // and the camera reserves the sheet's cap instead of the pill: on the 839 px tall
+  // Pixel 7, min(0.4 × 839, 288) + 12 = 300.
+  await expect(page.getByTestId("mode-pill")).toBeHidden();
+  await expect(map).toHaveAttribute("data-camera-pad-bottom", "300");
   // The journey drew AND the camera actually framed it on a phone-sized viewport
   // (guards the double-counted-padding Critical: the fit must not silently fail).
   await expect(map).toHaveAttribute("data-reach-journey", "2", { timeout: 5000 });
   await expect(map).toHaveAttribute("data-reach-framed", "true", { timeout: 5000 });
   // No horizontal overflow introduced by the card.
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  // Closing the directions brings the mode pill back and frees the bottom of the map.
+  await page.getByRole("button", { name: "Închide" }).click();
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
+  await expect(page.getByTestId("mode-pill")).toBeVisible();
+  await expect(map).toHaveAttribute("data-camera-pad-bottom", "70");
 });
 
 // The long-press half of "right-click = get me there by public
@@ -444,8 +455,17 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   // reselection would have geocoded a new origin (the label stays Piața Unirii).
   expect(reachCalls).toHaveLength(1);
   await expect(map).toHaveAttribute("data-selection", "Piața Unirii, București");
-  // The directions open the result sheet, which holds them and nothing else.
+  // The directions open the result sheet, which holds them and nothing else, within
+  // its cap; the mode pill steps aside until it closes.
   await expect(page.getByTestId("result-sheet").getByTestId("reach-panel")).toBeVisible();
+  const panel = await page.getByTestId("reach-panel").boundingBox();
+  if (!panel) throw new Error("the directions panel has no box");
+  const vh = await page.evaluate(() => window.innerHeight);
+  expect(panel.height).toBeLessThanOrEqual(vh * 0.4 + 1);
+  await expect(page.getByTestId("mode-pill")).toBeHidden();
+  await page.getByRole("button", { name: "Închide" }).click();
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
+  await expect(page.getByTestId("mode-pill")).toBeVisible();
 });
 
 // Phones hide the compass with the rest of the navigation corner, so a twist or a tilt could
@@ -562,27 +582,35 @@ test("mobile: a long press on the origin pin opens no directions", async ({ page
 
 // A long-press from Walk switches to public transport and plans the trip. When that
 // transit reach fails, the trip is still on screen (Transitous data), so its credit
-// stays, and the error banner shares the column above the mode pill with it: the
-// banner sits beneath the credit and never covers it.
-test("mobile: a failed transit reach under open directions keeps the Transitous credit clear of the banner", async ({ page }) => {
+// stays, in the directions sheet's footer. The error banner rises into the top of the
+// sheet's camera reserve and a long trip's sheet shortens under it, so neither covers
+// the other or the framed trip: the banner's buttons, the sheet's ✕ and the credit all
+// stay usable.
+test("mobile: a failed transit reach under open directions keeps the banner and the directions sheet clear of each other", async ({ page }) => {
   const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+  // Eleven legs: the chips wrap onto several rows, so the sheet reaches its height cap.
+  const rides: [string, string?][] = [
+    ["WALK"], ["BUS", "243"], ["WALK"], ["TRAM", "1"], ["WALK"], ["SUBWAY", "M2"],
+    ["WALK"], ["BUS", "131"], ["WALK"], ["TRAM", "41"], ["WALK"],
+  ];
+  const at = (i: number) => ({ lat: 44.4268 + i * 0.002, lng: 26.1025 - i * 0.001 });
+  const legs = rides.map(([mode, line], i) => ({
+    mode,
+    ...(line ? { line, headsign: "Nord" } : {}),
+    fromName: i === 0 ? "START" : `Stația ${i}`,
+    toName: i === rides.length - 1 ? "END" : `Stația ${i + 1}`,
+    minutes: 6,
+    from: at(i),
+    to: at(i + 1),
+    path: [[at(i).lng, at(i).lat], [at(i + 1).lng, at(i + 1).lat]],
+  }));
   await page.route("**/api/geocode**", (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }));
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
   await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings } }));
   await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
   await page.route("**/api/reach**", (route) =>
-    route.fulfill({
-      json: {
-        reachable: true,
-        totalMinutes: 20,
-        transfers: 0,
-        legs: [
-          { mode: "WALK", fromName: "START", toName: "Board", minutes: 4, from: { lat: 44.4268, lng: 26.1025 }, to: { lat: 44.435, lng: 26.105 }, path: [[26.1025, 44.4268], [26.105, 44.435]] },
-          { mode: "TRAM", line: "1", headsign: "Nord", fromName: "Board", toName: "Alight", minutes: 16, from: { lat: 44.435, lng: 26.105 }, to: { lat: 44.45, lng: 26.07 }, path: [[26.105, 44.435], [26.07, 44.45]] },
-        ],
-      },
-    }),
+    route.fulfill({ json: { reachable: true, totalMinutes: 66, transfers: 4, legs } }),
   );
 
   await page.goto("/");
@@ -603,17 +631,109 @@ test("mobile: a failed transit reach under open directions keeps the Transitous 
     await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await expect(map).toHaveAttribute("data-reach-state", "transit", { timeout: 2000 });
   }).toPass({ timeout: 20_000 });
-  await expect(map).toHaveAttribute("data-reach-journey", "2", { timeout: 5000 });
+  await expect(map).toHaveAttribute("data-reach-journey", String(legs.length), { timeout: 5000 });
 
   const banner = page.getByTestId("error-banner");
+  const sheet = page.getByTestId("result-sheet");
   const credit = page.getByTestId("transitous-credit");
   await expect(banner).toContainText("Nu am putut calcula zona cu transportul public.");
-  await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
+  // The sheet holds the bottom edge, so the mode pill (and its flag) step aside.
+  await expect(page.getByTestId("mode-pill")).toBeHidden();
+  await expect(banner).toBeInViewport({ ratio: 1 });
+  await expectNotCovered(banner.getByTestId("banner-retry"));
+  await expectNotCovered(banner.getByTestId("banner-walk"));
+  await expectNotCovered(sheet.getByRole("button", { name: "Închide" }));
+  // The sheet scrolls the later rows; the first chip shows at its top.
+  const chips = sheet.locator("li[data-step-mode]");
+  await expect(chips).toHaveCount(legs.length);
+  await expectNotCovered(chips.first());
+  // The one Transitous credit is the sheet's, pinned to its bottom edge.
+  await expect(credit).toHaveCount(1);
+  await expect(sheet.getByTestId("transitous-credit")).toHaveCount(1);
   await expectNotCovered(credit);
+  await expectNotCovered(page.getByTestId("info-button"));
+  const [sheetBox, bannerBox] = await Promise.all([sheet.boundingBox(), banner.boundingBox()]);
+  if (!sheetBox || !bannerBox) throw new Error("the directions sheet or the error banner has no box");
+  expect(bannerBox.y + bannerBox.height, "the banner sits above the sheet").toBeLessThanOrEqual(sheetBox.y);
+  // Both stay inside the band the camera reserves for the sheet, so the banner never
+  // covers the framed trip above it (its origin pin is at that band's edge here).
+  const vh = await page.evaluate(() => window.innerHeight);
+  const reserve = Number(await map.getAttribute("data-camera-pad-bottom"));
+  expect(bannerBox.y, "the banner stays inside the camera's sheet reserve").toBeGreaterThanOrEqual(vh - reserve);
+  await expectNotCovered(page.locator(".hf-origin-marker"));
+
+  // Closed, the pill is back with the failed mode flagged, and the banner is above it.
+  await sheet.getByRole("button", { name: "Închide" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByTestId("mode-icon-transit")).toHaveAccessibleName("Transport public (indisponibil)");
   await expectBannerClear(page);
-  const [creditBox, bannerBox] = await Promise.all([credit.boundingBox(), banner.boundingBox()]);
-  if (!creditBox || !bannerBox) throw new Error("the credit or the error banner has no box");
-  expect(creditBox.y + creditBox.height).toBeLessThanOrEqual(bannerBox.y);
+});
+
+// A phone turned sideways is 768 px wide or more, so it gets the desktop layout: the
+// address bar and the mode pill at the top left, the directions card under them. On a
+// 390 px tall screen that card must still fit, clear of the pill, with the camera
+// reserving the left column.
+test("landscape phone keeps the directions card and controls inside the viewport", async ({ page }) => {
+  const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+  await page.route("**/api/geocode**", (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }));
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings } }));
+  await page.route("**/api/transit**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings, departure: "2026-07-29T05:30:00.000Z" } }));
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+  await page.route("**/api/reach**", (route) =>
+    route.fulfill({
+      json: {
+        reachable: true,
+        totalMinutes: 34,
+        transfers: 1,
+        legs: [
+          { mode: "WALK", fromName: "START", toName: "Board", minutes: 4, from: { lat: 44.4268, lng: 26.1025 }, to: { lat: 44.435, lng: 26.105 }, path: [[26.1025, 44.4268], [26.105, 44.435]] },
+          { mode: "TRAM", line: "1", headsign: "Nord", fromName: "Board", toName: "Change", minutes: 16, from: { lat: 44.435, lng: 26.105 }, to: { lat: 44.45, lng: 26.07 }, path: [[26.105, 44.435], [26.07, 44.45]] },
+          { mode: "SUBWAY", line: "M1", headsign: "Pantelimon", fromName: "Change", toName: "Alight", minutes: 10, from: { lat: 44.45, lng: 26.07 }, to: { lat: 44.44, lng: 26.15 }, path: [[26.07, 44.45], [26.15, 44.44]] },
+          { mode: "WALK", fromName: "Alight", toName: "END", minutes: 4, from: { lat: 44.44, lng: 26.15 }, to: { lat: 44.438, lng: 26.155 }, path: [[26.15, 44.44], [26.155, 44.438]] },
+        ],
+      },
+    }),
+  );
+  const viewport = { width: 844, height: 390 };
+  await page.setViewportSize(viewport);
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+
+  // Beside the origin pin: a press on the pin itself is the pin's, not the map's.
+  const { x: cx, y: cy } = await besidePin(page);
+  const session = await page.context().newCDPSession(page);
+  const pt = (x: number, y: number) => [{ x, y, radiusX: 3, radiusY: 3, force: 1, id: 1 }];
+  await expect(async () => {
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pt(cx, cy) });
+    await page.waitForTimeout(650); // > long-press hold threshold, no move
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect(map).toHaveAttribute("data-reach-state", "transit", { timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(page.getByTestId("reach-panel").locator("li[data-step-mode]")).toHaveCount(4);
+
+  const panel = await page.getByTestId("reach-panel").boundingBox();
+  if (!panel) throw new Error("the directions panel has no box");
+  expect(panel.y + panel.height).toBeLessThanOrEqual(viewport.height);
+  for (const id of ["top-bar", "mode-pill", "info-button"]) {
+    await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
+  }
+  const [sheetBox, pillBox] = await Promise.all([
+    page.getByTestId("result-sheet").boundingBox(),
+    page.getByTestId("mode-pill").boundingBox(),
+  ]);
+  if (!sheetBox || !pillBox) throw new Error("the directions card or the mode pill has no box");
+  const overlap =
+    sheetBox.x < pillBox.x + pillBox.width &&
+    sheetBox.x + sheetBox.width > pillBox.x &&
+    sheetBox.y < pillBox.y + pillBox.height &&
+    sheetBox.y + sheetBox.height > pillBox.y;
+  expect(overlap, "the directions card overlaps the mode pill").toBe(false);
+  await expect(map).toHaveAttribute("data-camera-pad-left", "432");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
 // Below md the shell hands the screen to the map — the address bar stays at the

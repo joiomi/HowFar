@@ -186,6 +186,15 @@ button,
   }
 }
 
+/* On a phone the open directions sheet takes the bottom edge, where the mode pill
+   floats: the pill steps aside until the sheet closes. From 768 px the pill sits
+   under the address bar, above the directions card, and stays. */
+@media (max-width: 767.98px) {
+  .hf-map-shell[data-directions="open"] .hf-mode-pill {
+    display: none;
+  }
+}
+
 .hf-map-shell .maplibregl-ctrl-logo {
   filter: grayscale(1) brightness(1.8);
 }
