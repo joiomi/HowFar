@@ -63,11 +63,11 @@ describe("ModePill", () => {
     expect(html.indexOf("mode-icon-car")).toBeLessThan(html.indexOf("preset-chip-"));
   });
 
-  it("shows the active mode's two presets as numbers with Romanian labels", () => {
+  it("shows the active mode's two presets as numbers, named by their visible N min text", () => {
     for (const [mode, labels] of [
-      ["walk", { 10: "10 minute", 20: "20 de minute" }],
-      ["transit", { 20: "20 de minute", 40: "40 de minute" }],
-      ["car", { 10: "10 minute", 25: "25 de minute" }],
+      ["walk", { 10: "10 min", 20: "20 min" }],
+      ["transit", { 20: "20 min", 40: "40 min" }],
+      ["car", { 10: "10 min", 25: "25 min" }],
     ] as const) {
       const html = render({ mode });
       // Exactly the two calibrated presets: no Custom chip, no free-minute input.

@@ -88,7 +88,7 @@ export async function sampleMapClearPercent(page: Page): Promise<number> {
 // or something inside it, and neither it nor an ancestor is faded below half opacity.
 // Visibility alone passes for a credit another floating control sits on top of, and a
 // centre-only probe passes for one covered at an end; this proves it can be read and tapped.
-export async function expectNotCovered(locator: Locator): Promise<void> {
+export async function expectNotCovered(locator: Locator, note = ""): Promise<void> {
   await expect(locator).toBeVisible();
   await expect
     .poll(
@@ -108,7 +108,7 @@ export async function expectNotCovered(locator: Locator): Promise<void> {
           });
           return covered.map((f) => `${Math.round(f * 100)}%`).join(", ") || "none";
         }),
-      { message: `nothing may sit on top of ${locator} (covered points across its width)` },
+      { message: `nothing may sit on top of ${locator} (covered points across its width) ${note}` },
     )
     .toBe("none");
 }
@@ -136,6 +136,18 @@ export async function expectBannerClear(page: Page): Promise<void> {
     await expectNotCovered(button);
   }
   await expectNotCovered(page.getByTestId("info-button"));
+}
+
+// Waits until nothing transient sits over the map: the camera has settled, the ⓘ popover
+// that opens on the first map load has closed itself, and the one-time hold hint has gone.
+// Each wait has its own timeout and message, so a popover or toast that never leaves fails
+// here by name instead of hanging or letting the caller measure around it.
+export async function waitForQuietShell(page: Page): Promise<void> {
+  await expect(page.getByTestId("app-map"), "the camera never settled").toHaveAttribute("data-camera-settled", "true", {
+    timeout: 10_000,
+  });
+  await expect(page.getByTestId("info-popover"), "the info popover never closed itself").toBeHidden({ timeout: 10_000 });
+  await expect(page.getByTestId("hold-toast"), "the hold hint never went away").toHaveCount(0, { timeout: 10_000 });
 }
 
 // A page point on the bare map beside the origin pin: the canvas centre plus 80 px to the

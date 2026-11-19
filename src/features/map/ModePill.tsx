@@ -4,7 +4,7 @@ import { MODE_ACCENT } from "@/features/isochrones/isochrone-view";
 import type { Pace } from "@/features/isochrones/pace";
 import { PRESET_MIN_BY_MODE, type PresetIndex } from "@/features/isochrones/preset-reach";
 import { TIME_PRESETS, type TimePresetId } from "@/features/isochrones/time-context";
-import { minutesLabel, MODE_NAMES } from "@/features/map/copy";
+import { MODE_NAMES } from "@/features/map/copy";
 import { Icon, type IconName } from "@/features/map/icons";
 import { MODES, type Mode } from "@/features/map/selection-flow";
 
@@ -100,7 +100,8 @@ export default function ModePill({
               type="button"
               data-testid={`preset-chip-${min}`}
               aria-pressed={active}
-              aria-label={minutesLabel(min)}
+              // The visible text is "20" over "min": the name carries it, so voice control can say it.
+              aria-label={`${min} min`}
               onClick={() => onSelectPreset(i as PresetIndex)}
               className={`flex h-10 w-[42px] shrink-0 flex-col items-center justify-center rounded-full leading-none transition-[background-color,color] ${
                 active

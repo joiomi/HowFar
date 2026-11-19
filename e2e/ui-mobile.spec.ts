@@ -12,6 +12,8 @@ import {
   search,
   toggleDeparture,
   toggleSlowPace,
+  waitForQuietShell,
+  type ShellMode,
 } from "./shell";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 import { longTrip, overlaps } from "./reach-fixtures";
@@ -780,21 +782,6 @@ test("mobile shell: the floating mode pill leaves the map the screen; state stay
     })
     .toBe(true);
 
-  // Map strip: the contiguous unobstructed corridor between the address bar and the
-  // mode pill is the majority of the screen.
-  const viewport = page.viewportSize()!;
-  const [topBarBox, pillBox] = await Promise.all([
-    page.getByTestId("top-bar").boundingBox(),
-    page.getByTestId("mode-pill").boundingBox(),
-  ]);
-  if (!topBarBox || !pillBox) throw new Error("top bar or mode pill has no box");
-  const strip = pillBox.y - (topBarBox.y + topBarBox.height);
-  expect(strip / viewport.height).toBeGreaterThanOrEqual(0.55);
-  // Point-sample the same 20px grid the live inspection used (CHECKPOINT-B
-  // method): unobstructed map ≥ 60%.
-  const sampled = await sampleMapClearPercent(page);
-  expect(sampled).toBeGreaterThanOrEqual(60);
-
   // The basemap credits live behind the ⓘ button, which stays on screen in this state
   // too. Opened, the licence-required ESA WorldCover credit must be ACTUALLY READABLE
   // at phone width: a link nothing sits on top of, not merely present. (The Transitous
@@ -1281,4 +1268,276 @@ test("the pin pulses while the reach loads", async ({ page }) => {
   await expect(page.locator(".hf-origin-marker")).toHaveCount(1);
   await expect.poll(auraAnimation).toBe("none");
   await expect(status).toHaveText("Piața Unirii, București: circa 10 minute pe jos");
+});
+
+// ---------------------------------------------------------------------------------------
+// Phone shell gates: how much of the screen is live map, that every state fits the
+// screen, that the copy is Romanian, and that the controls can be named and tapped.
+// ---------------------------------------------------------------------------------------
+
+const PHONE_SIZES = [
+  { width: 390, height: 844 },
+  { width: 360, height: 780 },
+] as const;
+
+async function captureRequested(page: Page, name: string) {
+  const directory = process.env.HOWFAR_CAPTURE_DIR;
+  if (!directory) return;
+  await page.screenshot({ path: `${directory}/${name}.png`, animations: "disabled" });
+}
+
+const SHELL_RINGS = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+const SHELL_ORIGIN = { lat: 44.4268, lng: 26.1025 };
+
+// Every endpoint the shell calls, answered from fixtures; `transitFails` makes the
+// public-transport reach a 502.
+async function stubShell(page: Page, options: { transitFails?: boolean; legs?: number } = {}) {
+  const trip = longTrip(options.legs ?? 5);
+  await page.route("**/api/geocode**", (route) =>
+    route.fulfill({ json: { ...SHELL_ORIGIN, label: "Piața Unirii, București" } }),
+  );
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS } }));
+  await page.route("**/api/transit**", (route) =>
+    options.transitFails
+      ? route.fulfill({ status: 502, json: { error: "upstream" } })
+      : route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS, departure: "2026-07-29T05:30:00.000Z" } }),
+  );
+  await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
+  await page.route("**/api/reach**", (route) => route.fulfill({ json: trip }));
+  return trip;
+}
+
+async function openMap(page: Page, size: { width: number; height: number }) {
+  await page.setViewportSize(size);
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  return map;
+}
+
+// A long press on the bare map beside the origin pin, retried until the directions open.
+async function openDirections(page: Page) {
+  const map = page.getByTestId("app-map");
+  const { x, y } = await besidePin(page);
+  const session = await page.context().newCDPSession(page);
+  const pt = [{ x, y, radiusX: 3, radiusY: 3, force: 1, id: 1 }];
+  await expect(async () => {
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: pt });
+    await page.waitForTimeout(650); // > long-press hold threshold, no move
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect(map).toHaveAttribute("data-reach-state", "transit", { timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(page.getByTestId("reach-panel")).toBeVisible();
+  await session.detach();
+}
+
+test("the main state keeps at least 85% of the screen as live map", async ({ page }) => {
+  await stubShell(page);
+  const measured: string[] = [];
+  for (const size of PHONE_SIZES) {
+    const map = await openMap(page, size);
+    await search(page, "Piata Unirii");
+    await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+    for (const mode of ["walk", "transit", "car"] as const satisfies readonly ShellMode[]) {
+      await pickMode(page, mode);
+      await expect(map).toHaveAttribute("data-mode", mode);
+      await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sel-status", "idle");
+      await waitForQuietShell(page);
+      const percent = await sampleMapClearPercent(page);
+      measured.push(`${mode} ${size.width}x${size.height}: ${percent}%`);
+      await captureRequested(page, `main-${mode}-${size.width}x${size.height}`);
+      expect(percent, `map-clear in ${mode} at ${size.width}x${size.height} (all: ${measured.join("; ")})`).toBeGreaterThanOrEqual(85);
+    }
+  }
+  console.log(`map-clear: ${measured.join("; ")}`);
+});
+
+test("every phone state renders inside the viewport at both sizes", async ({ page }) => {
+  for (const size of PHONE_SIZES) {
+    const tag = `${size.width}x${size.height}`;
+    // First open: the ⓘ popover opens by itself and fits the screen.
+    await stubShell(page);
+    const map = await openMap(page, size);
+    await expect(page.getByTestId("info-popover")).toBeInViewport({ ratio: 1 });
+    await captureRequested(page, `first-open-${tag}`);
+    await captureRequested(page, `info-${tag}`);
+
+    // Error: a failed transit reach is a banner above the mode pill.
+    await page.unroute("**/api/transit**");
+    await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
+    await search(page, "Piata Unirii");
+    await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+    await pickMode(page, "transit");
+    const banner = page.getByTestId("error-banner");
+    await expect(banner).toBeVisible();
+    await expectBannerClear(page);
+    const [bannerBox, pillBox] = await Promise.all([banner.boundingBox(), page.getByTestId("mode-pill").boundingBox()]);
+    if (!bannerBox || !pillBox) throw new Error("the error banner or the mode pill has no box");
+    expect(bannerBox.y + bannerBox.height, `the banner is above the mode pill at ${tag}`).toBeLessThanOrEqual(pillBox.y);
+    await captureRequested(page, `error-${tag}`);
+
+    // Directions: a long press beside the pin opens the sheet.
+    await openDirections(page);
+    await expect(page.getByTestId("reach-panel")).toBeInViewport({ ratio: 1 });
+    await captureRequested(page, `directions-${tag}`);
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  }
+});
+
+// The English words a Romanian shell must not show, whole-word and case-insensitive.
+const ENGLISH_WORDS =
+  /\b(the|and|your|search|walk|walking|car|driving|public transport|close|back|reload|zoom|directions|dismiss|expand|collapse|selected|could not|something went wrong|try again|minutes)\b/i;
+
+// The stubbed place labels the fixtures return: user data, not shell copy.
+const STUBBED_PLACE_LABELS = ["Piața Unirii, București", "Piata Unirii"];
+
+// Everything a person reads or hears in the shell, plus the accessible-name and target-size
+// facts the sweep checks, collected in one pass over the DOM.
+async function readShell(page: Page) {
+  return page.evaluate((stubbed) => {
+    const shell = document.querySelector(".hf-map-shell");
+    if (!shell) throw new Error("the map shell is not on the page");
+    const attrs = ["aria-label", "title", "placeholder"];
+    const strings: string[] = [(shell as HTMLElement).innerText];
+    for (const el of shell.querySelectorAll("*"))
+      for (const name of attrs) {
+        const value = el.getAttribute(name);
+        if (value) strings.push(value);
+      }
+    let text = strings.join("\n");
+    for (const label of stubbed) text = text.split(label).join("");
+    const controls = [...shell.querySelectorAll<HTMLElement>("button, a")].map((el) => {
+      const box = el.getBoundingClientRect();
+      const label = el.getAttribute("aria-label")?.trim() ?? "";
+      // Decorative marks (aria-hidden, like the failed-mode "!") are not part of a name.
+      const readable = el.cloneNode(true) as HTMLElement;
+      for (const hidden of readable.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+      const visible = (readable.textContent ?? "").replace(/\s+/g, " ").trim();
+      return {
+        testid: el.getAttribute("data-testid") ?? "",
+        inPill: el.closest('[data-testid="mode-pill"]') !== null,
+        shown: box.width > 0 && box.height > 0,
+        name: label || visible || el.getAttribute("title")?.trim() || "",
+        label,
+        visible,
+        width: box.width,
+        height: box.height,
+      };
+    });
+    return { text, controls };
+  }, STUBBED_PLACE_LABELS);
+}
+
+test("the shell speaks Romanian in every state", async ({ page }) => {
+  const MIN_TARGET = ["locate", "clear-address", "info-button", "banner-retry", "banner-walk", "directions-close"];
+  const sized = new Set<string>();
+
+  // Flex items run together in textContent ("20" + "min"), so compare without spaces.
+  const squash = (value: string) => value.replace(/\s+/g, "").toLowerCase();
+
+  async function sweep(state: string) {
+    const { text, controls } = await readShell(page);
+    expect(text.match(ENGLISH_WORDS), `English copy in the ${state} state`).toBeNull();
+    for (const control of controls.filter((c) => c.shown)) {
+      const which = `${control.testid || control.visible || "a control"} in the ${state} state`;
+      expect(control.name, `${which} has an accessible name`).not.toBe("");
+      // WCAG 2.5.3: a name that overrides the visible text must still contain it.
+      if (control.label && control.visible)
+        expect(squash(control.label), `${which}: the name contains the visible text`).toContain(squash(control.visible));
+      if (control.inPill)
+        expect(Math.min(control.width, control.height), `${which} is a 40 px target`).toBeGreaterThanOrEqual(40);
+      if (MIN_TARGET.includes(control.testid)) {
+        sized.add(control.testid);
+        expect(Math.min(control.width, control.height), `${which} is a 44 px target`).toBeGreaterThanOrEqual(44);
+      }
+    }
+  }
+
+  await stubShell(page);
+  const map = await openMap(page, { width: 390, height: 844 });
+  await expect(page.getByTestId("info-popover")).toBeVisible();
+  await sweep("first open");
+
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await waitForQuietShell(page);
+  await sweep("walk");
+  await toggleSlowPace(page);
+  await sweep("walk at a slow pace");
+
+  await pickMode(page, "transit");
+  await expect(map).toHaveAttribute("data-mode", "transit");
+  await sweep("transit");
+  await openInfo(page);
+  await sweep("transit with the info popover open");
+  await page.getByTestId("info-button").click();
+
+  await pickMode(page, "car");
+  await expect(map).toHaveAttribute("data-mode", "car");
+  await sweep("car");
+
+  await pickMode(page, "transit");
+  await openDirections(page);
+  await sweep("directions");
+  const close = page.getByTestId("result-sheet").getByRole("button", { name: "Închide" });
+  const closeBox = await close.boundingBox();
+  if (!closeBox) throw new Error("the directions close button has no box");
+  sized.add("directions-close");
+  expect(Math.min(closeBox.width, closeBox.height), "the directions close button is a 44 px target").toBeGreaterThanOrEqual(44);
+  await close.click();
+  await expect(page.getByTestId("result-sheet")).toHaveCount(0);
+
+  // Error state: its own page, the transit reach failing.
+  await page.unroute("**/api/transit**");
+  await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
+  await pickMode(page, "walk");
+  await pickMode(page, "transit");
+  await expect(page.getByTestId("error-banner")).toBeVisible();
+  await sweep("error");
+
+  expect([...sized].sort(), "every minimum-size control was measured in some state").toEqual([...MIN_TARGET].sort());
+});
+
+// A keyboard-focused step chip scrolls into view clear of the sticky header on top and the
+// pinned credit at the bottom, even when it was already partly in view under one of them.
+test("a focused step chip scrolls clear of the directions sheet's sticky header and footer", async ({ page }) => {
+  const trip = await stubShell(page, { legs: 31 });
+  const map = await openMap(page, { width: 390, height: 844 });
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await openDirections(page);
+  const sheet = page.getByTestId("result-sheet");
+  const chips = sheet.locator("li[data-step-mode]");
+  await expect(chips).toHaveCount(trip.legs.length);
+  expect(
+    await sheet.evaluate((el) => el.scrollHeight > el.clientHeight),
+    "the long trip scrolls inside the sheet",
+  ).toBe(true);
+
+  // Park a chip half out of the scrolling area at the top edge, or at the bottom edge, then
+  // focus it: the browser must scroll it out from under the sticky header (top) or the pinned
+  // credit (bottom), not just into view.
+  for (const edge of ["top", "bottom"] as const) {
+    const chip = edge === "top" ? chips.nth(Math.floor(trip.legs.length / 2)) : chips.nth(trip.legs.length - 3);
+    await chip.evaluate(
+      (el, where) => {
+        const scroller = el.closest<HTMLElement>('[data-testid="result-sheet"]')!;
+        const chipBox = el.getBoundingClientRect();
+        const sheetBox = scroller.getBoundingClientRect();
+        scroller.scrollTop += where === "top" ? chipBox.top - sheetBox.top + 14 : chipBox.bottom - sheetBox.bottom - 14;
+      },
+      edge,
+    );
+    await chip.focus();
+    await expectNotCovered(chip, edge);
+    const [chipBox, headerBox, footerBox] = await Promise.all([
+      chip.boundingBox(),
+      sheet.getByTestId("reach-header").boundingBox(),
+      sheet.getByTestId("reach-footer").boundingBox(),
+    ]);
+    if (!chipBox || !headerBox || !footerBox) throw new Error("the chip, header or footer has no box");
+    expect(chipBox.y, `the ${edge} chip starts below the sticky header`).toBeGreaterThanOrEqual(headerBox.y + headerBox.height);
+    expect(chipBox.y + chipBox.height, `the ${edge} chip ends above the pinned credit`).toBeLessThanOrEqual(footerBox.y);
+  }
 });

@@ -1375,7 +1375,7 @@ export default function AppMap() {
         {reachActive ? (
           <div
             data-testid="result-sheet"
-            className={`hf-result-sheet pointer-events-auto absolute inset-x-0 bottom-0 z-20 overflow-y-auto overscroll-contain rounded-t-[1.5rem] border-t border-[var(--hf-border)] bg-[var(--hf-panel-strong)] pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_40px_rgba(0,0,0,.38)] md:bottom-auto md:left-4 md:right-auto md:top-[9rem] md:w-[400px] md:rounded-[1.5rem] md:border md:shadow-[var(--hf-shadow-panel)] ${
+            className={`hf-result-sheet pointer-events-auto absolute inset-x-0 bottom-0 z-20 scroll-pb-12 scroll-pt-24 overflow-y-auto overscroll-contain rounded-t-[1.5rem] border-t border-[var(--hf-border)] bg-[var(--hf-panel-strong)] pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_40px_rgba(0,0,0,.38)] md:bottom-auto md:left-4 md:right-auto md:top-[9rem] md:w-[400px] md:rounded-[1.5rem] md:border md:shadow-[var(--hf-shadow-panel)] ${
               errorMessage
                 ? "max-h-[calc(min(40dvh,18rem)-4rem)] md:max-h-[calc(100dvh-14.5rem)]"
                 : "max-h-[min(40dvh,18rem)] md:max-h-[calc(100dvh-10rem)]"
