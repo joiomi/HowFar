@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectBasemapCredits } from "./shell";
+import { expectBasemapCredits, openInfo } from "./shell";
 
 // Prod-shaped smoke: requires `npm run build` beforehand and the PostGIS
 // container up + migrated (docker compose up -d db; prisma migrate deploy).
@@ -65,20 +65,24 @@ test("landing page renders the map shell and finishes loading tiles", async ({ p
   // loads, so they are on screen with no tap. OSM (ODbL); ESA WorldCover landcover
   // credited with its licence name + link and a "modificat" (modified) indication
   // (CC BY 4.0, distributed via Daylight — the tiles bundle it); Natural Earth
-  // (public-domain, shown deliberately). Checked first, while the popover is open.
+  // (public-domain, shown deliberately). The opened-by-itself popover closes after 5 s,
+  // so it gets one quick look: open, with the credits in order.
   const popover = page.getByTestId("info-popover");
   await expect(popover).toBeVisible();
   // The "modificat" indication must sit ON the ESA credit, between ESA WorldCover /
   // CC BY 4.0 and Daylight — not just anywhere in the popover (which a rewrite could
   // satisfy while stripping it off the ESA credit).
   await expect(popover).toContainText(/ESA WorldCover.*CC BY 4\.0.*modificat.*Daylight/);
-  // Each credit must be a real link with the right name↔href pairing, not plain text,
-  // and nothing may sit on top of it — the DOM-level counterpart of the unit tests.
-  await expectBasemapCredits(popover);
   await expect(page.locator(".maplibregl-ctrl-attrib")).toHaveCount(0);
   // It then closes by itself; the ⓘ button keeps the credits one tap away.
   await expect(popover).toBeHidden({ timeout: 8_000 });
-  await expect(page.getByTestId("info-button")).toBeVisible();
+  // The link checks poll, and could outlast that timer under load, so they run on a
+  // popover the user opened, which stays open. Each credit must be a real link with the
+  // right name↔href pairing, not plain text, and nothing may sit on top of it — the
+  // DOM-level counterpart of the unit tests.
+  const opened = await openInfo(page);
+  await expect(opened).toContainText(/ESA WorldCover.*CC BY 4\.0.*modificat.*Daylight/);
+  await expectBasemapCredits(opened);
 
   // The zoom buttons are hidden below 768 px (pinch zooms there); on a desktop they stay.
   await expect(page.getByRole("button", { name: "Mărește" })).toBeVisible();

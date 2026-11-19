@@ -1346,67 +1346,80 @@ async function openDirections(page: Page) {
   await session.detach();
 }
 
-test("the main state keeps at least 85% of the screen as live map", async ({ page }) => {
+// The sampler is the instrument behind the 85% gate, so it must refuse to measure when there
+// is nothing to measure, rather than score a page without a map as mostly map.
+test("the map-area sampler refuses a page without a map, and a map no sampled point reaches", async ({ page }) => {
+  await page.setContent("<main><p>No map here.</p></main>");
+  await expect(sampleMapClearPercent(page)).rejects.toThrow("no map to sample");
+  const map =
+    "<div class='maplibregl-map' style='position:fixed;inset:0'><canvas style='display:block;width:100%;height:100%'></canvas></div>";
+  await page.setContent(`${map}<div style='position:fixed;inset:0;background:#000'></div>`);
+  await expect(sampleMapClearPercent(page)).rejects.toThrow("no sampled point reaches the map");
+  // The control: the same map with nothing over it measures as all map.
+  await page.setContent(map);
+  expect(await sampleMapClearPercent(page)).toBe(100);
+});
+
+// One test per size: each does a cold map load and three quiet-shell waits, and a red names its size.
+for (const size of PHONE_SIZES)
+test(`the main state keeps at least 85% of the screen as live map at ${size.width}x${size.height}`, async ({ page }) => {
   await stubShell(page);
   const measured: string[] = [];
-  for (const size of PHONE_SIZES) {
-    const map = await openMap(page, size);
-    await search(page, "Piata Unirii");
-    await expect(map).toHaveAttribute("data-isochrone-rings", "2");
-    for (const mode of ["walk", "transit", "car"] as const satisfies readonly ShellMode[]) {
-      await pickMode(page, mode);
-      await expect(map).toHaveAttribute("data-mode", mode);
-      await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sel-status", "idle");
-      await waitForQuietShell(page);
-      await expectReachPainted(page, mode);
-      const percent = await sampleMapClearPercent(page);
-      measured.push(`${mode} ${size.width}x${size.height}: ${percent}%`);
-      await captureRequested(page, `main-${mode}-${size.width}x${size.height}`);
-      expect(percent, `map-clear in ${mode} at ${size.width}x${size.height} (all: ${measured.join("; ")})`).toBeGreaterThanOrEqual(85);
-    }
+  const map = await openMap(page, size);
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
+  for (const mode of ["walk", "transit", "car"] as const satisfies readonly ShellMode[]) {
+    await pickMode(page, mode);
+    await expect(map).toHaveAttribute("data-mode", mode);
+    await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sel-status", "idle");
+    await waitForQuietShell(page);
+    await expectReachPainted(page, mode);
+    const percent = await sampleMapClearPercent(page);
+    measured.push(`${mode} ${size.width}x${size.height}: ${percent}%`);
+    await captureRequested(page, `main-${mode}-${size.width}x${size.height}`);
+    expect(percent, `map-clear in ${mode} at ${size.width}x${size.height} (all: ${measured.join("; ")})`).toBeGreaterThanOrEqual(85);
   }
   console.log(`map-clear: ${measured.join("; ")}`);
 });
 
-test("every phone state renders inside the viewport at both sizes", async ({ page }) => {
-  for (const size of PHONE_SIZES) {
-    const tag = `${size.width}x${size.height}`;
-    // First open: the ⓘ popover opens by itself and fits the screen.
-    await stubShell(page);
-    const map = await openMap(page, size);
-    await expect(page.getByTestId("info-popover")).toBeInViewport({ ratio: 1 });
-    await captureRequested(page, `first-open-${tag}`);
-    await captureRequested(page, `info-${tag}`);
+for (const size of PHONE_SIZES)
+test(`every phone state renders inside the viewport at ${size.width}x${size.height}`, async ({ page }) => {
+  const tag = `${size.width}x${size.height}`;
+  // First open: the ⓘ popover opens by itself and fits the screen.
+  await stubShell(page);
+  const map = await openMap(page, size);
+  await expect(page.getByTestId("info-popover")).toBeInViewport({ ratio: 1 });
+  await captureRequested(page, `first-open-${tag}`);
+  await captureRequested(page, `info-${tag}`);
 
-    // Error: a failed transit reach is a banner above the mode pill.
-    await page.unroute("**/api/transit**");
-    await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
-    await search(page, "Piata Unirii");
-    await expect(map).toHaveAttribute("data-isochrone-rings", "2");
-    await pickMode(page, "transit");
-    const banner = page.getByTestId("error-banner");
-    await expect(banner).toBeVisible();
-    await expectBannerClear(page);
-    const [bannerBox, pillBox] = await Promise.all([banner.boundingBox(), page.getByTestId("mode-pill").boundingBox()]);
-    if (!bannerBox || !pillBox) throw new Error("the error banner or the mode pill has no box");
-    expect(bannerBox.y + bannerBox.height, `the banner is above the mode pill at ${tag}`).toBeLessThanOrEqual(pillBox.y);
-    await captureRequested(page, `error-${tag}`);
+  // Error: a failed transit reach is a banner above the mode pill.
+  await page.unroute("**/api/transit**");
+  await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
+  await search(page, "Piata Unirii");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
+  await pickMode(page, "transit");
+  const banner = page.getByTestId("error-banner");
+  await expect(banner).toBeVisible();
+  await expectBannerClear(page);
+  const [bannerBox, pillBox] = await Promise.all([banner.boundingBox(), page.getByTestId("mode-pill").boundingBox()]);
+  if (!bannerBox || !pillBox) throw new Error("the error banner or the mode pill has no box");
+  expect(bannerBox.y + bannerBox.height, `the banner is above the mode pill at ${tag}`).toBeLessThanOrEqual(pillBox.y);
+  await captureRequested(page, `error-${tag}`);
 
-    // Directions: with transit answering again, a long press beside the pin opens the sheet.
-    await page.unroute("**/api/transit**");
-    await page.route("**/api/transit**", (route) =>
-      route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS.transit, departure: "2026-07-29T05:30:00.000Z" } }),
-    );
-    await page.getByTestId("banner-retry").click();
-    await expect(banner).toBeHidden();
-    await expectReachPainted(page, "transit");
-    await waitForQuietShell(page);
-    await openDirections(page);
-    await expect(banner).toBeHidden();
-    await expect(page.getByTestId("reach-panel")).toBeInViewport({ ratio: 1 });
-    await captureRequested(page, `directions-${tag}`);
-    await page.unrouteAll({ behavior: "ignoreErrors" });
-  }
+  // Directions: with transit answering again, a long press beside the pin opens the sheet.
+  await page.unroute("**/api/transit**");
+  await page.route("**/api/transit**", (route) =>
+    route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS.transit, departure: "2026-07-29T05:30:00.000Z" } }),
+  );
+  await page.getByTestId("banner-retry").click();
+  await expect(banner).toBeHidden();
+  await expectReachPainted(page, "transit");
+  await waitForQuietShell(page);
+  await openDirections(page);
+  await expect(banner).toBeHidden();
+  await expect(page.getByTestId("reach-panel")).toBeInViewport({ ratio: 1 });
+  await captureRequested(page, `directions-${tag}`);
+  await page.unrouteAll({ behavior: "ignoreErrors" });
 });
 
 // The English words a Romanian shell must not show, whole-word and case-insensitive.

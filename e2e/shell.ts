@@ -61,26 +61,33 @@ export async function expectSearchIdle(page: Page): Promise<void> {
 
 // Point-sample a 20px grid over the viewport and return the percentage of points
 // where the bare map (not a panel, sheet, card, dock, pill, or header) is on top.
+// It throws instead of measuring when there is no map to measure: no `.maplibregl-map`
+// holding a canvas (without one, every point outside a map would count as map, so a page
+// with no map scored 100%), or a map that no sampled point reaches.
 export async function sampleMapClearPercent(page: Page): Promise<number> {
-  return page.evaluate(() => {
+  const result = await page.evaluate((): { error: string } | { percent: number } => {
     const vw = innerWidth;
     const vh = innerHeight;
     const mapEl = document.querySelector(".maplibregl-map");
+    if (!mapEl || !mapEl.querySelector("canvas")) {
+      return { error: "no map to sample: the page has no .maplibregl-map with a canvas" };
+    }
     let hits = 0;
+    let onMap = 0;
     let total = 0;
     for (let x = 5; x < vw; x += 20)
       for (let y = 5; y < vh; y += 20) {
         total++;
         const el = document.elementFromPoint(x, y);
-        if (
-          el &&
-          el.closest(".maplibregl-map") === mapEl &&
-          !el.closest("[class*=panel],[class*=sheet],[class*=card],[class*=dock],[class*=pill],aside,header,nav,form")
-        )
-          hits++;
+        if (!el || el.closest(".maplibregl-map") !== mapEl) continue;
+        onMap++;
+        if (!el.closest("[class*=panel],[class*=sheet],[class*=card],[class*=dock],[class*=pill],aside,header,nav,form")) hits++;
       }
-    return Math.round((hits / total) * 100);
+    if (onMap === 0) return { error: `no sampled point reaches the map (${total} points sampled)` };
+    return { percent: Math.round((hits / total) * 100) };
   });
+  if ("error" in result) throw new Error(`sampleMapClearPercent: ${result.error}`);
+  return result.percent;
 }
 
 // Fails unless the element is the topmost thing along its middle: at five points across
