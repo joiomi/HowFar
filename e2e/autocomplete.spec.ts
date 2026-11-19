@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { emptyAmenities } from "./amenity-fixtures";
+import { presetReach } from "./preset-fixtures";
 
 // Autocomplete slice, providers STUBBED on their exact paths (never /api/**,
 // which would swallow /api/tiles). Exercises the dropdown, selection, and the
@@ -10,24 +11,7 @@ const SUGGESTIONS = [
   { label: "University Square, Bucharest", lat: 44.4349, lng: 26.1008 },
 ];
 
-function ring(minutes: number, d: number) {
-  return {
-    minutes,
-    geometry: {
-      type: "Polygon",
-      coordinates: [
-        [
-          [26.1025 - d, 44.428 - d],
-          [26.1025 + d, 44.428 - d],
-          [26.1025 + d, 44.428 + d],
-          [26.1025 - d, 44.428 + d],
-          [26.1025 - d, 44.428 - d],
-        ],
-      ],
-    },
-  };
-}
-const ISOCHRONE = { origin: { lat: 44.428, lng: 26.1025 }, rings: [ring(15, 0.01), ring(30, 0.02), ring(45, 0.03)] };
+const ISOCHRONE = presetReach("walk", { origin: { lat: 44.428, lng: 26.1025 } });
 
 async function setup(page: Page) {
   const counts = { suggest: 0, geocode: 0, reverse: 0 };
@@ -71,7 +55,7 @@ test("typing shows a suggestion dropdown; clicking one renders the isochrone", a
   await expect(page.getByRole("listbox")).toBeVisible();
   await page.getByRole("option", { name: /Union Square/ }).click();
 
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-selection", /Union Square/);
   // Signature invariant: a picked suggestion goes straight to the isochrone —
   // NO geocode/reverse round-trip.
@@ -92,7 +76,7 @@ test("keyboard: ArrowDown + Enter selects a suggestion", async ({ page }) => {
   await box.press("ArrowDown");
   await box.press("Enter");
 
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-selection", /Union Square/);
   expect(errors).toEqual([]);
 });

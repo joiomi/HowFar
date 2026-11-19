@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { emptyAmenities } from "./amenity-fixtures";
+import { presetReach } from "./preset-fixtures";
 
 // MapLibre (327 KB gz) is deferred off the first-load critical path — the eager shell
 // (search box, header, controls) is interactive before the map engine loads, and the engine
@@ -9,22 +10,7 @@ import { emptyAmenities } from "./amenity-fixtures";
 //      loading is buffered and replayed on map-ready — never dropped.
 
 const ORIGIN = { lat: 44.428, lng: 26.1025 };
-function ring(minutes: number, d: number) {
-  return {
-    minutes,
-    geometry: {
-      type: "Polygon",
-      coordinates: [[
-        [ORIGIN.lng - d, ORIGIN.lat - d],
-        [ORIGIN.lng + d, ORIGIN.lat - d],
-        [ORIGIN.lng + d, ORIGIN.lat + d],
-        [ORIGIN.lng - d, ORIGIN.lat + d],
-        [ORIGIN.lng - d, ORIGIN.lat - d],
-      ]],
-    },
-  };
-}
-const ISOCHRONE = { origin: ORIGIN, rings: [ring(15, 0.01), ring(30, 0.02), ring(45, 0.03)] };
+const ISOCHRONE = presetReach("walk", { origin: ORIGIN });
 
 async function stubProviders(page: Page) {
   await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
@@ -134,7 +120,7 @@ test("selection continuity: a search submitted BEFORE the engine loads is replay
 
   // The engine then loads (behind the shell) and the buffered selection replays → rings draw.
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3", { timeout: 30_000 });
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2", { timeout: 30_000 });
   await expect(map).toHaveAttribute("data-selection", /Union Square/);
   expect(errors).toEqual([]);
 });

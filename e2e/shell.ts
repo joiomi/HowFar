@@ -217,4 +217,18 @@ export async function expectReachPainted(page: Page, mode: ShellMode): Promise<v
       { message: `the ${mode} reach edge label is not placed`, timeout: 15_000 },
     )
     .toBeGreaterThan(0);
+  // The fill is visible too: it fades in from opacity 0, so poll for a positive opacity.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __hfMap: { getPaintProperty(layer: string, name: string): unknown } }).__hfMap.getPaintProperty(
+              "preset-reach-fill",
+              "fill-opacity",
+            ),
+        ),
+      { message: `the ${mode} reach fill is invisible`, timeout: 15_000 },
+    )
+    .toBeGreaterThan(0);
 }

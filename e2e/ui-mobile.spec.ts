@@ -18,6 +18,7 @@ import {
 } from "./shell";
 import { innerBandCounts, WALK_CLIP } from "./amenity-fixtures";
 import { longTrip, overlaps } from "./reach-fixtures";
+import { presetReach } from "./preset-fixtures";
 
 function ring(minutes: number, distance: number) {
   return {
@@ -336,13 +337,14 @@ test("mode pill: every button is ≥ 40 px, inside the viewport at 390 and 375 p
 // Uses a RETRYING long-press (poll until the reach popup appears) so a single
 // dropped touch gesture can't flake the run (the headless long-press caveat).
 test("mobile: long-press transit directions show a compact card and draw the journey", async ({ page }) => {
-  const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)]; // big → centre is deterministically in-band
+  const walkReach = presetReach("walk", { halves: [0.28, 0.3] });
+  const transitReach = presetReach("transit", { halves: [0.28, 0.3] }); // big: the centre is deterministically inside
   const trip = longTrip(31);
   await page.route("**/api/suggest**", (route) =>
     route.fulfill({ json: { suggestions: [{ label: "Piața Unirii, București", lat: 44.4268, lng: 26.1025 }] } }),
   );
-  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings } }));
-  await page.route("**/api/transit**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings, departure: "2026-07-29T05:30:00.000Z" } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: walkReach }));
+  await page.route("**/api/transit**", (route) => route.fulfill({ json: { ...transitReach, departure: "2026-07-29T05:30:00.000Z" } }));
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
   await page.route("**/api/reach**", (route) => route.fulfill({ json: trip }));
 
@@ -350,7 +352,7 @@ test("mobile: long-press transit directions show a compact card and draw the jou
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piata Unirii");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   // The mode pill floats over the map, so switching mode is one tap away.
   await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
@@ -416,14 +418,15 @@ test("mobile: long-press transit directions show a compact card and draw the jou
 // trip (exactly one /api/reach), draw the journey, and NOT leave a trailing
 // synthetic-click that reselects a new origin.
 test("mobile: long-press from Walk auto-switches to Public transport and draws the journey", async ({ page }) => {
-  const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+  const walkReach = presetReach("walk", { halves: [0.28, 0.3] });
+  const transitReach = presetReach("transit", { halves: [0.28, 0.3] }); // big: the centre is deterministically inside
   const reachCalls: string[] = [];
   await page.route("**/api/geocode**", (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }));
   await page.route("**/api/suggest**", (route) =>
     route.fulfill({ json: { suggestions: [{ label: "Piața Unirii, București", lat: 44.4268, lng: 26.1025 }] } }),
   );
-  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings } }));
-  await page.route("**/api/transit**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings, departure: "2026-07-29T05:30:00.000Z" } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: walkReach }));
+  await page.route("**/api/transit**", (route) => route.fulfill({ json: { ...transitReach, departure: "2026-07-29T05:30:00.000Z" } }));
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
   await page.route("**/api/reach**", (route) => {
     reachCalls.push(route.request().url());
@@ -444,7 +447,7 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piata Unirii");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-mode", "walk"); // start in WALK — do NOT switch manually
 
   // Beside the origin pin: a press on the pin itself is the pin's, not the map's.
@@ -542,12 +545,13 @@ test("mobile: the map stays north-up and flat under two fingers, and a pinch sti
 // directions. A long press on bare map beside it afterwards does, and is the signal that the
 // gesture works in this run: exactly one plan was fetched, and it was that one's.
 test("mobile: a long press on the origin pin opens no directions", async ({ page }) => {
-  const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+  const walkReach = presetReach("walk", { halves: [0.28, 0.3] });
+  const transitReach = presetReach("transit", { halves: [0.28, 0.3] }); // big: the centre is deterministically inside
   const reachCalls: string[] = [];
   await page.route("**/api/geocode**", (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }));
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
-  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings } }));
-  await page.route("**/api/transit**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings, departure: "2026-07-29T05:30:00.000Z" } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: walkReach }));
+  await page.route("**/api/transit**", (route) => route.fulfill({ json: { ...transitReach, departure: "2026-07-29T05:30:00.000Z" } }));
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
   await page.route("**/api/reach**", (route) => {
     reachCalls.push(route.request().url());
@@ -568,7 +572,7 @@ test("mobile: a long press on the origin pin opens no directions", async ({ page
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piata Unirii");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
 
   const marker = await page.locator(".hf-origin-marker").boundingBox();
   if (!marker) throw new Error("the origin pin has no box");
@@ -598,14 +602,14 @@ test("mobile: a long press on the origin pin opens no directions", async ({ page
 // the other or the framed trip: the banner's buttons, the sheet's ✕ and the credit all
 // stay usable.
 test("mobile: a failed transit reach under open directions keeps the banner and the directions sheet clear of each other", async ({ page }) => {
-  const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+  const walkReach = presetReach("walk", { halves: [0.28, 0.3] });
   // Eleven legs: the chips wrap onto several rows, so the sheet reaches its height cap
   // under the banner.
   const trip = longTrip(11);
   const { legs } = trip;
   await page.route("**/api/geocode**", (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }));
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
-  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: walkReach }));
   await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
   await page.route("**/api/reach**", (route) => route.fulfill({ json: trip }));
@@ -614,7 +618,7 @@ test("mobile: a failed transit reach under open directions keeps the banner and 
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piata Unirii");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-mode", "walk");
 
   // Beside the origin pin: a press on the pin itself is the pin's, not the map's.
@@ -671,11 +675,12 @@ test("mobile: a failed transit reach under open directions keeps the banner and 
 // 390 px tall screen that card must still fit, clear of the pill, with the camera
 // reserving the left column.
 test("landscape phone keeps the directions card and controls inside the viewport", async ({ page }) => {
-  const rings = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+  const walkReach = presetReach("walk", { halves: [0.28, 0.3] });
+  const transitReach = presetReach("transit", { halves: [0.28, 0.3] }); // big: the centre is deterministically inside
   await page.route("**/api/geocode**", (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Piața Unirii, București" } }));
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
-  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings } }));
-  await page.route("**/api/transit**", (route) => route.fulfill({ json: { origin: { lat: 44.4268, lng: 26.1025 }, rings, departure: "2026-07-29T05:30:00.000Z" } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: walkReach }));
+  await page.route("**/api/transit**", (route) => route.fulfill({ json: { ...transitReach, departure: "2026-07-29T05:30:00.000Z" } }));
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
   await page.route("**/api/reach**", (route) =>
     route.fulfill({
@@ -698,7 +703,7 @@ test("landscape phone keeps the directions card and controls inside the viewport
   const map = page.getByTestId("app-map");
   await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
   await search(page, "Piata Unirii");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
 
   // Beside the origin pin: a press on the pin itself is the pin's, not the map's.
   const { x: cx, y: cy } = await besidePin(page);
@@ -1290,9 +1295,9 @@ async function captureRequested(page: Page, name: string) {
 // The served preset sets per mode (walk 10/20, transit 20/40, car 10/25), nested and sized
 // so each zone is visibly different on the map.
 const SHELL_RINGS = {
-  walk: [ring(10, 0.006), ring(20, 0.012)],
-  transit: [ring(20, 0.012), ring(40, 0.022)],
-  car: [ring(10, 0.02), ring(25, 0.045)],
+  walk: presetReach("walk", { halves: [0.006, 0.012] }).rings,
+  transit: presetReach("transit", { halves: [0.012, 0.022] }).rings,
+  car: presetReach("car", { halves: [0.02, 0.045] }).rings,
 };
 const SHELL_ORIGIN = { lat: 44.4268, lng: 26.1025 };
 
@@ -1387,8 +1392,17 @@ test("every phone state renders inside the viewport at both sizes", async ({ pag
     expect(bannerBox.y + bannerBox.height, `the banner is above the mode pill at ${tag}`).toBeLessThanOrEqual(pillBox.y);
     await captureRequested(page, `error-${tag}`);
 
-    // Directions: a long press beside the pin opens the sheet.
+    // Directions: with transit answering again, a long press beside the pin opens the sheet.
+    await page.unroute("**/api/transit**");
+    await page.route("**/api/transit**", (route) =>
+      route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS.transit, departure: "2026-07-29T05:30:00.000Z" } }),
+    );
+    await page.getByTestId("banner-retry").click();
+    await expect(banner).toBeHidden();
+    await expectReachPainted(page, "transit");
+    await waitForQuietShell(page);
     await openDirections(page);
+    await expect(banner).toBeHidden();
     await expect(page.getByTestId("reach-panel")).toBeInViewport({ ratio: 1 });
     await captureRequested(page, `directions-${tag}`);
     await page.unrouteAll({ behavior: "ignoreErrors" });

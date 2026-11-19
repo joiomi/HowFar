@@ -1,31 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
+import { presetReach } from "./preset-fixtures";
 
 // Regression specs for three edge-case bugs in the map selection and search flow.
 // Providers STUBBED by EXACT path (never /api/**, which would swallow /api/tiles).
 
-function polyRing(minutes: number, d: number) {
-  return {
-    minutes,
-    geometry: {
-      type: "MultiPolygon",
-      coordinates: [
-        [
-          [
-            [26.1025 - d, 44.4268 - d],
-            [26.1025 + d, 44.4268 - d],
-            [26.1025 + d, 44.4268 + d],
-            [26.1025 - d, 44.4268 + d],
-            [26.1025 - d, 44.4268 - d],
-          ],
-        ],
-      ],
-    },
-  };
-}
-const WALK = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(15, 0.01), polyRing(30, 0.02), polyRing(45, 0.03)] };
-const TRANSIT = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(15, 0.03), polyRing(30, 0.06), polyRing(45, 0.09)] };
+const WALK = presetReach("walk", { multi: true });
+const TRANSIT = presetReach("transit", { multi: true });
 
 async function waitForMap(page: Page) {
   // Every selection now also fetches amenities — stub it so CI never hits live
@@ -62,7 +44,7 @@ test("toggling Transit then back to Walk before transit resolves keeps the origi
   const map = await waitForMap(page);
   await search(page, "Piata Unirii");
   await expect(map).toHaveAttribute("data-mode", "walk");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
 
   // Toggle to Transit (slow, in-flight) then straight back to Walk.
   await pickMode(page, "transit");
@@ -72,7 +54,7 @@ test("toggling Transit then back to Walk before transit resolves keeps the origi
   // NO re-geocode. (Before the fix, lastSelection was nulled and the map went
   // blank/idle.)
   await expect(map).toHaveAttribute("data-mode", "walk", { timeout: 5000 });
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-selection", /Piața Unirii/);
   expect(geocodeCalls).toBe(1);
   expect(errors).toEqual([]);
@@ -96,7 +78,7 @@ test("a map click with a malformed reverse-geocode body still renders the isochr
   await map.click({ position: { x: 760, y: 320 } });
 
   // Reach still renders; the click keeps the generic label; no error banner.
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-selection", "Punct pe hartă");
   await expect(page.getByText("Ceva nu a mers.")).toHaveCount(0);
   await expect(page.getByTestId("error-banner")).toHaveCount(0);

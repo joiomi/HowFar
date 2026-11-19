@@ -1,34 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
 import { expectBannerClear, expectNotCovered, expectSearchBusy, expectSearchIdle, modeButton, pickMode, search } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
+import { presetReach } from "./preset-fixtures";
 
 // Transit slice: Walk/Transit toggle. Provider calls STUBBED by EXACT path
 // (never `/api/**`, which would swallow `/api/tiles` and break the basemap).
 // The initial search hits /api/isochrone (walk); toggling re-requests the SAME
 // origin against /api/transit with no second geocode.
 
-function polyRing(minutes: number, d: number) {
-  return {
-    minutes,
-    geometry: {
-      type: "MultiPolygon",
-      coordinates: [
-        [
-          [
-            [26.1025 - d, 44.4268 - d],
-            [26.1025 + d, 44.4268 - d],
-            [26.1025 + d, 44.4268 + d],
-            [26.1025 - d, 44.4268 + d],
-            [26.1025 - d, 44.4268 - d],
-          ],
-        ],
-      ],
-    },
-  };
-}
-const WALK = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(15, 0.01), polyRing(30, 0.02), polyRing(45, 0.03)] };
+const WALK = presetReach("walk", { multi: true });
 // Transit reaches further (bigger rings) — the whole point of the mode.
-const TRANSIT = { origin: { lat: 44.4268, lng: 26.1025 }, rings: [polyRing(15, 0.03), polyRing(30, 0.06), polyRing(45, 0.09)] };
+const TRANSIT = { ...presetReach("transit", { multi: true }) };
 
 async function waitForMap(page: Page) {
   // Every selection now also fetches amenities — stub it so CI never hits live
@@ -72,13 +54,13 @@ test("toggling Walk→Transit re-renders transit rings for the same origin witho
 
   // 1. Search → walking isochrone (default mode).
   await search(page, "Piata Unirii");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-mode", "walk");
 
   // 2. Toggle to Transit → transit isochrone for the SAME origin.
   await pickMode(page, "transit");
   await expect(map).toHaveAttribute("data-mode", "transit");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   // The mode pill shows public transport as the drawn mode.
   await expect(modeButton(page, "transit")).toHaveAttribute("aria-pressed", "true");
 

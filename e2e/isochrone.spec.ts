@@ -1,32 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { modeButton, pickMode, search, toggleDeparture, toggleSlowPace } from "./shell";
 import { emptyAmenities } from "./amenity-fixtures";
+import { presetReach } from "./preset-fixtures";
 
 // Slice-1 interactivity, provider calls STUBBED (CI has no ORS key / can't hit
 // Nominatim). We stub ONLY the three provider routes by exact path — never
 // `/api/**`, which would swallow `/api/tiles` and break the basemap.
 
-function ring(minutes: number, d: number) {
-  return {
-    minutes,
-    geometry: {
-      type: "Polygon",
-      coordinates: [
-        [
-          [26.1025 - d, 44.4268 - d],
-          [26.1025 + d, 44.4268 - d],
-          [26.1025 + d, 44.4268 + d],
-          [26.1025 - d, 44.4268 + d],
-          [26.1025 - d, 44.4268 - d],
-        ],
-      ],
-    },
-  };
-}
-const ISOCHRONE = {
-  origin: { lat: 44.4268, lng: 26.1025 },
-  rings: [ring(15, 0.01), ring(30, 0.02), ring(45, 0.03)],
-};
+const ISOCHRONE = presetReach("walk");
 
 async function stubIsochrone(page: Page) {
   await page.route("**/api/isochrone**", (route) => route.fulfill({ json: ISOCHRONE }));
@@ -44,7 +25,7 @@ async function waitForMap(page: Page) {
   return map;
 }
 
-test("search renders a marker, 3 isochrone rings, and the address label", async ({ page }) => {
+test("search renders a marker, the 2 preset rings, and the address label", async ({ page }) => {
   const errors: string[] = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -60,7 +41,7 @@ test("search renders a marker, 3 isochrone rings, and the address label", async 
   const map = await waitForMap(page);
   await search(page, "Piata Unirii");
 
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-selection", /Piața Unirii/);
   // The address bar shows the resolved address.
   await expect(page.getByRole("combobox")).toHaveValue("Piața Unirii, București");
@@ -76,12 +57,12 @@ test("the clear button returns to first open", async ({ page }) => {
   const reachRequests: string[] = [];
   await page.route("**/api/isochrone**", (route) => {
     reachRequests.push(route.request().url());
-    return route.fulfill({ json: { origin: ISOCHRONE.origin, rings: [ring(10, 0.01), ring(20, 0.02)] } });
+    return route.fulfill({ json: presetReach("walk") });
   });
   await page.route("**/api/transit**", (route) => {
     reachRequests.push(route.request().url());
     return route.fulfill({
-      json: { origin: ISOCHRONE.origin, rings: [ring(20, 0.03), ring(40, 0.06)], departure: "2026-07-29T05:30:00.000Z" },
+      json: { ...presetReach("transit"), departure: "2026-07-29T05:30:00.000Z" },
     });
   });
 
@@ -138,7 +119,7 @@ test("clicking the map reverse-geocodes and renders the isochrone", async ({ pag
   // x clears the left-docked control column so this stays a bare-map click.
   await map.click({ position: { x: 760, y: 320 } });
 
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await expect(map).toHaveAttribute("data-selection", /clicked spot/i);
   expect(errors).toEqual([]);
 });
