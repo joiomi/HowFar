@@ -192,3 +192,29 @@ export async function expectBasemapCredits(popover: Locator): Promise<void> {
     await expectNotCovered(link);
   }
 }
+
+// The reach of the drawn mode is actually on the map, not just selected: the selection
+// stamped contours for the mode's default chip (10 on walk, 20 on transit, 10 on car), the
+// render did not report an empty reach, and the "~N min" edge label is placed. Call it before
+// sampling or photographing a state, so an empty zone cannot pass as a clear map.
+const DEFAULT_CONTOUR: Record<ShellMode, string> = { walk: "10", transit: "20", car: "10" };
+
+export async function expectReachPainted(page: Page, mode: ShellMode): Promise<void> {
+  const map = page.getByTestId("app-map");
+  await expect(map, `no reach was drawn in ${mode}`).not.toHaveAttribute("data-reach-empty", "true");
+  await expect(map, `the ${mode} reach has no contours`).toHaveAttribute("data-preset-contours", DEFAULT_CONTOUR[mode]);
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (
+              window as unknown as {
+                __hfMap: { queryRenderedFeatures(g?: undefined, o?: { layers?: string[] }): unknown[] };
+              }
+            ).__hfMap.queryRenderedFeatures(undefined, { layers: ["preset-reach-label"] }).length,
+        ),
+      { message: `the ${mode} reach edge label is not placed`, timeout: 15_000 },
+    )
+    .toBeGreaterThan(0);
+}

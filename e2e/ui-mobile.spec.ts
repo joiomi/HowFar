@@ -12,6 +12,7 @@ import {
   search,
   toggleDeparture,
   toggleSlowPace,
+  expectReachPainted,
   waitForQuietShell,
   type ShellMode,
 } from "./shell";
@@ -1286,7 +1287,13 @@ async function captureRequested(page: Page, name: string) {
   await page.screenshot({ path: `${directory}/${name}.png`, animations: "disabled" });
 }
 
-const SHELL_RINGS = [ring(15, 0.28), ring(30, 0.3), ring(45, 0.32)];
+// The served preset sets per mode (walk 10/20, transit 20/40, car 10/25), nested and sized
+// so each zone is visibly different on the map.
+const SHELL_RINGS = {
+  walk: [ring(10, 0.006), ring(20, 0.012)],
+  transit: [ring(20, 0.012), ring(40, 0.022)],
+  car: [ring(10, 0.02), ring(25, 0.045)],
+};
 const SHELL_ORIGIN = { lat: 44.4268, lng: 26.1025 };
 
 // Every endpoint the shell calls, answered from fixtures; `transitFails` makes the
@@ -1297,11 +1304,12 @@ async function stubShell(page: Page, options: { transitFails?: boolean; legs?: n
     route.fulfill({ json: { ...SHELL_ORIGIN, label: "Piața Unirii, București" } }),
   );
   await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
-  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS } }));
+  await page.route("**/api/isochrone**", (route) => route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS.walk } }));
+  await page.route("**/api/car**", (route) => route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS.car } }));
   await page.route("**/api/transit**", (route) =>
     options.transitFails
       ? route.fulfill({ status: 502, json: { error: "upstream" } })
-      : route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS, departure: "2026-07-29T05:30:00.000Z" } }),
+      : route.fulfill({ json: { origin: SHELL_ORIGIN, rings: SHELL_RINGS.transit, departure: "2026-07-29T05:30:00.000Z" } }),
   );
   await page.route("**/api/amenities**", (route) => route.fulfill({ json: AMENITIES }));
   await page.route("**/api/reach**", (route) => route.fulfill({ json: trip }));
@@ -1339,12 +1347,13 @@ test("the main state keeps at least 85% of the screen as live map", async ({ pag
   for (const size of PHONE_SIZES) {
     const map = await openMap(page, size);
     await search(page, "Piata Unirii");
-    await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+    await expect(map).toHaveAttribute("data-isochrone-rings", "2");
     for (const mode of ["walk", "transit", "car"] as const satisfies readonly ShellMode[]) {
       await pickMode(page, mode);
       await expect(map).toHaveAttribute("data-mode", mode);
       await expect(page.locator(".hf-map-shell")).toHaveAttribute("data-sel-status", "idle");
       await waitForQuietShell(page);
+      await expectReachPainted(page, mode);
       const percent = await sampleMapClearPercent(page);
       measured.push(`${mode} ${size.width}x${size.height}: ${percent}%`);
       await captureRequested(page, `main-${mode}-${size.width}x${size.height}`);
@@ -1368,7 +1377,7 @@ test("every phone state renders inside the viewport at both sizes", async ({ pag
     await page.unroute("**/api/transit**");
     await page.route("**/api/transit**", (route) => route.fulfill({ status: 502, json: { error: "upstream" } }));
     await search(page, "Piata Unirii");
-    await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+    await expect(map).toHaveAttribute("data-isochrone-rings", "2");
     await pickMode(page, "transit");
     const banner = page.getByTestId("error-banner");
     await expect(banner).toBeVisible();
@@ -1461,7 +1470,7 @@ test(`the shell speaks Romanian in every state at ${size.width}x${size.height}`,
   await sweep("first open");
 
   await search(page, "Piata Unirii");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await waitForQuietShell(page);
   await sweep("walk");
   await openInfo(page);
@@ -1511,7 +1520,7 @@ test(`a focused step chip scrolls clear of the directions sheet's sticky header 
   const trip = await stubShell(page, { legs: 31 });
   const map = await openMap(page, size);
   await search(page, "Piata Unirii");
-  await expect(map).toHaveAttribute("data-isochrone-rings", "3");
+  await expect(map).toHaveAttribute("data-isochrone-rings", "2");
   await openDirections(page);
   const sheet = page.getByTestId("result-sheet");
   const chips = sheet.locator("li[data-step-mode]");
