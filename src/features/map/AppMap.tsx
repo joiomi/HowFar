@@ -149,7 +149,7 @@ export default function AppMap() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const selectRef = useRef<((input: SelectInput, opts?: { recompute?: boolean }) => void) | null>(null);
   // The most recent user SelectInput, so a pace/time change before the first
-  // selection resolves can re-issue it rather than lose the change (finding G).
+  // selection resolves can re-issue it rather than lose the change.
   const pendingInputRef = useRef<SelectInput | null>(null);
   // A user selection made while the deferred map engine is still loading. The search
   // box is interactive in the eager shell before the map exists, so a submit before `selectRef`
@@ -1187,7 +1187,7 @@ export default function AppMap() {
   // mode's reach area at that departure context, so crowded↔quiet changes which places
   // are in range — `amenityFetchKey` includes the preset). With no resolved selection yet, a
   // still-loading first request is re-issued from its pending input so the
-  // change is not lost (finding G); otherwise there's nothing to recompute. The
+  // change is not lost; otherwise there's nothing to recompute. The
   // error banner's ↻ runs it too: the failed place again, or the failed first
   // search from its pending input.
   function recomputeCurrent() {

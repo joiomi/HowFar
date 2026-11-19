@@ -297,8 +297,8 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       if (action.pace === state.pace) return state; // no-op
       // Bump the token to invalidate any in-flight request and snapshot the new
       // pace. The controller re-issues the pending/last selection; if none is in
-      // flight or resolved yet it re-runs the pending input (finding G — a pace
-      // change before the first resolution must not be lost).
+      // flight or resolved yet it re-runs the pending input (a pace change
+      // before the first resolution must not be lost).
       const token = state.token + 1;
       // Settling at idle drops a failure too: its message and flag belong to
       // the error state only.

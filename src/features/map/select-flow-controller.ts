@@ -88,7 +88,7 @@ export function createSelectFlowController({
 }) {
   async function select(input: SelectInput, opts?: { recompute?: boolean }) {
     // Record the input so a pace/time change before this resolves can re-issue
-    // it (finding G). A recompute re-issues an already-tracked input.
+    // it. A recompute re-issues an already-tracked input.
     pendingInputRef.current = input;
     // Snapshot the mode ONCE (from the selection machine) so this response's
     // endpoint, colors, legend and data-mode all agree even if the user toggles
