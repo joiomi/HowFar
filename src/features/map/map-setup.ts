@@ -32,6 +32,15 @@ import { BASEMAP_CREDITS, type CreditLink } from "@/features/map/credits";
 export const EMPTY_FC = { type: "FeatureCollection" as const, features: [] as unknown[] };
 
 /** The narrow slice of `maplibregl.Map` the layer helpers touch. */
+/**
+ * Keeps a touch map north-up. The compass sits in the navigation corner, which phones
+ * hide, so a twist or a tilt could not be undone; pinch zoom and pan stay on.
+ */
+export function lockTouchNorthUp(map: Pick<maplibregl.Map, "touchZoomRotate" | "touchPitch">): void {
+  map.touchZoomRotate.disableRotation();
+  map.touchPitch.disable();
+}
+
 type LayerHost = Pick<maplibregl.Map, "addSource" | "addLayer">;
 
 export const ISOCHRONE_FILL_OPACITY = 0.2;

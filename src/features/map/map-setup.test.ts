@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { layers, namedFlavor } from "@protomaps/basemaps";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
 
@@ -42,6 +42,7 @@ import {
   ISOCHRONE_FILL_OPACITY,
   ISOCHRONE_LINE_OPACITY,
   ROUTE_PATH_COLOR,
+  lockTouchNorthUp,
 } from "./map-setup";
 
 /** Recording stub for the addSource/addLayer slice the helpers touch. */
@@ -499,5 +500,18 @@ describe("addAmenityLayers", () => {
     const { host, layerSpecs } = recorder();
     addAmenityLayers(host);
     expect(layerSpecs.map((l) => l.id)).not.toContain("amenity-glyphs");
+  });
+});
+
+describe("lockTouchNorthUp", () => {
+  it("turns off touch rotation and touch pitch, and leaves pinch zoom alone", () => {
+    const map = {
+      touchZoomRotate: { disableRotation: vi.fn(), disable: vi.fn() },
+      touchPitch: { disable: vi.fn() },
+    };
+    lockTouchNorthUp(map as never);
+    expect(map.touchZoomRotate.disableRotation).toHaveBeenCalledTimes(1);
+    expect(map.touchPitch.disable).toHaveBeenCalledTimes(1);
+    expect(map.touchZoomRotate.disable).not.toHaveBeenCalled();
   });
 });

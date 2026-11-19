@@ -71,12 +71,24 @@ async function markerCentre(page: Page) {
 
 test("dragging the origin pin selects the dropped point", async ({ page }) => {
   const { map, reverse } = await setup(page);
+  // The search's own camera move must be over before the centre is read as the baseline.
+  await expect(map).toHaveAttribute("data-camera-settled", "true");
   const from = await markerCentre(page);
   expect(reverse).toEqual([]);
+
+  const centre = () =>
+    page.evaluate(() => {
+      const c = (window as unknown as { __hfMap: { getCenter(): { lat: number; lng: number } } }).__hfMap.getCenter();
+      return { lat: c.lat, lng: c.lng };
+    });
+  const before = await centre();
 
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move(from.x + 120, from.y + 40, { steps: 10 });
+  // Read with the button still held: the drop has not happened, so the drop's own camera move
+  // cannot be in this value. A drag that started on the pin moves the pin, not the map.
+  expect(await centre()).toEqual(before);
   await page.mouse.up();
 
   await expect(map).toHaveAttribute("data-selection", "Mutat");

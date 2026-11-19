@@ -85,9 +85,9 @@ export async function sampleMapClearPercent(page: Page): Promise<number> {
 
 // Fails unless the element is the topmost thing along its middle: at five points across
 // its width (10%, 30%, 50%, 70% and 90%, at half its height) the hit is the element itself
-// or something inside it, and neither it nor an ancestor is faded below half opacity. Visibility alone passes for a credit another floating control
-// sits on top of, and a centre-only probe passes for one covered at an end; this proves it
-// can be read and tapped.
+// or something inside it, and neither it nor an ancestor is faded below half opacity.
+// Visibility alone passes for a credit another floating control sits on top of, and a
+// centre-only probe passes for one covered at an end; this proves it can be read and tapped.
 export async function expectNotCovered(locator: Locator): Promise<void> {
   await expect(locator).toBeVisible();
   await expect

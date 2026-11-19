@@ -42,6 +42,7 @@ import {
   addReachPathLayers,
   addRoutePathLayers,
   createMapStyle,
+  lockTouchNorthUp,
   MAP_LOCALE,
 } from "@/features/map/map-setup";
 import { createAmenitySpiderController } from "@/features/map/amenity-spider-controller";
@@ -442,6 +443,7 @@ export default function AppMap() {
     // to the already-visible map); cleared on teardown.
     (window as unknown as { __hfMap?: maplibregl.Map }).__hfMap = map;
     map.addControl(new gl.NavigationControl({ showCompass: true, showZoom: true }), "bottom-right");
+    lockTouchNorthUp(map);
 
     // Shared lifecycle cell replayed at `load` (see load-state.ts). Buffers a
     // selection / amenities response that arrived before the style existed.

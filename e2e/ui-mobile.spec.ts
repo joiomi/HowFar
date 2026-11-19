@@ -448,6 +448,65 @@ test("mobile: long-press from Walk auto-switches to Public transport and draws t
   await expect(page.getByTestId("result-sheet").getByTestId("reach-panel")).toBeVisible();
 });
 
+// Phones hide the compass with the rest of the navigation corner, so a twist or a tilt could
+// not be undone: touch rotation and pitch are off, and a pinch still zooms. The two-finger
+// gestures run through the real touch pipeline. MapLibre 5 has no public getter for touch
+// rotation, so only pitch's handler state is read; rotation is proved by the twist.
+test("mobile: the map stays north-up and flat under two fingers, and a pinch still zooms", async ({ page }) => {
+  await page.route("**/api/suggest**", (route) => route.fulfill({ json: { suggestions: [] } }));
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+
+  type Gl = { getBearing(): number; getPitch(): number; getZoom(): number; touchPitch: { isEnabled(): boolean } };
+  const read = () =>
+    page.evaluate(() => {
+      const m = (window as unknown as { __hfMap: Gl }).__hfMap;
+      return {
+        bearing: m.getBearing(),
+        pitch: m.getPitch(),
+        zoom: m.getZoom(),
+        pitchOn: m.touchPitch.isEnabled(),
+      };
+    });
+  const start = await read();
+  expect(start.pitchOn).toBe(false);
+
+  const box = await page.locator(".maplibregl-canvas").boundingBox();
+  if (!box) throw new Error("no canvas");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2 - 60;
+  const session = await page.context().newCDPSession(page);
+  const two = (a: [number, number], b: [number, number]) => [
+    { x: a[0], y: a[1], radiusX: 3, radiusY: 3, force: 1, id: 1 },
+    { x: b[0], y: b[1], radiusX: 3, radiusY: 3, force: 1, id: 2 },
+  ];
+  const touch = (type: "touchStart" | "touchMove" | "touchEnd", points: ReturnType<typeof two> | []) =>
+    session.send("Input.dispatchTouchEvent", { type, touchPoints: points });
+
+  // Twist: both fingers circle the centre by 60 degrees at a constant spread.
+  const r = 70;
+  const at = (deg: number): ReturnType<typeof two> => {
+    const t = (deg * Math.PI) / 180;
+    return two([cx + r * Math.cos(t), cy + r * Math.sin(t)], [cx - r * Math.cos(t), cy - r * Math.sin(t)]);
+  };
+  await touch("touchStart", at(0));
+  for (let deg = 6; deg <= 60; deg += 6) await touch("touchMove", at(deg));
+  await touch("touchEnd", []);
+  const twisted = await read();
+  expect(twisted.bearing).toBeCloseTo(0, 5);
+  expect(twisted.pitch).toBeCloseTo(0, 5);
+
+  // Pinch: the fingers spread apart; the zoom changes. Retried, since a gesture can be dropped.
+  await expect(async () => {
+    await touch("touchStart", two([cx - 30, cy], [cx + 30, cy]));
+    for (let d = 40; d <= 140; d += 10) await touch("touchMove", two([cx - d, cy], [cx + d, cy]));
+    await touch("touchEnd", []);
+    expect((await read()).zoom).toBeGreaterThan(start.zoom + 0.3);
+  }).toPass({ timeout: 15_000 });
+  expect((await read()).bearing).toBeCloseTo(0, 5);
+});
+
 // A press and hold on the origin pin begins a drag of the pin; it must not also open
 // directions. A long press on bare map beside it afterwards does, and is the signal that the
 // gesture works in this run: exactly one plan was fetched, and it was that one's.
