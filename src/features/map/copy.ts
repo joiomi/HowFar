@@ -38,8 +38,16 @@ export function infoContent(mode: Mode, transitState: boolean): { caveat: string
   return { caveat: presetReachCaveat(mode), note: mode === "transit" ? TRANSIT_NOTE : null, transitous: transitState };
 }
 
-/** The one-time hint after the first place: a long press on the map plans a trip there. */
+/** The one-time hint after the first place, on a phone: a long press on the map plans a trip there. */
 export const HOLD_HINT = "Ține apăsat pe hartă: cât faci cu transportul până acolo";
+
+/** The same hint from md, where the gesture is a right-click (a mouse cannot long-press). */
+export const HOLD_HINT_DESKTOP = "Clic dreapta pe hartă: cât faci cu transportul până acolo";
+
+/** The hold hint for the layout on screen: the long press in the phone layout, the right-click from md. */
+export function holdHintText(phoneLayout: boolean): string {
+  return phoneLayout ? HOLD_HINT : HOLD_HINT_DESKTOP;
+}
 
 /** How long the hold hint stays up, in milliseconds. */
 export const HOLD_HINT_MS = 4000;

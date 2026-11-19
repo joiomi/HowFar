@@ -66,6 +66,19 @@ describe("ErrorBanner", () => {
     expect(html.indexOf("banner-retry")).toBeLessThan(html.indexOf("banner-walk"));
   });
 
+  it("offers ↻ only when given: a failure retrying cannot fix shows the message alone, at the same height", () => {
+    const html = renderToStaticMarkup(<ErrorBanner message="Locația e blocată în browser." />);
+    const root = openTag(html, "error-banner");
+    expect(root).toContain('role="alert"');
+    expect(html).toContain(">Locația e blocată în browser.</p>");
+    expect(html).not.toContain("<button");
+    // Without buttons the row keeps the 48 px a 44 px button gives it, and its text clears the right edge.
+    expect(root).toMatch(/\bmin-h-12\b/);
+    expect(root).toMatch(/\bpr-3\b/);
+    expect(openTag(renderToStaticMarkup(<ErrorBanner message="m" onRetry={noop} />), "error-banner")).toMatch(/\bpr-0\.5\b/);
+    expect(openTag(renderToStaticMarkup(<ErrorBanner message="m" onSwitchToWalk={noop} />), "error-banner")).toMatch(/\bpr-0\.5\b/);
+  });
+
   it("each button reports to its own handler", () => {
     const onRetry = vi.fn();
     const onSwitchToWalk = vi.fn();

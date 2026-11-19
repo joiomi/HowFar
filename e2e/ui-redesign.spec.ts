@@ -374,6 +374,18 @@ test("the top strip beside the top bar is live map", async ({ page }) => {
   await expect(map).toHaveAttribute("data-selection", "Header gap point");
 });
 
+// A mouse cannot long-press (holding the button pans), so from md the one-time hint names
+// the right-click; phones keep "Ține apăsat" (ui-mobile.spec.ts).
+test("on a desktop the hold hint says right-click", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await stubPopulatedState(page);
+  await page.goto("/");
+  const map = page.getByTestId("app-map");
+  await expect(map).toHaveAttribute("data-map-loaded", "true", { timeout: 30_000 });
+  await search(page, "Piața Unirii");
+  await expect(page.getByTestId("hold-toast")).toHaveText("Clic dreapta pe hartă: cât faci cu transportul până acolo");
+});
+
 test("first open shows a pointer-transparent pulse at the map centre; a tap there selects and the pulse goes", async ({
   page,
 }) => {

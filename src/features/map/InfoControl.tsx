@@ -36,8 +36,9 @@ function Credit({ credit }: { credit: CreditLink }) {
  * the only place the basemap credits are shown, so the shell renders it in every
  * map state. Presentation only: `open` comes from the shell (info-controller.ts
  * decides the first-load opening and the closes on a map tap, a pan or the address
- * field). Escape inside the control closes the popover and puts focus back on the
- * button. The open popover sits above every other floating control (z-50), so
+ * field). Escape inside the control closes the popover, puts focus back on the
+ * button and marks the key handled, so open directions underneath stay open until
+ * the next Escape. The open popover sits above every other floating control (z-50), so
  * nothing covers its credits. From md it is at most 360 px wide and narrows to
  * leave the left column (16 + 400 px, plus an 8 px gap and its own 16 px edge)
  * free, so between 768 and 800 px it never reaches over the directions card.
@@ -72,6 +73,9 @@ export default function InfoControl({ open, onOpenChange, mode, transitState }: 
   }
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Escape" || !open) return;
+    // Handled here: the directions sheet's document-level Escape skips a handled
+    // key, so one Escape closes only the topmost surface.
+    event.preventDefault();
     onOpenChange(false);
     event.currentTarget.querySelector<HTMLButtonElement>('[data-testid="info-button"]')?.focus();
   }

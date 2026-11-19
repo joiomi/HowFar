@@ -6,7 +6,7 @@ import { TRANSITOUS_SOURCES_URL } from "@/features/map/credits";
 import { Icon, type IconName } from "@/features/map/icons";
 import { buildReachSteps, stepChip } from "@/features/map/reach";
 import type { ReachView } from "@/features/map/reach-directions-controller";
-import ReachPanel from "@/features/map/ReachPanel";
+import ReachPanel, { escapeClosesDirections } from "@/features/map/ReachPanel";
 
 const noop = () => {};
 
@@ -183,5 +183,32 @@ describe("ReachPanel", () => {
     expect(html).not.toContain("<ol");
     // The title is the only text: no detail paragraph under it.
     expect(html.replace(/<[^>]+>/g, "")).toBe("Caut un traseu…© Transitous");
+  });
+});
+
+describe("escapeClosesDirections", () => {
+  /** A key event whose target sits inside the element `inside` names (or nowhere). */
+  function key(name: string, { inside = null as string | null, handled = false } = {}) {
+    const target = { closest: (selector: string) => (inside !== null && selector === inside ? {} : null) };
+    return { key: name, defaultPrevented: handled, target } as unknown as KeyboardEvent;
+  }
+
+  it("closes on an Escape from anywhere: the panel, the map or the page", () => {
+    expect(escapeClosesDirections(key("Escape"))).toBe(true);
+    // The document itself has no closest(); a null target neither.
+    expect(escapeClosesDirections({ key: "Escape", defaultPrevented: false, target: {} } as unknown as KeyboardEvent)).toBe(true);
+    expect(escapeClosesDirections({ key: "Escape", defaultPrevented: false, target: null } as unknown as KeyboardEvent)).toBe(true);
+  });
+
+  it("ignores other keys", () => {
+    expect(escapeClosesDirections(key("Enter"))).toBe(false);
+  });
+
+  it("leaves an Escape the address bar gets: its own Escape dismisses the suggestions", () => {
+    expect(escapeClosesDirections(key("Escape", { inside: '[data-testid="top-bar"]' }))).toBe(false);
+  });
+
+  it("leaves an Escape a surface above already handled: the info popover closes first", () => {
+    expect(escapeClosesDirections(key("Escape", { handled: true }))).toBe(false);
   });
 });

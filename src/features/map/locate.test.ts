@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { LOCATE_MESSAGES, LOCATE_TIMEOUT_MS, LocateError, locateOnce } from "@/features/map/locate";
+import {
+  clearsLocateFailure,
+  LOCATE_MESSAGES,
+  LOCATE_TIMEOUT_MS,
+  LocateError,
+  locateOnce,
+  locateRetryable,
+} from "@/features/map/locate";
+import type { SelectionAction } from "@/features/map/selection-flow";
 
 type Success = PositionCallback;
 type Failure = PositionErrorCallback;
@@ -66,5 +74,39 @@ describe("LOCATE_MESSAGES", () => {
       timeout: "Nu am putut afla locația ta.",
       unsupported: "Locația nu e disponibilă pe acest dispozitiv.",
     });
+  });
+});
+
+describe("locateRetryable", () => {
+  it("offers ↻ only where asking again can succeed", () => {
+    // A refused permission and a browser without location fail the same way again.
+    expect(locateRetryable("denied")).toBe(false);
+    expect(locateRetryable("unsupported")).toBe(false);
+    // No fix yet, or not in time: the next try may get one.
+    expect(locateRetryable("unavailable")).toBe(true);
+    expect(locateRetryable("timeout")).toBe(true);
+  });
+});
+
+describe("clearsLocateFailure", () => {
+  it("a new place, ✕, and a mode, pace or time change retire a stored locate failure", () => {
+    const clearing: SelectionAction[] = [
+      { type: "start", mode: "walk" },
+      { type: "start", mode: "walk", preserveLast: true },
+      { type: "clear" },
+      { type: "toggle", next: "transit" },
+      { type: "setPace", pace: "slow" },
+      { type: "setTimeContext", timeContext: { kind: "preset", preset: "quiet" } },
+    ];
+    for (const action of clearing) expect(clearsLocateFailure(action), action.type).toBe(true);
+  });
+
+  it("a selection settling leaves it: it is not something the user did", () => {
+    const settling: SelectionAction[] = [
+      { type: "resolved", token: 1, origin: { lat: 44.4, lng: 26.1 }, label: "x" },
+      { type: "failed", token: 1, stage: "isochrone", httpStatus: 502 },
+      { type: "crash", token: 1 },
+    ];
+    for (const action of settling) expect(clearsLocateFailure(action), action.type).toBe(false);
   });
 });

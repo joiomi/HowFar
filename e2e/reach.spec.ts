@@ -127,6 +127,31 @@ test("Escape closes the directions even after focus has left the panel", async (
   await expect(map).not.toHaveAttribute("data-reach-state", /.+/);
 });
 
+// The ⓘ popover opens over the directions, so it is the topmost surface: one Escape closes
+// it alone, and the next one closes the directions.
+test("with the info popover open over the directions, Escape closes the popover first, then the directions", async ({
+  page,
+}) => {
+  const { map } = await setup(page);
+  await searchAndWait(page, map);
+  await rightClickBesidePin(page);
+  await expect(map).toHaveAttribute("data-reach-state", "transit");
+  const popover = await openInfo(page); // focus stays on the ⓘ button
+  const panel = page.getByTestId("reach-panel");
+  await expect(panel).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(popover).toHaveCount(0);
+  // The same key press would have closed both in one render, so the panel still being up
+  // once the popover is gone is the answer.
+  await expect(panel).toBeVisible();
+  await expect(map).toHaveAttribute("data-reach-state", "transit");
+
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(map).not.toHaveAttribute("data-reach-state", /.+/);
+});
+
 test("walk mode: right-click auto-switches to Public transport and plans the trip", async ({ page }) => {
   const { map, reachCalls } = await setup(page);
   await searchAndWait(page, map); // walk mode

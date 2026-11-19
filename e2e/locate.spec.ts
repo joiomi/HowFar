@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { emptyAmenities } from "./amenity-fixtures";
-import { pickMode, search } from "./shell";
+import { modeButton, pickMode, search } from "./shell";
 
 test.use({ viewport: { width: 390, height: 844 } });
 
@@ -77,7 +77,7 @@ test.describe("my location", () => {
     await expect(combobox).toHaveValue("Strada Doamnei 1");
   });
 
-  test("blocked location shows the Romanian banner and the map still works", async ({ page }) => {
+  test("blocked location shows the Romanian banner with no retry, and the map still works", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
         configurable: true,
@@ -90,9 +90,9 @@ test.describe("my location", () => {
     await page.getByTestId("locate").click();
     const banner = page.getByTestId("error-banner");
     await expect(banner).toContainText("Locația e blocată în browser.");
-    await expect(page.getByTestId("banner-retry")).toBeVisible();
-    // A locate failure is not a reach failure: walking is not offered.
-    await expect(banner.getByRole("button")).toHaveCount(1);
+    // Asking again cannot succeed while the browser refuses, so there is no ↻; and a locate
+    // failure is not a reach failure, so walking is not offered either.
+    await expect(banner.getByRole("button")).toHaveCount(0);
 
     // The map is still live: a tap selects and the banner goes.
     await map.click({ position: { x: 195, y: 420 } });
@@ -157,6 +157,8 @@ test.describe("my location", () => {
     );
     await page.getByTestId("locate").click();
     await expect(page.getByTestId("error-banner")).toContainText("Nu am putut afla locația ta.");
+    // No fix this time: the next try may get one, so ↻ asks again.
+    await expect(page.getByTestId("banner-retry")).toBeVisible();
     const combobox = page.getByRole("combobox");
     await combobox.fill("Piata Unirii");
     await combobox.press("Enter");
@@ -206,7 +208,7 @@ test.describe("my location", () => {
     return { map, reversed };
   }
 
-  test("a blocked location after a failed transit reach offers only retry, never the walk switch", async ({ page }) => {
+  test("a blocked location after a failed transit reach offers neither retry nor the walk switch", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
         configurable: true,
@@ -224,8 +226,23 @@ test.describe("my location", () => {
     await expect(page.getByTestId("banner-walk")).toBeVisible();
     await page.getByTestId("locate").click();
     await expect(page.getByTestId("error-banner")).toContainText("Locația e blocată în browser.");
-    await expect(page.getByTestId("banner-retry")).toBeVisible();
-    await expect(page.getByTestId("banner-walk")).toHaveCount(0);
+    await expect(page.getByTestId("error-banner").getByRole("button")).toHaveCount(0);
+  });
+
+  test("a mode change clears a stored location failure", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
+        configurable: true,
+        value: (_ok: PositionCallback, fail: PositionErrorCallback) => fail({ code: 1 } as GeolocationPositionError),
+      });
+    });
+    await openMap(page, (route) => route.fulfill({ json: { lat: 44.4268, lng: 26.1025, label: "Strada Doamnei 1" } }));
+    await page.getByTestId("locate").click();
+    const banner = page.getByTestId("error-banner");
+    await expect(banner).toContainText("Locația e blocată în browser.");
+    await pickMode(page, "transit");
+    await expect(modeButton(page, "transit")).toHaveAttribute("aria-pressed", "true");
+    await expect(banner).toHaveCount(0);
   });
 
   for (const newer of ["a newer search", "the clear button"] as const) {

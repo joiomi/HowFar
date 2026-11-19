@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { presetReachCaveat } from "@/features/isochrones/preset-view";
 import {
   HOLD_HINT,
+  HOLD_HINT_DESKTOP,
   HOLD_HINT_MS,
+  holdHintText,
   infoContent,
   INFO_LABEL,
   LOADING_ANNOUNCEMENT,
@@ -62,6 +64,12 @@ describe("hold hint copy", () => {
   it("states the hold hint verbatim and shows it for four seconds", () => {
     expect(HOLD_HINT).toBe("Ține apăsat pe hartă: cât faci cu transportul până acolo");
     expect(HOLD_HINT_MS).toBe(4000);
+  });
+
+  it("says long press in the phone layout and right-click from md, where a mouse cannot long-press", () => {
+    expect(HOLD_HINT_DESKTOP).toBe("Clic dreapta pe hartă: cât faci cu transportul până acolo");
+    expect(holdHintText(true)).toBe(HOLD_HINT);
+    expect(holdHintText(false)).toBe(HOLD_HINT_DESKTOP);
   });
 });
 

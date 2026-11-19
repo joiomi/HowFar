@@ -35,6 +35,18 @@ const CHIP_TONE: Record<StepChip["tone"], string> = {
   walk: "bg-white/[.07] text-[var(--hf-text)] ring-1 ring-inset ring-[var(--hf-border)]",
 };
 
+/**
+ * Whether an Escape key press closes the directions. Not one the address bar gets
+ * (its own Escape dismisses the suggestions, so the directions are not yanked out
+ * from under it), and not one a surface above the sheet already handled: the ⓘ
+ * popover closes first and marks the key handled, so one Escape closes only the
+ * topmost surface and the next one reaches the sheet.
+ */
+export function escapeClosesDirections(event: Pick<KeyboardEvent, "key" | "defaultPrevented" | "target">): boolean {
+  if (event.key !== "Escape" || event.defaultPrevented) return false;
+  return !(event.target as Element | null)?.closest?.('[data-testid="top-bar"]');
+}
+
 export default function ReachPanel({ view, onHighlight, onClose }: ReachPanelProps) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
 
@@ -46,18 +58,23 @@ export default function ReachPanel({ view, onHighlight, onClose }: ReachPanelPro
 
   // Escape closes the directions from ANYWHERE: after the user
   // pans/clicks the map, focus leaves the panel, so a panel-scoped handler would
-  // go dead. Listen at document level while mounted — but skip when the event
-  // originates in the address bar, whose own Escape dismisses the autocomplete
-  // (don't yank the directions out from under that).
+  // go dead. Listen at document level while mounted; `escapeClosesDirections`
+  // decides which Escapes are the sheet's. One listener for the panel's life,
+  // reading the latest `onClose` through a ref: re-subscribing on every parent
+  // render could drop the listener in the middle of a key press (a render that
+  // press caused removes it before it runs), so whether a press reached the sheet
+  // would depend on what else re-rendered.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if ((e.target as HTMLElement | null)?.closest?.('[data-testid="top-bar"]')) return;
-      onClose();
+      if (escapeClosesDirections(e)) onCloseRef.current();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
 
   const steps = view.state === "transit" ? view.steps : undefined;
 

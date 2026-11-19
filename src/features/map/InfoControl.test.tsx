@@ -193,18 +193,23 @@ describe("InfoControl", () => {
     const onOpenChange = vi.fn();
     const focus = vi.fn();
     const querySelector = vi.fn(() => ({ focus }));
+    const preventDefault = vi.fn();
     const press = (open: boolean, key: string) => {
       const root = find(InfoControl({ open, onOpenChange, mode: "walk", transitState: false }), (el) => typeof el.props.onKeyDown === "function");
       if (!root) throw new Error("no key handler");
-      root.props.onKeyDown?.({ key, currentTarget: { querySelector } } as never);
+      root.props.onKeyDown?.({ key, currentTarget: { querySelector }, preventDefault } as never);
     };
     press(true, "Enter");
     press(false, "Escape");
     expect(onOpenChange).not.toHaveBeenCalled();
     expect(focus).not.toHaveBeenCalled();
+    // Not handled here, so the Escape is still free to close the directions.
+    expect(preventDefault).not.toHaveBeenCalled();
     press(true, "Escape");
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(querySelector).toHaveBeenCalledWith('[data-testid="info-button"]');
     expect(focus).toHaveBeenCalledTimes(1);
+    // Marked handled: the directions sheet underneath leaves this Escape alone.
+    expect(preventDefault).toHaveBeenCalledTimes(1);
   });
 });

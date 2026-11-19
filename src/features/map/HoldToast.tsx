@@ -1,18 +1,18 @@
 import type { JSX } from "react";
 
-import { HOLD_HINT } from "@/features/map/copy";
 import { Icon } from "@/features/map/icons";
 
 /**
  * The one-time hint, shown once the first place resolves: a long press on the map
- * shows how long the trip there takes by public transport. A short pill under the
+ * (a right-click from md) shows how long the trip there takes by public transport;
+ * the shell picks the wording for the layout (`holdHintText` in copy.ts). A short pill under the
  * top bar, centred over the framed map, pointer-transparent so it never blocks the
  * map. A status line, so a screen reader reads it once. Presentation only:
  * hold-hint-controller decides when it shows and for how long. Its panel is
  * near-opaque and takes no backdrop blur: the ⓘ popover opens over the same
  * spot, and a blur stacked on a blur over the live map is costly to redraw.
  */
-export default function HoldToast(): JSX.Element {
+export default function HoldToast({ text }: { text: string }): JSX.Element {
   return (
     <div
       data-testid="hold-toast"
@@ -22,7 +22,7 @@ export default function HoldToast(): JSX.Element {
       <span className="shrink-0 text-[var(--hf-accent)]">
         <Icon name="hold" size={18} />
       </span>
-      <span>{HOLD_HINT}</span>
+      <span>{text}</span>
     </div>
   );
 }

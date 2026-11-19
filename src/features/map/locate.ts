@@ -1,3 +1,5 @@
+import type { SelectionAction } from "@/features/map/selection-flow";
+
 /** The ways asking for the phone's position can fail. */
 export type LocateFailure = "denied" | "unavailable" | "timeout" | "unsupported";
 
@@ -13,6 +15,33 @@ export const LOCATE_MESSAGES: Record<LocateFailure, string> = {
   timeout: "Nu am putut afla locația ta.",
   unsupported: "Locația nu e disponibilă pe acest dispozitiv.",
 };
+
+/**
+ * Whether the failure banner offers ↻: only where asking again can succeed. A
+ * refused permission, or a browser without location, fails the same way again.
+ */
+export function locateRetryable(reason: LocateFailure): boolean {
+  return reason === "unavailable" || reason === "timeout";
+}
+
+/**
+ * Whether a selection action retires a stored locate failure: a new place or ✕,
+ * and a mode, pace or time change, so the banner never outlives what the user did
+ * next. A selection settling (resolved, failed, crashed) is not something the user
+ * did, and leaves it. A map tap retires it too, in the shell's click handler.
+ */
+export function clearsLocateFailure(action: SelectionAction): boolean {
+  switch (action.type) {
+    case "start":
+    case "clear":
+    case "toggle":
+    case "setPace":
+    case "setTimeContext":
+      return true;
+    default:
+      return false;
+  }
+}
 
 export class LocateError extends Error {
   readonly reason: LocateFailure;

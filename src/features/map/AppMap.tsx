@@ -54,7 +54,7 @@ import {
   createOriginTracker,
 } from "@/features/map/clear-address-controller";
 import { DESKTOP_BREAKPOINT_PX } from "@/features/map/camera";
-import { selectionAnnouncement } from "@/features/map/copy";
+import { holdHintText, selectionAnnouncement } from "@/features/map/copy";
 import FirstOpenPulse from "@/features/map/FirstOpenPulse";
 import { createHoldHintController, type HoldHintController } from "@/features/map/hold-hint-controller";
 import HoldToast from "@/features/map/HoldToast";
@@ -83,7 +83,14 @@ import ErrorBanner from "@/features/map/ErrorBanner";
 import MapPlaceholder from "@/features/map/MapPlaceholder";
 import ModePill from "@/features/map/ModePill";
 import StatusAnnouncer from "@/features/map/StatusAnnouncer";
-import { LOCATE_MESSAGES, LocateError, locateOnce, type LocateFailure } from "@/features/map/locate";
+import {
+  clearsLocateFailure,
+  LOCATE_MESSAGES,
+  LocateError,
+  locateOnce,
+  locateRetryable,
+  type LocateFailure,
+} from "@/features/map/locate";
 import TopBar from "@/features/map/TopBar";
 import TransitousCredit from "@/features/map/TransitousCredit";
 import {
@@ -265,17 +272,16 @@ export default function AppMap() {
   const [clusterPreview, setClusterPreview] = useState<ClusterHoverPreview | null>(null);
 
   function dispatchSel(action: SelectionAction): SelectionState {
-    // Every selection path (search, pick, map tap, ✕) goes through here, so a stale
-    // locate failure, and any locate still waiting on a fix, ends with the new choice.
-    // A recompute (mode, pace or time change) only retires a stale failure banner: a
-    // fix still pending is for the same wish and selects normally when it arrives.
-    if (action.type === "start" || action.type === "clear") {
-      setLocateFailure(null);
-      if (action.type === "clear" || !action.preserveLast) {
-        locateEpochRef.current += 1;
-        locatingRef.current = false;
-        setLocating(false);
-      }
+    // Every selection path (search, pick, map tap, ✕) and every mode, pace or time
+    // change goes through here. A stale locate failure banner ends with any of them
+    // (locate.ts). A locate still waiting on a fix ends only with a new choice or ✕:
+    // a recompute keeps it, since the fix is for the same wish and selects normally
+    // when it arrives.
+    if (clearsLocateFailure(action)) setLocateFailure(null);
+    if (action.type === "clear" || (action.type === "start" && !action.preserveLast)) {
+      locateEpochRef.current += 1;
+      locatingRef.current = false;
+      setLocating(false);
     }
     const next = selectionReducer(selRef.current, action);
     if (next !== selRef.current) {
@@ -327,11 +333,15 @@ export default function AppMap() {
   // The one-time hold hint. hold-hint-controller decides, at the first resolved
   // place, whether it is due, holds it back while the ⓘ popover covers its spot,
   // and owns its hide timer (so a re-render never restarts or drops it); this
-  // component renders `holdHintVisible`.
-  const [holdHintVisible, setHoldHintVisible] = useState(false);
+  // component renders `holdHintCopy`, the hint's text while it shows. The wording
+  // follows the layout on screen at the moment it shows: a long press in the phone
+  // layout, a right-click from md.
+  const [holdHintCopy, setHoldHintCopy] = useState<string | null>(null);
   const holdHintRef = useRef<HoldHintController | null>(null);
   useEffect(() => {
-    const holdHint = createHoldHintController({ setVisible: setHoldHintVisible });
+    const holdHint = createHoldHintController({
+      setVisible: (visible) => setHoldHintCopy(visible ? holdHintText(isPhoneLayout()) : null),
+    });
     holdHintRef.current = holdHint;
     return () => {
       holdHint.dispose();
@@ -931,6 +941,9 @@ export default function AppMap() {
       // A tap on the reach label reads the time; it is not a new selection and must have no
       // effect at all (no pin move, no banner clear, no request).
       if (reachLabelAt(map, e.point)) return;
+      // Any other tap on the map retires a stale locate failure banner, whatever it
+      // goes on to do.
+      setLocateFailure(null);
       // ANY amenity click opens its popup and does NOT start a selection (no
       // geocode/reverse/isochrone) — inspecting a marker must
       // never recompute the address. A click on the active drawn
@@ -1265,7 +1278,9 @@ export default function AppMap() {
   const transitState =
     reachActive || (sel.mode === "transit" && sel.status !== "error" && sel.lastSelection !== null);
   // A failed selection, shown as the banner over the map.
-  // A failed attempt to find the phone takes the banner over the selection's own error.
+  // A failed attempt to find the phone takes the banner over the selection's own error;
+  // its ↻ asks again only where that can succeed (not for a refused permission or a
+  // browser without location).
   const errorMessage = locateFailure ? LOCATE_MESSAGES[locateFailure] : sel.status === "error" ? sel.message : null;
   // First open: no place, nothing loading or failed, no directions. The pulse
   // waits for the live map, so it never pulses over the placeholder.
@@ -1397,7 +1412,7 @@ export default function AppMap() {
         {/* After the first resolved place, once per device: a long press on the
             map plans a trip there. Held back while the ⓘ popover covers its spot
             (hold-hint-controller). */}
-        {holdHintVisible ? <HoldToast /> : null}
+        {holdHintCopy ? <HoldToast text={holdHintCopy} /> : null}
 
         {/* The basemap credits (OSM · ESA WorldCover · Natural Earth) are in the ⓘ
             popover, present in every state. The Transitous credit is the ADDITIONAL
@@ -1436,7 +1451,7 @@ export default function AppMap() {
             <div className="pointer-events-auto w-full md:absolute md:bottom-6 md:left-1/2 md:z-30 md:w-[420px] md:-translate-x-1/2">
               <ErrorBanner
                 message={errorMessage}
-                onRetry={locateFailure ? onLocate : recomputeCurrent}
+                onRetry={locateFailure ? (locateRetryable(locateFailure) ? onLocate : undefined) : recomputeCurrent}
                 onSwitchToWalk={
                   !locateFailure && sel.failedMode && sel.failedMode !== "walk" ? () => switchMode("walk") : undefined
                 }
